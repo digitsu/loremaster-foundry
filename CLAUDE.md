@@ -7,8 +7,8 @@
 
 ## Git Commit Guidelines
 
-- All commits should end with: `Co-authored by antco45`
-- Do NOT use "Generated with Claude Code" or "Co-Authored-By: Claude Opus" lines
+- Do NOT include any "Co-authored by", "Generated with Claude Code", or "Co-Authored-By" lines in commit messages
+- Keep commit messages clean and focused on the changes only
 
 ## Architecture
 
@@ -20,6 +20,7 @@ Loremaster is an AI-powered Game Master assistant module that consists of:
 ## Key Components
 
 ### Client-Side (Foundry Module)
+
 - `loremaster.mjs` - Main entry point, hooks, initialization
 - `chat-handler.mjs` - Chat message processing, private GM chat, publish/iterate/discard
 - `socket-client.mjs` - WebSocket communication with proxy server
@@ -29,6 +30,7 @@ Loremaster is an AI-powered Game Master assistant module that consists of:
 - `welcome-journal.mjs` - First-run documentation journal
 
 ### Server-Side (Proxy Server)
+
 - `socket-handler.js` - WebSocket event handlers
 - `conversation-store.js` - SQLite database for conversations and canon
 - `claude-client.js` - Claude API integration
