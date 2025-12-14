@@ -1,0 +1,1500 @@
+/**
+ * Loremaster Styles
+ *
+ * Styles for Loremaster chat messages and UI elements.
+ */
+
+/* Loremaster message styling */
+.chat-message.loremaster-response {
+  border-left: 3px solid #7b2c9e;
+  background: linear-gradient(to right, rgba(123, 44, 158, 0.1), transparent);
+}
+
+.chat-message.loremaster-response .message-header {
+  color: #7b2c9e;
+}
+
+/* Typing indicator */
+.loremaster-typing {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  color: #666;
+  font-style: italic;
+}
+
+.loremaster-typing-dots {
+  display: flex;
+  gap: 4px;
+}
+
+.loremaster-typing-dots span {
+  width: 6px;
+  height: 6px;
+  background: #7b2c9e;
+  border-radius: 50%;
+  animation: loremaster-bounce 1.4s infinite ease-in-out both;
+}
+
+.loremaster-typing-dots span:nth-child(1) {
+  animation-delay: -0.32s;
+}
+
+.loremaster-typing-dots span:nth-child(2) {
+  animation-delay: -0.16s;
+}
+
+@keyframes loremaster-bounce {
+  0%, 80%, 100% {
+    transform: scale(0);
+  }
+  40% {
+    transform: scale(1);
+  }
+}
+
+/* Tool call results */
+.loremaster-tool-result {
+  margin-top: 8px;
+  padding: 8px;
+  background: rgba(0, 0, 0, 0.05);
+  border-radius: 4px;
+  font-size: 0.9em;
+}
+
+.loremaster-tool-result .tool-name {
+  font-weight: bold;
+  color: #7b2c9e;
+}
+
+/* NPC speech from AI */
+.chat-message.loremaster-npc-speech {
+  border-left: 3px solid #2c7b9e;
+}
+
+/* Settings form enhancements */
+.loremaster-settings .api-key-input {
+  font-family: monospace;
+}
+
+.loremaster-settings .api-key-masked {
+  color: #666;
+  font-style: italic;
+}
+
+/* Sync button */
+.loremaster-sync-button {
+  background: #7b2c9e;
+  color: white;
+  border: none;
+  padding: 6px 12px;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+
+.loremaster-sync-button:hover {
+  background: #5a1f75;
+}
+
+.loremaster-sync-button:disabled {
+  background: #999;
+  cursor: not-allowed;
+}
+
+/* ===== Formatted Response Styles ===== */
+
+/* Main response container */
+.loremaster-response {
+  line-height: 1.5;
+  color: #1a1a1a;
+}
+
+/* Paragraphs */
+.loremaster-response .loremaster-paragraph {
+  margin: 0 0 0.75em 0;
+}
+
+.loremaster-response .loremaster-paragraph:last-child {
+  margin-bottom: 0;
+}
+
+/* Headers */
+.loremaster-response .loremaster-header {
+  color: #7b2c9e;
+  margin: 1em 0 0.5em 0;
+  font-weight: bold;
+  border-bottom: 1px solid rgba(123, 44, 158, 0.3);
+  padding-bottom: 0.25em;
+}
+
+.loremaster-response h3.loremaster-header {
+  font-size: 1.2em;
+}
+
+.loremaster-response h4.loremaster-header {
+  font-size: 1.1em;
+}
+
+.loremaster-response h5.loremaster-header {
+  font-size: 1em;
+}
+
+/* Blockquotes - for NPC dialogue */
+.loremaster-response .loremaster-quote {
+  margin: 0.75em 0;
+  padding: 0.5em 1em;
+  border-left: 3px solid #7b2c9e;
+  background: rgba(123, 44, 158, 0.08);
+  font-style: italic;
+  color: #333;
+}
+
+/* Lists */
+.loremaster-response .loremaster-list {
+  margin: 0.5em 0;
+  padding-left: 1.5em;
+}
+
+.loremaster-response .loremaster-list li {
+  margin: 0.25em 0;
+}
+
+/* Inline code */
+.loremaster-response .loremaster-code {
+  background: rgba(0, 0, 0, 0.08);
+  padding: 0.1em 0.4em;
+  border-radius: 3px;
+  font-family: monospace;
+  font-size: 0.9em;
+}
+
+/* Dice notation highlighting */
+.loremaster-response .loremaster-dice {
+  background: linear-gradient(135deg, #4a90d9, #357abd);
+  color: white;
+  padding: 0.1em 0.4em;
+  border-radius: 3px;
+  font-weight: bold;
+  font-family: monospace;
+  font-size: 0.9em;
+}
+
+/* Divider */
+.loremaster-response .loremaster-divider {
+  border: none;
+  border-top: 1px solid rgba(123, 44, 158, 0.3);
+  margin: 1em 0;
+}
+
+/* Bold and italic */
+.loremaster-response strong {
+  color: #5a1f75;
+}
+
+.loremaster-response em {
+  color: #666;
+}
+
+/* ===== Tool Result Styles ===== */
+
+.loremaster-tool-result {
+  margin: 0.75em 0;
+  padding: 0.75em;
+  background: rgba(74, 144, 217, 0.1);
+  border-left: 3px solid #4a90d9;
+  border-radius: 0 4px 4px 0;
+}
+
+.loremaster-tool-header {
+  font-weight: bold;
+  color: #357abd;
+  margin-bottom: 0.5em;
+  font-size: 0.9em;
+}
+
+.loremaster-tool-content {
+  font-size: 0.95em;
+}
+
+/* Dice roll results */
+.loremaster-dice-result {
+  display: flex;
+  align-items: center;
+  gap: 0.5em;
+  flex-wrap: wrap;
+}
+
+.loremaster-dice-result .dice-formula {
+  font-family: monospace;
+  background: #357abd;
+  color: white;
+  padding: 0.2em 0.5em;
+  border-radius: 3px;
+}
+
+.loremaster-dice-result .dice-values {
+  font-family: monospace;
+  color: #666;
+}
+
+.loremaster-dice-result .dice-total {
+  font-size: 1.1em;
+}
+
+/* Actor results */
+.loremaster-actor-result {
+  padding: 0.25em 0;
+}
+
+/* ===== Batch Collection UI ===== */
+
+/* Batch indicator floating panel */
+.loremaster-batch-indicator {
+  position: fixed;
+  bottom: 80px;
+  right: 320px;
+  background: linear-gradient(135deg, #7b2c9e, #5a1f75);
+  color: white;
+  padding: 12px 16px;
+  border-radius: 8px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+  z-index: 100;
+  min-width: 220px;
+  max-width: 350px;
+  font-size: 0.9em;
+}
+
+.loremaster-batch-indicator.hidden {
+  display: none;
+}
+
+.loremaster-batch-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 10px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+.loremaster-batch-title {
+  font-weight: bold;
+  font-size: 1em;
+}
+
+.loremaster-batch-timer {
+  font-family: monospace;
+  background: rgba(255, 255, 255, 0.2);
+  padding: 3px 10px;
+  border-radius: 4px;
+  font-size: 1.1em;
+}
+
+.loremaster-batch-mode {
+  font-size: 0.8em;
+  opacity: 0.8;
+  margin-top: 2px;
+}
+
+.loremaster-batch-messages {
+  max-height: 180px;
+  overflow-y: auto;
+  margin-bottom: 10px;
+}
+
+.loremaster-batch-message {
+  padding: 6px 10px;
+  margin: 6px 0;
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 4px;
+  font-size: 0.9em;
+  border-left: 3px solid rgba(255, 255, 255, 0.3);
+}
+
+.loremaster-batch-message .player-name {
+  font-weight: bold;
+  color: #ffcc00;
+}
+
+.loremaster-batch-message .character-name {
+  color: rgba(255, 255, 255, 0.7);
+  font-style: italic;
+  font-size: 0.85em;
+}
+
+.loremaster-batch-message .message-content {
+  margin-top: 4px;
+  color: rgba(255, 255, 255, 0.9);
+}
+
+.loremaster-batch-message.is-gm {
+  border-left-color: #ff9800;
+  background: rgba(255, 152, 0, 0.15);
+}
+
+.loremaster-batch-message.is-gm .player-name {
+  color: #ff9800;
+}
+
+.loremaster-batch-message.gm-ruling {
+  border-left: 3px solid #ff6b6b;
+  background: rgba(255, 107, 107, 0.2);
+}
+
+.loremaster-batch-message.gm-ruling .player-name::after {
+  content: ' [RULING]';
+  color: #ff6b6b;
+  font-weight: normal;
+}
+
+/* GM Control Buttons */
+.loremaster-batch-controls {
+  display: flex;
+  gap: 8px;
+  margin-top: 10px;
+}
+
+.loremaster-send-now-btn {
+  flex: 1;
+  background: #4CAF50;
+  color: white;
+  border: none;
+  padding: 10px 14px;
+  border-radius: 4px;
+  cursor: pointer;
+  font-weight: bold;
+  font-size: 0.95em;
+  transition: background 0.2s;
+}
+
+.loremaster-send-now-btn:hover {
+  background: #45a049;
+}
+
+.loremaster-send-now-btn:disabled {
+  background: #666;
+  cursor: not-allowed;
+}
+
+.loremaster-clear-batch-btn {
+  background: #f44336;
+  color: white;
+  border: none;
+  padding: 10px 14px;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 0.95em;
+  transition: background 0.2s;
+}
+
+.loremaster-clear-batch-btn:hover {
+  background: #d32f2f;
+}
+
+/* Empty state */
+.loremaster-batch-empty {
+  text-align: center;
+  padding: 20px;
+  color: rgba(255, 255, 255, 0.6);
+  font-style: italic;
+}
+
+/* Message count badge */
+.loremaster-batch-count {
+  background: rgba(255, 255, 255, 0.3);
+  padding: 2px 8px;
+  border-radius: 10px;
+  font-size: 0.85em;
+  margin-left: 8px;
+}
+
+/* ===== Veto Button on AI Responses ===== */
+
+.loremaster-response-controls {
+  margin-top: 12px;
+  padding-top: 10px;
+  border-top: 1px solid rgba(123, 44, 158, 0.3);
+  display: flex;
+  gap: 8px;
+}
+
+.loremaster-veto-btn {
+  background: #ff9800;
+  color: white;
+  border: none;
+  padding: 6px 12px;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 0.85em;
+  font-weight: bold;
+  transition: background 0.2s;
+}
+
+.loremaster-veto-btn:hover {
+  background: #f57c00;
+}
+
+.loremaster-regenerate-btn {
+  background: #2196F3;
+  color: white;
+  border: none;
+  padding: 6px 12px;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 0.85em;
+  transition: background 0.2s;
+}
+
+.loremaster-regenerate-btn:hover {
+  background: #1976D2;
+}
+
+/* ===== Veto Dialog ===== */
+
+.loremaster-veto-dialog {
+  padding: 16px;
+}
+
+.loremaster-veto-dialog label {
+  display: block;
+  margin-bottom: 8px;
+  font-weight: bold;
+}
+
+.loremaster-veto-dialog textarea {
+  width: 100%;
+  min-height: 100px;
+  padding: 10px;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+  font-family: inherit;
+  resize: vertical;
+}
+
+/* ===== Player Message Styling in Batched Chat ===== */
+
+.loremaster-player-message {
+  border-left: 3px solid #2196F3;
+  padding-left: 10px;
+  margin: 6px 0;
+}
+
+.loremaster-player-message .speaker-info {
+  font-size: 0.9em;
+  margin-bottom: 4px;
+}
+
+.loremaster-player-message .speaker-name {
+  font-weight: bold;
+  color: #1976D2;
+}
+
+.loremaster-player-message .character-name {
+  color: #666;
+  font-style: italic;
+  margin-left: 4px;
+}
+
+.loremaster-player-message.is-gm {
+  border-left-color: #ff9800;
+}
+
+.loremaster-player-message.is-gm .speaker-name {
+  color: #ff9800;
+}
+
+.loremaster-player-message.is-gm .speaker-name::before {
+  content: '👑 ';
+}
+
+/* ===== Processing Indicator ===== */
+
+.loremaster-processing {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px;
+  background: rgba(123, 44, 158, 0.1);
+  border-radius: 4px;
+  margin: 8px 0;
+}
+
+.loremaster-processing-spinner {
+  width: 20px;
+  height: 20px;
+  border: 2px solid #7b2c9e;
+  border-top-color: transparent;
+  border-radius: 50%;
+  animation: loremaster-spin 1s linear infinite;
+}
+
+@keyframes loremaster-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.loremaster-processing-text {
+  color: #7b2c9e;
+  font-style: italic;
+}
+
+/* ===== Content Manager Styles ===== */
+
+.content-manager-container {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+}
+
+.content-manager-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 10px 15px;
+  background: rgba(123, 44, 158, 0.1);
+  border-bottom: 1px solid rgba(123, 44, 158, 0.3);
+}
+
+.stats-summary {
+  display: flex;
+  gap: 15px;
+}
+
+.stat-item {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 0.9em;
+  color: #666;
+}
+
+.stat-item i {
+  font-size: 1.1em;
+}
+
+.stat-item.status-completed {
+  color: #4CAF50;
+}
+
+.stat-item.status-processing {
+  color: #ff9800;
+}
+
+.stat-item.status-failed {
+  color: #f44336;
+}
+
+.refresh-btn {
+  background: transparent;
+  border: 1px solid rgba(123, 44, 158, 0.5);
+  color: #7b2c9e;
+  padding: 5px 10px;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.refresh-btn:hover {
+  background: rgba(123, 44, 158, 0.1);
+}
+
+/* Tab styles */
+.content-manager-container .tabs {
+  display: flex;
+  border-bottom: 1px solid #ccc;
+  margin: 0;
+  padding: 0 10px;
+}
+
+.content-manager-container .tabs .item {
+  padding: 10px 20px;
+  cursor: pointer;
+  border-bottom: 2px solid transparent;
+  color: #666;
+  transition: all 0.2s;
+}
+
+.content-manager-container .tabs .item:hover {
+  color: #7b2c9e;
+}
+
+.content-manager-container .tabs .item.active {
+  color: #7b2c9e;
+  border-bottom-color: #7b2c9e;
+}
+
+.content-manager-container .content {
+  flex: 1;
+  overflow: auto;
+  padding: 15px;
+}
+
+/* PDF List */
+.pdf-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.pdf-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px;
+  background: rgba(0, 0, 0, 0.03);
+  border-radius: 6px;
+  margin-bottom: 10px;
+  border: 1px solid rgba(0, 0, 0, 0.08);
+  transition: all 0.2s;
+}
+
+.pdf-item:hover {
+  background: rgba(0, 0, 0, 0.06);
+}
+
+.pdf-icon {
+  font-size: 2em;
+  color: #d32f2f;
+}
+
+.pdf-info {
+  flex: 1;
+}
+
+.pdf-name {
+  font-weight: bold;
+  margin-bottom: 4px;
+}
+
+.pdf-meta {
+  display: flex;
+  gap: 12px;
+  font-size: 0.85em;
+  color: #666;
+}
+
+.pdf-category {
+  background: rgba(123, 44, 158, 0.15);
+  color: #7b2c9e;
+  padding: 2px 8px;
+  border-radius: 10px;
+}
+
+.pdf-status {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 6px;
+}
+
+.status-badge {
+  font-size: 0.8em;
+  padding: 3px 10px;
+  border-radius: 10px;
+  font-weight: bold;
+}
+
+.status-badge.status-pending {
+  background: #e0e0e0;
+  color: #666;
+}
+
+.status-badge.status-processing {
+  background: rgba(255, 152, 0, 0.2);
+  color: #f57c00;
+}
+
+.status-badge.status-completed {
+  background: rgba(76, 175, 80, 0.2);
+  color: #388E3C;
+}
+
+.status-badge.status-failed {
+  background: rgba(244, 67, 54, 0.2);
+  color: #d32f2f;
+}
+
+.error-message {
+  color: #d32f2f;
+  cursor: help;
+}
+
+.pdf-actions {
+  display: flex;
+  gap: 8px;
+}
+
+.delete-pdf-btn {
+  background: transparent;
+  border: 1px solid #f44336;
+  color: #f44336;
+  padding: 6px 10px;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.delete-pdf-btn:hover {
+  background: #f44336;
+  color: white;
+}
+
+/* Empty State */
+.empty-state {
+  text-align: center;
+  padding: 40px 20px;
+  color: #999;
+}
+
+.empty-state i {
+  font-size: 4em;
+  margin-bottom: 15px;
+  opacity: 0.5;
+}
+
+.empty-state p {
+  margin: 5px 0;
+}
+
+.empty-hint {
+  font-size: 0.9em;
+  font-style: italic;
+}
+
+/* Upload Form */
+.upload-form {
+  max-width: 500px;
+  margin: 0 auto;
+}
+
+.upload-zone {
+  border: 2px dashed #ccc;
+  border-radius: 8px;
+  padding: 40px 20px;
+  text-align: center;
+  transition: all 0.2s;
+  cursor: pointer;
+}
+
+.upload-zone:hover,
+.upload-zone.drag-over {
+  border-color: #7b2c9e;
+  background: rgba(123, 44, 158, 0.05);
+}
+
+.upload-zone-content i {
+  font-size: 3em;
+  color: #7b2c9e;
+  margin-bottom: 10px;
+}
+
+.upload-zone-content p {
+  margin: 5px 0;
+}
+
+.upload-hint {
+  font-size: 0.85em;
+  color: #999;
+}
+
+.browse-btn {
+  margin-top: 15px;
+  background: #7b2c9e;
+  color: white;
+  border: none;
+  padding: 10px 20px;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+
+.browse-btn:hover {
+  background: #5a1f75;
+}
+
+.browse-btn:disabled {
+  background: #999;
+  cursor: not-allowed;
+}
+
+.file-input.hidden {
+  display: none;
+}
+
+/* Selected File Info */
+.selected-file-info {
+  margin-top: 15px;
+  padding: 12px;
+  background: rgba(76, 175, 80, 0.1);
+  border: 1px solid rgba(76, 175, 80, 0.3);
+  border-radius: 6px;
+}
+
+.selected-file-info.hidden {
+  display: none;
+}
+
+.selected-file {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.selected-file i {
+  font-size: 1.5em;
+  color: #d32f2f;
+}
+
+.selected-file-name {
+  flex: 1;
+  font-weight: bold;
+}
+
+.selected-file-size {
+  color: #666;
+  font-size: 0.9em;
+}
+
+/* Upload Options */
+.upload-options {
+  margin-top: 20px;
+}
+
+.upload-options .form-group {
+  margin-bottom: 15px;
+}
+
+.upload-options label {
+  display: block;
+  margin-bottom: 5px;
+  font-weight: bold;
+  color: #333;
+}
+
+.upload-options input,
+.upload-options select {
+  width: 100%;
+  padding: 10px;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+  font-size: 1em;
+}
+
+.upload-options input:focus,
+.upload-options select:focus {
+  border-color: #7b2c9e;
+  outline: none;
+  box-shadow: 0 0 0 2px rgba(123, 44, 158, 0.2);
+}
+
+/* Upload Progress */
+.upload-progress {
+  margin-top: 20px;
+}
+
+.upload-progress.hidden {
+  display: none;
+}
+
+.progress-bar {
+  height: 8px;
+  background: #e0e0e0;
+  border-radius: 4px;
+  overflow: hidden;
+}
+
+.progress-bar-fill {
+  height: 100%;
+  background: linear-gradient(90deg, #7b2c9e, #a855f7);
+  border-radius: 4px;
+  transition: width 0.3s ease;
+}
+
+.progress-info {
+  display: flex;
+  justify-content: space-between;
+  margin-top: 8px;
+  font-size: 0.9em;
+  color: #666;
+}
+
+.progress-message {
+  font-style: italic;
+}
+
+/* Upload Button */
+.upload-btn {
+  width: 100%;
+  margin-top: 20px;
+  background: #7b2c9e;
+  color: white;
+  border: none;
+  padding: 14px 20px;
+  border-radius: 4px;
+  font-size: 1.1em;
+  font-weight: bold;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+
+.upload-btn:hover {
+  background: #5a1f75;
+}
+
+.upload-btn:disabled {
+  background: #999;
+  cursor: not-allowed;
+}
+
+/* Permission Notice */
+.permission-notice {
+  text-align: center;
+  padding: 40px 20px;
+  color: #666;
+}
+
+.permission-notice i {
+  font-size: 3em;
+  margin-bottom: 15px;
+  color: #999;
+}
+
+/* ===== Conversation Manager Styles ===== */
+
+.conversation-manager-container {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+}
+
+.conversation-manager-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 10px 15px;
+  background: rgba(123, 44, 158, 0.1);
+  border-bottom: 1px solid rgba(123, 44, 158, 0.3);
+}
+
+.conversation-manager-header .header-stats {
+  display: flex;
+  gap: 15px;
+}
+
+.conversation-manager-header .header-actions {
+  display: flex;
+  gap: 8px;
+}
+
+.conversation-manager-header .new-conversation-btn {
+  background: #7b2c9e;
+  color: white;
+  border: none;
+  padding: 6px 12px;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+
+.conversation-manager-header .new-conversation-btn:hover {
+  background: #5a1f75;
+}
+
+.conversation-manager-body {
+  display: flex;
+  flex: 1;
+  overflow: hidden;
+}
+
+/* Conversation List Panel */
+.conversation-list-panel {
+  width: 55%;
+  border-right: 1px solid rgba(0, 0, 0, 0.1);
+  overflow-y: auto;
+  padding: 10px;
+}
+
+.conversation-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.conversation-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 12px;
+  margin-bottom: 6px;
+  background: rgba(0, 0, 0, 0.03);
+  border-radius: 6px;
+  border: 1px solid transparent;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.conversation-item:hover {
+  background: rgba(123, 44, 158, 0.08);
+  border-color: rgba(123, 44, 158, 0.2);
+}
+
+.conversation-item.selected {
+  background: rgba(123, 44, 158, 0.12);
+  border-color: rgba(123, 44, 158, 0.4);
+}
+
+.conversation-item.active {
+  background: rgba(76, 175, 80, 0.1);
+  border-color: rgba(76, 175, 80, 0.4);
+}
+
+.conversation-item.active.selected {
+  background: rgba(76, 175, 80, 0.15);
+}
+
+.conversation-icon {
+  font-size: 1.3em;
+  color: #7b2c9e;
+}
+
+.conversation-item.active .conversation-icon {
+  color: #4CAF50;
+}
+
+.conversation-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.conversation-title {
+  font-weight: bold;
+  margin-bottom: 2px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.conversation-meta {
+  display: flex;
+  gap: 12px;
+  font-size: 0.8em;
+  color: #666;
+}
+
+.conversation-meta i {
+  margin-right: 3px;
+}
+
+.conversation-badge {
+  display: flex;
+  align-items: center;
+}
+
+.active-indicator {
+  color: #4CAF50;
+  font-size: 1.1em;
+}
+
+.load-more-container {
+  text-align: center;
+  padding: 15px;
+}
+
+.load-more-btn {
+  background: transparent;
+  border: 1px solid rgba(123, 44, 158, 0.5);
+  color: #7b2c9e;
+  padding: 8px 20px;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.load-more-btn:hover {
+  background: rgba(123, 44, 158, 0.1);
+}
+
+/* Conversation Details Panel */
+.conversation-details {
+  width: 45%;
+  padding: 15px;
+  overflow-y: auto;
+}
+
+.conversation-details.hidden {
+  display: none;
+}
+
+.details-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 15px;
+  padding-bottom: 10px;
+  border-bottom: 1px solid rgba(123, 44, 158, 0.3);
+}
+
+.details-header .detail-title {
+  margin: 0;
+  font-size: 1.2em;
+  color: #7b2c9e;
+}
+
+.details-header .active-badge {
+  background: rgba(76, 175, 80, 0.2);
+  color: #388E3C;
+  padding: 4px 10px;
+  border-radius: 10px;
+  font-size: 0.8em;
+  font-weight: bold;
+}
+
+.details-header .active-badge.hidden {
+  display: none;
+}
+
+.details-meta {
+  margin-bottom: 20px;
+}
+
+.details-meta .meta-item {
+  display: flex;
+  justify-content: space-between;
+  padding: 6px 0;
+  border-bottom: 1px solid rgba(0, 0, 0, 0.05);
+  font-size: 0.9em;
+}
+
+.details-meta .meta-label {
+  color: #666;
+}
+
+.details-meta .meta-value {
+  font-weight: bold;
+}
+
+.details-preview {
+  margin-bottom: 20px;
+}
+
+.details-preview h4 {
+  margin: 0 0 10px 0;
+  font-size: 0.95em;
+  color: #666;
+}
+
+.messages-preview {
+  background: rgba(0, 0, 0, 0.03);
+  border-radius: 6px;
+  padding: 10px;
+  max-height: 150px;
+  overflow-y: auto;
+}
+
+.message-preview {
+  padding: 8px;
+  margin-bottom: 6px;
+  border-radius: 4px;
+  font-size: 0.85em;
+}
+
+.message-preview:last-child {
+  margin-bottom: 0;
+}
+
+.message-preview.ai-message {
+  background: rgba(123, 44, 158, 0.1);
+  border-left: 2px solid #7b2c9e;
+}
+
+.message-preview.user-message {
+  background: rgba(33, 150, 243, 0.1);
+  border-left: 2px solid #2196F3;
+}
+
+.message-preview .message-role {
+  font-weight: bold;
+  margin-right: 5px;
+}
+
+.message-preview.ai-message .message-role {
+  color: #7b2c9e;
+}
+
+.message-preview.user-message .message-role {
+  color: #1976D2;
+}
+
+.message-preview .message-content {
+  color: #333;
+}
+
+.empty-messages {
+  text-align: center;
+  padding: 20px;
+  color: #999;
+  font-style: italic;
+}
+
+.details-actions {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.details-actions .switch-btn {
+  flex: 1;
+  background: #4CAF50;
+  color: white;
+  border: none;
+  padding: 10px 15px;
+  border-radius: 4px;
+  cursor: pointer;
+  font-weight: bold;
+  transition: background 0.2s;
+}
+
+.details-actions .switch-btn:hover {
+  background: #45a049;
+}
+
+.details-actions .switch-btn.hidden {
+  display: none;
+}
+
+.details-actions .rename-btn,
+.details-actions .clear-btn,
+.details-actions .delete-btn {
+  background: transparent;
+  border: 1px solid #ccc;
+  color: #666;
+  padding: 10px 12px;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.details-actions .rename-btn:hover {
+  border-color: #2196F3;
+  color: #2196F3;
+  background: rgba(33, 150, 243, 0.1);
+}
+
+.details-actions .clear-btn:hover {
+  border-color: #ff9800;
+  color: #ff9800;
+  background: rgba(255, 152, 0, 0.1);
+}
+
+.details-actions .delete-btn:hover {
+  border-color: #f44336;
+  color: #f44336;
+  background: rgba(244, 67, 54, 0.1);
+}
+
+/* Conversation Manager Empty State */
+.conversation-manager-container .empty-state {
+  text-align: center;
+  padding: 40px 20px;
+  color: #999;
+}
+
+.conversation-manager-container .empty-state i {
+  font-size: 3em;
+  margin-bottom: 15px;
+  opacity: 0.5;
+}
+
+.conversation-manager-container .empty-hint {
+  font-size: 0.9em;
+  font-style: italic;
+}
+
+/* ===== Private GM Response Styles ===== */
+
+/* Private response container */
+.loremaster-private-response {
+  border: 2px solid #7b2c9e;
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+/* Private badge at the top */
+.loremaster-private-response .private-badge {
+  background: linear-gradient(135deg, #7b2c9e, #5a1f75);
+  color: white;
+  padding: 8px 12px;
+  font-weight: bold;
+  font-size: 0.9em;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.loremaster-private-response .private-badge i {
+  font-size: 1.1em;
+}
+
+/* Response content area */
+.loremaster-private-response .response-content {
+  padding: 12px 15px;
+  background: rgba(123, 44, 158, 0.05);
+  line-height: 1.6;
+}
+
+/* Private response control buttons */
+.loremaster-private-response .private-controls {
+  display: flex;
+  gap: 8px;
+  padding: 12px 15px;
+  background: rgba(0, 0, 0, 0.03);
+  border-top: 1px solid rgba(123, 44, 158, 0.2);
+}
+
+/* Publish button - primary action */
+.loremaster-publish-btn {
+  flex: 1;
+  background: #4CAF50;
+  color: white;
+  border: none;
+  padding: 10px 15px;
+  border-radius: 4px;
+  cursor: pointer;
+  font-weight: bold;
+  font-size: 0.9em;
+  transition: all 0.2s;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+}
+
+.loremaster-publish-btn:hover {
+  background: #45a049;
+  transform: translateY(-1px);
+  box-shadow: 0 2px 8px rgba(76, 175, 80, 0.3);
+}
+
+.loremaster-publish-btn:active {
+  transform: translateY(0);
+}
+
+/* Iterate/Refine button */
+.loremaster-iterate-btn {
+  background: #2196F3;
+  color: white;
+  border: none;
+  padding: 10px 15px;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 0.9em;
+  transition: all 0.2s;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+}
+
+.loremaster-iterate-btn:hover {
+  background: #1976D2;
+  transform: translateY(-1px);
+  box-shadow: 0 2px 8px rgba(33, 150, 243, 0.3);
+}
+
+.loremaster-iterate-btn:active {
+  transform: translateY(0);
+}
+
+/* Discard button */
+.loremaster-discard-btn {
+  background: transparent;
+  border: 1px solid #f44336;
+  color: #f44336;
+  padding: 10px 15px;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 0.9em;
+  transition: all 0.2s;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+}
+
+.loremaster-discard-btn:hover {
+  background: #f44336;
+  color: white;
+}
+
+/* ===== Iterate Dialog Styles ===== */
+
+.loremaster-iterate-dialog {
+  padding: 10px;
+}
+
+.loremaster-iterate-dialog .form-group {
+  margin-bottom: 15px;
+}
+
+.loremaster-iterate-dialog label {
+  display: block;
+  margin-bottom: 6px;
+  font-weight: bold;
+  color: #333;
+}
+
+.loremaster-iterate-dialog textarea {
+  width: 100%;
+  min-height: 100px;
+  padding: 10px;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+  font-family: inherit;
+  font-size: 1em;
+  resize: vertical;
+  transition: border-color 0.2s;
+}
+
+.loremaster-iterate-dialog textarea:focus {
+  border-color: #7b2c9e;
+  outline: none;
+  box-shadow: 0 0 0 2px rgba(123, 44, 158, 0.2);
+}
+
+.loremaster-iterate-dialog .original-response-preview {
+  background: rgba(0, 0, 0, 0.05);
+  padding: 10px;
+  border-radius: 4px;
+  font-size: 0.9em;
+  color: #666;
+  max-height: 120px;
+  overflow-y: auto;
+  border-left: 3px solid #7b2c9e;
+}
+
+/* ===== Canon Message Indicator ===== */
+
+/* Canon badge on published messages */
+.chat-message[data-is-canon="true"] {
+  border-left: 3px solid #4CAF50;
+}
+
+.loremaster-canon-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  background: rgba(76, 175, 80, 0.15);
+  color: #388E3C;
+  padding: 2px 8px;
+  border-radius: 10px;
+  font-size: 0.8em;
+  font-weight: bold;
+  margin-left: 8px;
+}
+
+.loremaster-canon-badge i {
+  font-size: 0.9em;
+}

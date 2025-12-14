@@ -1,0 +1,34 @@
+{
+  "id": "loremaster",
+  "title": "Loremaster",
+  "description": "AI-powered Loremaster integration for Foundry VTT, allowing players to interact with Loremaster through the chat system.",
+  "authors": [
+    {
+      "name": "the burninator",
+      "discord": "the burninator"
+    }
+  ],
+  "version": "0.1.0",
+  "compatibility": {
+    "minimum": "13",
+    "verified": "13"
+  },
+  "esmodules": [
+    "scripts/loremaster.mjs"
+  ],
+  "styles": [
+    "styles/loremaster.css"
+  ],
+  "languages": [
+    {
+      "lang": "en",
+      "name": "English",
+      "path": "lang/en.json"
+    }
+  ],
+  "socket": true,
+  "url": "",
+  "readme": "",
+  "bugs": "",
+  "changelog": ""
+}

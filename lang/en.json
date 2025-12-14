@@ -1,0 +1,233 @@
+{
+  "LOREMASTER": {
+    "Title": "Loremaster",
+    "Settings": {
+      "Enabled": {
+        "Name": "Enable Loremaster",
+        "Hint": "Enable or disable Loremaster functionality."
+      },
+      "ApiKey": {
+        "Name": "Claude API Key",
+        "Hint": "Your Anthropic API key for Claude."
+      },
+      "TriggerPrefix": {
+        "Name": "Chat Trigger Prefix",
+        "Hint": "Messages starting with this prefix will be sent to Loremaster."
+      },
+      "ResponseVisibility": {
+        "Name": "AI Response Visibility",
+        "Hint": "Who can see Loremaster responses.",
+        "Choices": {
+          "Public": "Everyone",
+          "GM": "GM Only",
+          "Whisper": "Whisper to Requester"
+        }
+      },
+      "IncludeGameContext": {
+        "Name": "Include Game Context",
+        "Hint": "Include current scene, actors, and combat state in AI prompts."
+      },
+      "SystemIntegration": {
+        "Name": "Game System Integration",
+        "Hint": "Enable enhanced integration with the current game system."
+      },
+      "BatchingMode": {
+        "Name": "Message Batching Mode",
+        "Hint": "How to collect multiple player messages before sending to AI.",
+        "Choices": {
+          "Timer": "Timer (auto-send after delay)",
+          "Manual": "Manual (GM triggers send)"
+        }
+      },
+      "BatchTimerDuration": {
+        "Name": "Batch Timer Duration (seconds)",
+        "Hint": "Seconds to wait for additional messages before auto-sending (3-30 seconds)."
+      },
+      "PlayerMessageVisibility": {
+        "Name": "Player Message Visibility",
+        "Hint": "Who can see other players' @lm messages before Loremaster responds.",
+        "Choices": {
+          "All": "All players see all messages",
+          "GMOnly": "Only GM sees all messages",
+          "Private": "Each player only sees their own"
+        }
+      },
+      "GMRulingPrefix": {
+        "Name": "GM Ruling Prefix",
+        "Hint": "Prefix for GM override instructions that Claude must follow."
+      },
+      "ShowBatchIndicator": {
+        "Name": "Show Batch Collection Indicator",
+        "Hint": "Display a visual indicator when messages are being collected."
+      },
+      "GMSendKeyword": {
+        "Name": "GM Send Keyword",
+        "Hint": "Keyword for GM to trigger immediate batch send (e.g., @lm !send)."
+      }
+    },
+    "Messages": {
+      "Active": "Loremaster is now active",
+      "Disabled": "Loremaster is disabled",
+      "NoApiKey": "Please configure your Claude API key in module settings",
+      "EmptyMessage": "Please provide a message for Loremaster",
+      "Error": "Failed to get Loremaster response. Check console for details.",
+      "Thinking": "Loremaster is thinking..."
+    },
+    "Batch": {
+      "Title": "Collecting Messages",
+      "TimerMode": "Timer Mode",
+      "ManualMode": "Manual Mode",
+      "Empty": "Waiting for player messages...",
+      "SendNow": "Send Now",
+      "Clear": "Clear",
+      "MessageCount": "{count} message(s)",
+      "TimeRemaining": "{seconds}s",
+      "Sent": "Batch sent to Loremaster",
+      "Cleared": "Batch cleared"
+    },
+    "Veto": {
+      "Button": "Veto",
+      "Regenerate": "Regenerate",
+      "DialogTitle": "Veto AI Response",
+      "CorrectionLabel": "What should be corrected?",
+      "CorrectionPlaceholder": "Explain what was wrong and how the AI should adjust its response...",
+      "Submit": "Submit Correction",
+      "Cancel": "Cancel",
+      "Success": "Response vetoed. Regenerating...",
+      "Error": "Failed to veto response"
+    },
+    "GMRuling": {
+      "Tag": "GM RULING",
+      "Applied": "GM ruling will be applied"
+    },
+    "ContentManager": {
+      "Title": "Loremaster Content Manager",
+      "Tab": {
+        "PDFs": "Documents",
+        "Upload": "Upload"
+      },
+      "Category": {
+        "Adventure": "Adventure",
+        "Supplement": "Supplement",
+        "Reference": "Reference"
+      },
+      "Status": {
+        "Pending": "Pending",
+        "Processing": "Processing",
+        "Completed": "Ready",
+        "Failed": "Failed"
+      },
+      "Stats": {
+        "Total": "Total documents",
+        "Completed": "Ready for use",
+        "Processing": "Processing",
+        "Failed": "Failed"
+      },
+      "Refresh": "Refresh list",
+      "Empty": "No documents uploaded yet",
+      "EmptyHint": "Upload adventure PDFs to provide context for Loremaster",
+      "DropZone": "Drag and drop a PDF here",
+      "DropZoneHint": "Or click to browse",
+      "Browse": "Browse Files",
+      "DisplayName": "Display Name",
+      "DisplayNamePlaceholder": "Leave blank to use filename",
+      "CategoryLabel": "Category",
+      "Uploading": "Uploading...",
+      "UploadBtn": "Upload PDF",
+      "Delete": "Delete document",
+      "DeleteTitle": "Delete Document",
+      "DeleteConfirm": "Are you sure you want to delete \"{name}\"? This will also remove it from Loremaster's context.",
+      "GMOnly": "Only the GM can upload documents",
+      "LoadError": "Failed to load documents",
+      "UploadSuccess": "Successfully uploaded \"{name}\"",
+      "UploadError": "Upload failed: {error}",
+      "DeleteSuccess": "Deleted \"{name}\"",
+      "DeleteError": "Delete failed: {error}",
+      "InvalidFileType": "Please select a PDF file",
+      "FileTooLarge": "File is too large (max {max})"
+    },
+    "ConversationManager": {
+      "Title": "Loremaster Conversations",
+      "TotalConversations": "Total conversations",
+      "NewConversation": "New conversation",
+      "Refresh": "Refresh list",
+      "LoadMore": "Load More",
+      "Empty": "No conversations yet",
+      "EmptyHint": "Start a conversation with Loremaster using the @lm command",
+      "Untitled": "Untitled Conversation",
+      "Active": "Active",
+      "ActiveConversation": "Currently active conversation",
+      "JustNow": "Just now",
+      "MinutesAgo": "{count}m ago",
+      "HoursAgo": "{count}h ago",
+      "DaysAgo": "{count}d ago",
+      "Created": "Created",
+      "Updated": "Last Updated",
+      "Messages": "Messages",
+      "Tokens": "Tokens",
+      "RecentMessages": "Recent Messages",
+      "NoMessages": "No messages in this conversation",
+      "AI": "AI",
+      "User": "User",
+      "SwitchTo": "Switch To",
+      "SwitchSuccess": "Switched to conversation",
+      "SwitchError": "Failed to switch: {error}",
+      "Rename": "Rename",
+      "RenameTitle": "Rename Conversation",
+      "NewTitle": "New Title",
+      "RenameSuccess": "Conversation renamed",
+      "RenameError": "Failed to rename: {error}",
+      "Clear": "Clear Messages",
+      "ClearTitle": "Clear Conversation",
+      "ClearConfirm": "Are you sure you want to clear all messages from \"{name}\"? The conversation will be kept but all messages will be deleted.",
+      "ClearSuccess": "Conversation cleared",
+      "ClearError": "Failed to clear: {error}",
+      "Delete": "Delete",
+      "DeleteTitle": "Delete Conversation",
+      "DeleteConfirm": "Are you sure you want to permanently delete \"{name}\"? This cannot be undone.",
+      "DeleteSuccess": "Conversation deleted",
+      "DeleteError": "Failed to delete: {error}",
+      "CannotDeleteActive": "Cannot delete the active conversation. Switch to a different conversation first.",
+      "NewConversationTitle": "New Conversation",
+      "ConversationTitle": "Conversation Title",
+      "TitlePlaceholder": "Optional title for this conversation",
+      "Create": "Create",
+      "CreateSuccess": "New conversation created",
+      "CreateError": "Failed to create: {error}",
+      "LoadError": "Failed to load conversations"
+    },
+    "Guide": {
+      "Title": "Loremaster Guide",
+      "JournalName": "Loremaster Guide"
+    },
+    "Private": {
+      "GMOnly": "Private chat mode is GM only. Use @lm instead.",
+      "ResponseReady": "Private response ready. Click Publish to share with players.",
+      "Badge": "Private GM Response",
+      "Publish": "Publish to Players",
+      "Iterate": "Refine",
+      "Discard": "Discard",
+      "Published": "Response published to players and added to canon.",
+      "PublishError": "Failed to publish response",
+      "IterateTitle": "Refine Response",
+      "IterateLabel": "How should Loremaster refine this response?",
+      "IteratePlaceholder": "Provide instructions for refining the response...",
+      "IterateSubmit": "Refine",
+      "IterateSuccess": "Response refined. Review the new version.",
+      "IterateError": "Failed to refine response",
+      "OriginalResponse": "Original Response:",
+      "Cancel": "Cancel",
+      "DiscardTitle": "Discard Response",
+      "DiscardConfirm": "Are you sure you want to discard this response? It will not be saved to canon.",
+      "Discarded": "Response discarded."
+    },
+    "Canon": {
+      "Badge": "Canon",
+      "Published": "Added to campaign canon",
+      "UpdateSuccess": "Canon entry updated",
+      "UpdateError": "Failed to update canon entry",
+      "DeleteSuccess": "Canon entry removed",
+      "DeleteError": "Failed to remove canon entry"
+    }
+  }
+}

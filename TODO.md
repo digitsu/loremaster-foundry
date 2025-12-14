@@ -1,7 +1,7 @@
-# AI GM Integration - TODO
+# Loremaster Integration - TODO
 
 ## Overview
-Plan and implement AI-powered Game Master augmentation for Coriolis, allowing players to interact with an AI GM through the Foundry VTT chat system.
+Plan and implement AI-powered Loremaster augmentation for Coriolis, allowing players to interact with Loremaster through the Foundry VTT chat system.
 
 ---
 
@@ -15,7 +15,7 @@ Plan and implement AI-powered Game Master augmentation for Coriolis, allowing pl
 
 ### 2. Game System Interface
 - [ ] Research Foundry API hooks for chat messages, actors, items, scenes
-- [ ] Define interface points between AI GM module and yzecoriolis system
+- [ ] Define interface points between Loremaster module and yzecoriolis system
 - [ ] Determine read-only vs read-write access patterns
 - [ ] Plan event listeners for game state changes (combat, rolls, etc.)
 
@@ -32,7 +32,7 @@ Plan and implement AI-powered Game Master augmentation for Coriolis, allowing pl
 
 ### 4. Chat Message Pipeline
 - [ ] Capture player messages from Foundry chat
-- [ ] Filter/identify messages intended for AI GM (prefix? channel? whisper?)
+- [ ] Filter/identify messages intended for Loremaster (prefix? channel? whisper?)
 - [ ] Queue and serialize messages from multiple players
 - [ ] Handle real-time message ordering and batching
 - [ ] Design response rendering back to Foundry chat
@@ -53,4 +53,4 @@ Plan and implement AI-powered Game Master augmentation for Coriolis, allowing pl
 ---
 
 ## Next Session
-Start with topic #1 (Module Architecture) - create the basic module skeleton and establish the foundation for the AI GM system.
+Start with topic #1 (Module Architecture) - create the basic module skeleton and establish the foundation for the Loremaster system.
