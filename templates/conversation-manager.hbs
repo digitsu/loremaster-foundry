@@ -1,0 +1,149 @@
+{{!--
+  Loremaster Conversation Manager Template
+
+  Template for the Conversation Manager Application window.
+  Allows users to view, switch, rename, and delete conversation sessions.
+--}}
+<div class="conversation-manager-container">
+  {{!-- Header --}}
+  <header class="conversation-manager-header">
+    <div class="header-stats">
+      <span class="stat-item" title="{{localize 'LOREMASTER.ConversationManager.TotalConversations'}}">
+        <i class="fas fa-comments"></i> {{totalCount}}
+      </span>
+    </div>
+    <div class="header-actions">
+      <button type="button" class="new-conversation-btn" title="{{localize 'LOREMASTER.ConversationManager.NewConversation'}}">
+        <i class="fas fa-plus"></i>
+      </button>
+      <button type="button" class="refresh-btn" title="{{localize 'LOREMASTER.ConversationManager.Refresh'}}">
+        <i class="fas fa-sync-alt"></i>
+      </button>
+    </div>
+  </header>
+
+  {{!-- Main Content --}}
+  <div class="conversation-manager-body">
+    {{!-- Conversation List --}}
+    <div class="conversation-list-panel">
+      {{#if conversations.length}}
+        <ul class="conversation-list">
+          {{#each conversations}}
+            <li class="conversation-item {{#if (isActiveConversation this.id ../activeConversationId)}}active{{/if}}"
+                data-conversation-id="{{this.id}}">
+              <div class="conversation-icon">
+                {{#if (isActiveConversation this.id ../activeConversationId)}}
+                  <i class="fas fa-comment-dots"></i>
+                {{else}}
+                  <i class="fas fa-comment"></i>
+                {{/if}}
+              </div>
+              <div class="conversation-info">
+                <div class="conversation-title">
+                  {{#if this.title}}
+                    {{truncate this.title 30}}
+                  {{else}}
+                    {{localize "LOREMASTER.ConversationManager.Untitled"}}
+                  {{/if}}
+                </div>
+                <div class="conversation-meta">
+                  <span class="conversation-time">
+                    <i class="fas fa-clock"></i>
+                    {{formatRelativeTime this.updated_at}}
+                  </span>
+                  {{#if this.total_tokens}}
+                    <span class="conversation-tokens">
+                      <i class="fas fa-database"></i>
+                      {{formatTokens this.total_tokens}}
+                    </span>
+                  {{/if}}
+                </div>
+              </div>
+              {{#if (isActiveConversation this.id ../activeConversationId)}}
+                <div class="conversation-badge">
+                  <span class="active-indicator" title="{{localize 'LOREMASTER.ConversationManager.ActiveConversation'}}">
+                    <i class="fas fa-check-circle"></i>
+                  </span>
+                </div>
+              {{/if}}
+            </li>
+          {{/each}}
+        </ul>
+
+        {{#if hasMore}}
+          <div class="load-more-container">
+            <button type="button" class="load-more-btn">
+              <i class="fas fa-chevron-down"></i>
+              {{localize "LOREMASTER.ConversationManager.LoadMore"}}
+            </button>
+          </div>
+        {{/if}}
+      {{else}}
+        <div class="empty-state">
+          <i class="fas fa-comments"></i>
+          <p>{{localize "LOREMASTER.ConversationManager.Empty"}}</p>
+          <p class="empty-hint">{{localize "LOREMASTER.ConversationManager.EmptyHint"}}</p>
+        </div>
+      {{/if}}
+    </div>
+
+    {{!-- Details Panel --}}
+    <div class="conversation-details {{#unless selectedConversation}}hidden{{/unless}}">
+      <div class="details-header">
+        <h3 class="detail-title">
+          {{#if selectedConversation.title}}
+            {{selectedConversation.title}}
+          {{else}}
+            {{localize "LOREMASTER.ConversationManager.Untitled"}}
+          {{/if}}
+        </h3>
+        <span class="active-badge hidden">
+          <i class="fas fa-check-circle"></i>
+          {{localize "LOREMASTER.ConversationManager.Active"}}
+        </span>
+      </div>
+
+      <div class="details-meta">
+        <div class="meta-item">
+          <span class="meta-label">{{localize "LOREMASTER.ConversationManager.Created"}}:</span>
+          <span class="meta-value detail-created"></span>
+        </div>
+        <div class="meta-item">
+          <span class="meta-label">{{localize "LOREMASTER.ConversationManager.Updated"}}:</span>
+          <span class="meta-value detail-updated"></span>
+        </div>
+        <div class="meta-item">
+          <span class="meta-label">{{localize "LOREMASTER.ConversationManager.Messages"}}:</span>
+          <span class="meta-value detail-messages">0</span>
+        </div>
+        <div class="meta-item">
+          <span class="meta-label">{{localize "LOREMASTER.ConversationManager.Tokens"}}:</span>
+          <span class="meta-value detail-tokens">0</span>
+        </div>
+      </div>
+
+      <div class="details-preview">
+        <h4>{{localize "LOREMASTER.ConversationManager.RecentMessages"}}</h4>
+        <div class="messages-preview">
+          {{!-- Populated dynamically --}}
+        </div>
+      </div>
+
+      <div class="details-actions">
+        <button type="button" class="switch-btn" title="{{localize 'LOREMASTER.ConversationManager.SwitchTo'}}">
+          <i class="fas fa-exchange-alt"></i>
+          {{localize "LOREMASTER.ConversationManager.SwitchTo"}}
+        </button>
+        <button type="button" class="rename-btn" title="{{localize 'LOREMASTER.ConversationManager.Rename'}}">
+          <i class="fas fa-edit"></i>
+        </button>
+        <button type="button" class="clear-btn" title="{{localize 'LOREMASTER.ConversationManager.Clear'}}">
+          <i class="fas fa-eraser"></i>
+        </button>
+        <button type="button" class="delete-btn" title="{{localize 'LOREMASTER.ConversationManager.Delete'}}">
+          <i class="fas fa-trash"></i>
+        </button>
+      </div>
+    </div>
+  </div>
+</div>

@@ -1,0 +1,162 @@
+{{!--
+  Loremaster Content Manager Template
+
+  Template for the Content Manager Application window.
+  Allows GMs to upload and manage PDF adventure content.
+--}}
+<div class="content-manager-container">
+  {{!-- Header with stats --}}
+  <header class="content-manager-header">
+    <div class="stats-summary">
+      {{#if stats}}
+        <span class="stat-item" title="{{localize 'LOREMASTER.ContentManager.Stats.Total'}}">
+          <i class="fas fa-file-pdf"></i> {{stats.total}}
+        </span>
+        <span class="stat-item status-completed" title="{{localize 'LOREMASTER.ContentManager.Stats.Completed'}}">
+          <i class="fas fa-check-circle"></i> {{stats.completed}}
+        </span>
+        {{#if stats.processing}}
+          <span class="stat-item status-processing" title="{{localize 'LOREMASTER.ContentManager.Stats.Processing'}}">
+            <i class="fas fa-spinner fa-spin"></i> {{stats.processing}}
+          </span>
+        {{/if}}
+        {{#if stats.failed}}
+          <span class="stat-item status-failed" title="{{localize 'LOREMASTER.ContentManager.Stats.Failed'}}">
+            <i class="fas fa-exclamation-circle"></i> {{stats.failed}}
+          </span>
+        {{/if}}
+      {{/if}}
+    </div>
+    <button type="button" class="refresh-btn" title="{{localize 'LOREMASTER.ContentManager.Refresh'}}">
+      <i class="fas fa-sync-alt"></i>
+    </button>
+  </header>
+
+  {{!-- Tab Navigation --}}
+  <nav class="tabs">
+    <a class="item" data-tab="pdfs">
+      <i class="fas fa-file-pdf"></i> {{localize "LOREMASTER.ContentManager.Tab.PDFs"}}
+    </a>
+    <a class="item" data-tab="upload">
+      <i class="fas fa-upload"></i> {{localize "LOREMASTER.ContentManager.Tab.Upload"}}
+    </a>
+  </nav>
+
+  {{!-- Tab Content --}}
+  <section class="content">
+    {{!-- PDFs List Tab --}}
+    <div class="tab" data-tab="pdfs">
+      {{#if pdfs.length}}
+        <ul class="pdf-list">
+          {{#each pdfs}}
+            <li class="pdf-item {{statusClass processing_status}}">
+              <div class="pdf-icon">
+                <i class="fas fa-file-pdf"></i>
+              </div>
+              <div class="pdf-info">
+                <div class="pdf-name">{{display_name}}</div>
+                <div class="pdf-meta">
+                  <span class="pdf-category">{{categoryLabel category}}</span>
+                  <span class="pdf-size">{{formatSize original_size}}</span>
+                  {{#if extracted_text_length}}
+                    <span class="pdf-extracted">{{formatSize extracted_text_length}} extracted</span>
+                  {{/if}}
+                </div>
+                <div class="pdf-status">
+                  <span class="status-badge {{statusClass processing_status}}">
+                    {{statusLabel processing_status}}
+                  </span>
+                  {{#if error_message}}
+                    <span class="error-message" title="{{error_message}}">
+                      <i class="fas fa-info-circle"></i>
+                    </span>
+                  {{/if}}
+                </div>
+              </div>
+              <div class="pdf-actions">
+                <button type="button" class="delete-pdf-btn" data-pdf-id="{{id}}" data-pdf-name="{{display_name}}"
+                        title="{{localize 'LOREMASTER.ContentManager.Delete'}}">
+                  <i class="fas fa-trash"></i>
+                </button>
+              </div>
+            </li>
+          {{/each}}
+        </ul>
+      {{else}}
+        <div class="empty-state">
+          <i class="fas fa-file-pdf"></i>
+          <p>{{localize "LOREMASTER.ContentManager.Empty"}}</p>
+          <p class="empty-hint">{{localize "LOREMASTER.ContentManager.EmptyHint"}}</p>
+        </div>
+      {{/if}}
+    </div>
+
+    {{!-- Upload Tab --}}
+    <div class="tab" data-tab="upload">
+      {{#if isGM}}
+        <form class="upload-form">
+          {{!-- Drop Zone --}}
+          <div class="upload-zone">
+            <div class="upload-zone-content">
+              <i class="fas fa-cloud-upload-alt"></i>
+              <p>{{localize "LOREMASTER.ContentManager.DropZone"}}</p>
+              <p class="upload-hint">{{localize "LOREMASTER.ContentManager.DropZoneHint"}} (max {{maxFileSize}})</p>
+              <button type="button" class="browse-btn">
+                <i class="fas fa-folder-open"></i> {{localize "LOREMASTER.ContentManager.Browse"}}
+              </button>
+            </div>
+            <input type="file" class="file-input hidden" accept=".pdf,application/pdf">
+          </div>
+
+          {{!-- Selected File Info --}}
+          <div class="selected-file-info hidden">
+            <div class="selected-file">
+              <i class="fas fa-file-pdf"></i>
+              <span class="selected-file-name"></span>
+              <span class="selected-file-size"></span>
+            </div>
+          </div>
+
+          {{!-- Upload Options --}}
+          <div class="upload-options">
+            <div class="form-group">
+              <label for="display-name">{{localize "LOREMASTER.ContentManager.DisplayName"}}</label>
+              <input type="text" id="display-name" class="display-name-input"
+                     placeholder="{{localize 'LOREMASTER.ContentManager.DisplayNamePlaceholder'}}">
+            </div>
+
+            <div class="form-group">
+              <label for="category">{{localize "LOREMASTER.ContentManager.CategoryLabel"}}</label>
+              <select id="category" class="category-select">
+                {{#each categories}}
+                  <option value="{{value}}">{{label}}</option>
+                {{/each}}
+              </select>
+            </div>
+          </div>
+
+          {{!-- Upload Progress --}}
+          <div class="upload-progress hidden">
+            <div class="progress-bar">
+              <div class="progress-bar-fill" style="width: 0%"></div>
+            </div>
+            <div class="progress-info">
+              <span class="progress-message">{{localize "LOREMASTER.ContentManager.Uploading"}}</span>
+              <span class="progress-percent">0%</span>
+            </div>
+          </div>
+
+          {{!-- Upload Button --}}
+          <button type="button" class="upload-btn" disabled>
+            <i class="fas fa-upload"></i> {{localize "LOREMASTER.ContentManager.UploadBtn"}}
+          </button>
+        </form>
+      {{else}}
+        <div class="permission-notice">
+          <i class="fas fa-lock"></i>
+          <p>{{localize "LOREMASTER.ContentManager.GMOnly"}}</p>
+        </div>
+      {{/if}}
+    </div>
+  </section>
+</div>
