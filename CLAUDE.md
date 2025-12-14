@@ -5,6 +5,11 @@
 - **Foundry VTT Version**: 13
 - **Module Compatibility**: Minimum V13, Verified V13
 
+## Git Commit Guidelines
+
+- All commits should end with: `Co-authored by antco45`
+- Do NOT use "Generated with Claude Code" or "Co-Authored-By: Claude Opus" lines
+
 ## Architecture
 
 Loremaster is an AI-powered Game Master assistant module that consists of:
