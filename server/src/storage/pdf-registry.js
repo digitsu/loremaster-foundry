@@ -6,6 +6,7 @@
  */
 
 import crypto from 'crypto';
+import { getCategoryPriority } from '../services/pdf-processor.js';
 
 /**
  * PDFRegistry class provides database operations for PDF documents.
@@ -33,6 +34,7 @@ export class PDFRegistry {
    */
   createPDF(worldId, filename, originalSize, category, displayName, contentBuffer) {
     const contentHash = this._calculateHash(contentBuffer);
+    const priority = getCategoryPriority(category);
 
     // Check for duplicate
     const existing = this.db.prepare(`
@@ -46,11 +48,11 @@ export class PDFRegistry {
 
     const result = this.db.prepare(`
       INSERT INTO pdf_documents
-        (world_id, filename, original_size, category, display_name, content_hash, processing_status)
-      VALUES (?, ?, ?, ?, ?, ?, 'pending')
-    `).run(worldId, filename, originalSize, category, displayName || filename, contentHash);
+        (world_id, filename, original_size, category, priority, display_name, content_hash, processing_status)
+      VALUES (?, ?, ?, ?, ?, ?, ?, 'pending')
+    `).run(worldId, filename, originalSize, category, priority, displayName || filename, contentHash);
 
-    console.log(`[PDFRegistry] Created PDF record ${result.lastInsertRowid} for ${filename}`);
+    console.log(`[PDFRegistry] Created PDF record ${result.lastInsertRowid} for ${filename} (priority: ${priority})`);
 
     return {
       id: result.lastInsertRowid,
@@ -58,6 +60,7 @@ export class PDFRegistry {
       filename,
       originalSize,
       category,
+      priority,
       displayName: displayName || filename,
       contentHash,
       processingStatus: 'pending'
@@ -107,6 +110,7 @@ export class PDFRegistry {
 
   /**
    * Get all completed PDFs for a world (for context building).
+   * Ordered by priority (highest first) then upload date.
    *
    * @param {string} worldId - The Foundry world identifier.
    * @returns {Array} Array of completed PDF records with claude_file_id.
@@ -115,7 +119,7 @@ export class PDFRegistry {
     return this.db.prepare(`
       SELECT * FROM pdf_documents
       WHERE world_id = ? AND processing_status = 'completed' AND claude_file_id IS NOT NULL
-      ORDER BY uploaded_at DESC
+      ORDER BY priority DESC, uploaded_at DESC
     `).all(worldId);
   }
 

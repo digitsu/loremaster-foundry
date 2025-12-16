@@ -117,3 +117,122 @@ export function buildBatchSystemPrompt(basePrompt, isBatch = false, vetoCorrecti
 
   return prompt;
 }
+
+/**
+ * Get the rules discrepancy detection prompt based on GM presence.
+ * Instructs Claude on how to handle conflicts between PDF rules and Foundry system.
+ *
+ * @param {boolean} gmPresent - Whether a GM is currently active.
+ * @param {boolean} isSolo - Whether this is a solo game (single GM player).
+ * @param {string} houseRulesText - Formatted text of existing house rules.
+ * @returns {string} The discrepancy detection prompt text.
+ */
+export function getDiscrepancyDetectionPrompt(gmPresent, isSolo, houseRulesText = '') {
+  let prompt = `
+## Rules Discrepancy Handling
+
+You have access to both PDF-uploaded rules documents and the Foundry VTT game system implementation.
+These may sometimes differ in their interpretation of rules.
+
+### Document Priority (Highest to Lowest)
+1. **Core Rules** (priority 100) - Primary rulebook, highest authority
+2. **Rules Supplement** (priority 80) - Official supplements and expansions
+3. **Adventure Module** (priority 50) - Adventure-specific rules
+4. **Adventure Supplement** (priority 40) - Adventure extras
+5. **Reference** (priority 30) - General reference material
+
+When rules conflict, higher priority documents take precedence over lower priority ones.
+However, Foundry's system implementation may differ from any of these.
+
+`;
+
+  if (gmPresent || isSolo) {
+    prompt += `### GM Present Mode
+${isSolo ? '(Solo game - you are the GM and player)' : ''}
+
+When you detect a discrepancy between PDF rules and the Foundry system implementation:
+
+1. **STOP** and explain the discrepancy using this format:
+
+   **[RULES DISCREPANCY DETECTED]**
+
+   **Situation:** [What triggered this check]
+
+   **PDF Rules say:** [Quote or summarize the PDF rule]
+
+   **Foundry System implements:** [Describe how the system differs]
+
+   **Impact:** [What practical difference this makes for gameplay]
+
+   **Question for GM:** Which interpretation should I use?
+   - **Option A:** Follow PDF rules (may require manual adjustments to actors/items)
+   - **Option B:** Follow Foundry system implementation (automated, but differs from book)
+
+2. **Wait for the GM's ruling** before proceeding with the action.
+
+3. After receiving a ruling, ask: "Should this be a **Session-only** ruling, or a **Persistent House Rule** for future sessions?"
+
+IMPORTANT: Do not automatically choose one interpretation. The GM's decision matters.
+`;
+  } else {
+    prompt += `### No GM Present Mode
+
+When you detect a discrepancy between PDF rules and the Foundry system implementation:
+
+- You **MUST** follow the Foundry system implementation
+- Add a brief note: "[Rules note: A discrepancy exists between PDF rules and Foundry's implementation. Following Foundry system rules since no GM is present to make a ruling.]"
+- Do **NOT** ask for ruling decisions - proceed with the Foundry implementation
+- Do **NOT** modify game state in ways that contradict Foundry's automation
+
+This ensures consistent gameplay when no GM is available to adjudicate.
+`;
+  }
+
+  // Add existing house rules if any
+  if (houseRulesText && houseRulesText.trim().length > 0) {
+    prompt += `
+### Established House Rules
+
+The following rulings have been made by the GM for this campaign.
+**Always apply these when relevant - they override both PDF and Foundry defaults.**
+
+${houseRulesText}
+
+---
+`;
+  }
+
+  return prompt;
+}
+
+/**
+ * Format house rules for inclusion in the system prompt.
+ *
+ * @param {Array} houseRules - Array of house rule objects from database.
+ * @returns {string} Formatted house rules text.
+ */
+export function formatHouseRulesForPrompt(houseRules) {
+  if (!houseRules || houseRules.length === 0) {
+    return '';
+  }
+
+  const lines = [];
+
+  for (const rule of houseRules) {
+    lines.push(`**Rule Context:** ${rule.rule_context}`);
+
+    if (rule.pdf_interpretation) {
+      lines.push(`- PDF says: ${rule.pdf_interpretation}`);
+    }
+
+    if (rule.foundry_interpretation) {
+      lines.push(`- Foundry implements: ${rule.foundry_interpretation}`);
+    }
+
+    lines.push(`- **GM Ruling:** ${rule.gm_ruling}`);
+    lines.push(`- Type: ${rule.ruling_type === 'persistent' ? 'Persistent House Rule' : 'Session Only'}`);
+    lines.push('');
+  }
+
+  return lines.join('\n');
+}

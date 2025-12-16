@@ -559,6 +559,125 @@ export class SocketClient {
     });
   }
 
+  // ===== House Rules Methods =====
+
+  /**
+   * Submit a new GM ruling for a rules discrepancy.
+   *
+   * @param {object} ruling - The ruling details.
+   * @param {string} ruling.ruleContext - Short description of the rule situation.
+   * @param {string} ruling.foundryInterpretation - What Foundry/system says.
+   * @param {string} ruling.pdfInterpretation - What the PDF says.
+   * @param {string} ruling.gmRuling - The GM's decision.
+   * @param {string} ruling.rulingType - 'session' or 'persistent'.
+   * @param {number} ruling.sourcePdfId - Optional source PDF ID.
+   * @returns {Promise<object>} Ruling result with ID.
+   */
+  async submitRuling(ruling) {
+    this._requireAuth();
+
+    if (!this.isGM) {
+      throw new Error('Submitting rulings requires GM permissions');
+    }
+
+    return this._sendRequest('submit-ruling', ruling);
+  }
+
+  /**
+   * List house rules for the current world.
+   *
+   * @param {boolean} persistentOnly - If true, only return persistent rules.
+   * @returns {Promise<Array>} Array of ruling records.
+   */
+  async listRulings(persistentOnly = false) {
+    this._requireAuth();
+
+    const result = await this._sendRequest('list-rulings', {
+      persistentOnly
+    });
+    return result.rulings || [];
+  }
+
+  /**
+   * Update an existing ruling.
+   *
+   * @param {number} rulingId - The ruling ID.
+   * @param {object} updates - Fields to update.
+   * @returns {Promise<object>} Update result.
+   */
+  async updateRuling(rulingId, updates) {
+    this._requireAuth();
+
+    if (!this.isGM) {
+      throw new Error('Updating rulings requires GM permissions');
+    }
+
+    return this._sendRequest('update-ruling', {
+      rulingId,
+      ...updates
+    });
+  }
+
+  /**
+   * Delete a ruling.
+   *
+   * @param {number} rulingId - The ruling ID.
+   * @returns {Promise<object>} Delete result.
+   */
+  async deleteRuling(rulingId) {
+    this._requireAuth();
+
+    if (!this.isGM) {
+      throw new Error('Deleting rulings requires GM permissions');
+    }
+
+    return this._sendRequest('delete-ruling', {
+      rulingId
+    });
+  }
+
+  /**
+   * Get the house rules document as markdown.
+   * For use with the Foundry Journal interface.
+   *
+   * @returns {Promise<object>} Object with markdown content.
+   */
+  async getHouseRulesDocument() {
+    this._requireAuth();
+
+    return this._sendRequest('get-house-rules-document', {});
+  }
+
+  /**
+   * Update the house rules document from markdown.
+   * For use with the Foundry Journal interface.
+   *
+   * @param {string} markdown - The markdown content.
+   * @returns {Promise<object>} Update result.
+   */
+  async updateHouseRulesDocument(markdown) {
+    this._requireAuth();
+
+    if (!this.isGM) {
+      throw new Error('Updating house rules requires GM permissions');
+    }
+
+    return this._sendRequest('update-house-rules-document', {
+      markdown
+    });
+  }
+
+  /**
+   * Get house rules statistics for the current world.
+   *
+   * @returns {Promise<object>} Statistics object.
+   */
+  async getHouseRulesStats() {
+    this._requireAuth();
+
+    return this._sendRequest('get-house-rules-stats', {});
+  }
+
   /**
    * Register a tool handler for execution requests from the proxy.
    *

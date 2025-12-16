@@ -16,6 +16,7 @@ import { DataExtractor } from './data-extractor.mjs';
 import { ContentManager, registerContentManagerHelpers } from './content-manager.mjs';
 import { ConversationManager, registerConversationManagerHelpers } from './conversation-manager.mjs';
 import { registerWelcomeSettings, checkAndShowWelcome, openWelcomeJournal } from './welcome-journal.mjs';
+import { createHouseRulesJournal } from './house-rules-journal.mjs';
 
 // Module constants
 const MODULE_ID = 'loremaster';
@@ -125,6 +126,9 @@ async function initializeLoremaster() {
     // Create conversation manager for history management
     const conversationManager = new ConversationManager(socketClient);
 
+    // Create house rules journal manager
+    const houseRulesJournal = createHouseRulesJournal(socketClient);
+
     // Store references on the game object for debugging/access
     game.loremaster = {
       socketClient,
@@ -134,6 +138,7 @@ async function initializeLoremaster() {
       dataExtractor,
       contentManager,
       conversationManager,
+      houseRulesJournal,
       MODULE_ID,
       MODULE_NAME,
       // Convenience methods
@@ -141,6 +146,7 @@ async function initializeLoremaster() {
       listSyncedFiles: () => dataExtractor.listSyncedFiles(),
       openContentManager: () => contentManager.render(true),
       openConversationManager: () => conversationManager.render(true),
+      openHouseRulesJournal: () => houseRulesJournal.open(),
       openGuide: () => openWelcomeJournal()
     };
 
@@ -271,8 +277,24 @@ Hooks.on('getSceneControlButtons', (controls) => {
     });
 
     loremasterTools.push({
-      name: 'loremaster-guide',
+      name: 'loremaster-house-rules',
       order: 7,
+      title: game.i18n?.localize('LOREMASTER.HouseRules.Title') || 'Loremaster House Rules',
+      icon: 'fa-solid fa-gavel',
+      button: true,
+      visible: true,
+      onChange: () => {
+        if (game.loremaster?.openHouseRulesJournal) {
+          game.loremaster.openHouseRulesJournal();
+        } else {
+          ui.notifications.warn('Loremaster not initialized');
+        }
+      }
+    });
+
+    loremasterTools.push({
+      name: 'loremaster-guide',
+      order: 8,
       title: game.i18n?.localize('LOREMASTER.Guide.Title') || 'Loremaster Guide',
       icon: 'fa-solid fa-book',
       button: true,
