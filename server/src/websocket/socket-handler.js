@@ -8,7 +8,12 @@
 
 import { v4 as uuidv4 } from 'uuid';
 import { BatchProcessor } from '../services/batch-processor.js';
-import { getMultiplayerSystemPrompt, getVetoCorrectionPrompt } from '../prompts/multiplayer-system.js';
+import {
+  getMultiplayerSystemPrompt,
+  getVetoCorrectionPrompt,
+  getDiscrepancyDetectionPrompt,
+  formatHouseRulesForPrompt
+} from '../prompts/multiplayer-system.js';
 import { getToolDefinitions } from '../tools/tool-definitions.js';
 
 export class SocketHandler {
@@ -22,16 +27,20 @@ export class SocketHandler {
    * @param {FilesManager} filesManager - The Claude Files API manager.
    * @param {PDFProcessor} pdfProcessor - The PDF processor for adventure uploads.
    */
-  constructor(wss, claudeClient, conversationStore, credentialsStore, filesManager = null, pdfProcessor = null) {
+  constructor(wss, claudeClient, conversationStore, credentialsStore, filesManager = null, pdfProcessor = null, houseRulesStore = null) {
     this.wss = wss;
     this.claudeClient = claudeClient;
     this.conversationStore = conversationStore;
     this.credentialsStore = credentialsStore;
     this.filesManager = filesManager;
     this.pdfProcessor = pdfProcessor;
+    this.houseRulesStore = houseRulesStore;
 
     // Map of worldId -> client connection info
     this.clients = new Map();
+
+    // Map of worldId -> Set of GM connection IDs
+    this.gmConnections = new Map();
 
     // Pending tool execution callbacks
     this.pendingToolCalls = new Map();
@@ -83,6 +92,8 @@ export class SocketHandler {
         console.log(`[SocketHandler] Connection closed: ${connectionId}`);
         if (ws.worldId) {
           this.clients.delete(ws.worldId);
+          // Remove from GM tracking if this was a GM
+          this._removeGMConnection(ws.worldId, connectionId);
         }
       });
 
@@ -199,6 +210,34 @@ export class SocketHandler {
           result = await this.handleDeleteCanon(ws, payload);
           break;
 
+        case 'submit-ruling':
+          result = await this.handleSubmitRuling(ws, payload);
+          break;
+
+        case 'list-rulings':
+          result = await this.handleListRulings(ws, payload);
+          break;
+
+        case 'update-ruling':
+          result = await this.handleUpdateRuling(ws, payload);
+          break;
+
+        case 'delete-ruling':
+          result = await this.handleDeleteRuling(ws, payload);
+          break;
+
+        case 'get-house-rules-document':
+          result = await this.handleGetHouseRulesDocument(ws);
+          break;
+
+        case 'update-house-rules-document':
+          result = await this.handleUpdateHouseRulesDocument(ws, payload);
+          break;
+
+        case 'get-house-rules-stats':
+          result = await this.handleGetHouseRulesStats(ws);
+          break;
+
         default:
           throw new Error(`Unknown message type: ${type}`);
       }
@@ -253,6 +292,11 @@ export class SocketHandler {
       isGM,
       connectedAt: new Date()
     });
+
+    // Track GM connections for presence detection
+    if (isGM) {
+      this._addGMConnection(worldId, ws.connectionId);
+    }
 
     console.log(`[SocketHandler] Authenticated world: ${worldId} (${worldName}) - User: ${userName} (GM: ${isGM})`);
 
@@ -352,6 +396,18 @@ ${canonHistory.messages.join('\n\n---\n\n')}
 Build upon this established history in your responses.
 `;
     }
+
+    // Add discrepancy detection prompt with house rules
+    const gmPresent = this.hasActiveGM(worldId);
+    const isSolo = context?.gmPresence?.isSoloGame || false;
+    let houseRulesText = '';
+
+    if (this.houseRulesStore) {
+      const houseRules = this.houseRulesStore.getRulingsForContext(worldId);
+      houseRulesText = formatHouseRulesForPrompt(houseRules);
+    }
+
+    additionalSystemPrompt += getDiscrepancyDetectionPrompt(gmPresent, isSolo, houseRulesText);
 
     // Send to Claude with tools
     const response = await this.claudeClient.sendMessage(
@@ -454,6 +510,19 @@ Build upon this established history in your responses.
     // Get multiplayer system prompt additions
     const multiplayerPrompt = getMultiplayerSystemPrompt();
 
+    // Add discrepancy detection prompt with house rules
+    const gmPresent = this.hasActiveGM(worldId);
+    const isSolo = context?.gmPresence?.isSoloGame || false;
+    let houseRulesText = '';
+
+    if (this.houseRulesStore) {
+      const houseRules = this.houseRulesStore.getRulingsForContext(worldId);
+      houseRulesText = formatHouseRulesForPrompt(houseRules);
+    }
+
+    const discrepancyPrompt = getDiscrepancyDetectionPrompt(gmPresent, isSolo, houseRulesText);
+    const combinedSystemPrompt = multiplayerPrompt + '\n\n' + discrepancyPrompt;
+
     // Send to Claude with multiplayer prompt and tools
     const response = await this.claudeClient.sendMessage(
       apiKey,
@@ -462,7 +531,7 @@ Build upon this established history in your responses.
       history,
       fileIds,
       tools,
-      { additionalSystemPrompt: multiplayerPrompt }
+      { additionalSystemPrompt: combinedSystemPrompt }
     );
 
     // Process tool calls if any
@@ -1081,6 +1150,66 @@ Build upon this established history in your responses.
     }));
   }
 
+  // ===== GM Presence Tracking =====
+
+  /**
+   * Add a GM connection to tracking.
+   *
+   * @param {string} worldId - The world ID.
+   * @param {string} connectionId - The connection ID.
+   * @private
+   */
+  _addGMConnection(worldId, connectionId) {
+    if (!this.gmConnections.has(worldId)) {
+      this.gmConnections.set(worldId, new Set());
+    }
+    this.gmConnections.get(worldId).add(connectionId);
+    console.log(`[SocketHandler] GM connected to world ${worldId} (${this.gmConnections.get(worldId).size} GM(s) active)`);
+  }
+
+  /**
+   * Remove a GM connection from tracking.
+   *
+   * @param {string} worldId - The world ID.
+   * @param {string} connectionId - The connection ID.
+   * @private
+   */
+  _removeGMConnection(worldId, connectionId) {
+    const gmSet = this.gmConnections.get(worldId);
+    if (gmSet) {
+      gmSet.delete(connectionId);
+      if (gmSet.size === 0) {
+        this.gmConnections.delete(worldId);
+        console.log(`[SocketHandler] No GMs remaining in world ${worldId}`);
+      } else {
+        console.log(`[SocketHandler] GM disconnected from world ${worldId} (${gmSet.size} GM(s) remaining)`);
+      }
+    }
+  }
+
+  /**
+   * Check if there is at least one active GM connection for a world.
+   * Used for rules discrepancy handling.
+   *
+   * @param {string} worldId - The world ID.
+   * @returns {boolean} True if at least one GM is connected.
+   */
+  hasActiveGM(worldId) {
+    const gmSet = this.gmConnections.get(worldId);
+    return gmSet ? gmSet.size > 0 : false;
+  }
+
+  /**
+   * Get the count of active GM connections for a world.
+   *
+   * @param {string} worldId - The world ID.
+   * @returns {number} Number of active GM connections.
+   */
+  getActiveGMCount(worldId) {
+    const gmSet = this.gmConnections.get(worldId);
+    return gmSet ? gmSet.size : 0;
+  }
+
   // ===== PDF Handlers =====
 
   /**
@@ -1109,8 +1238,9 @@ Build upon this established history in your responses.
       throw new Error('Filename and file data are required');
     }
 
-    if (!['adventure', 'supplement', 'reference'].includes(category)) {
-      throw new Error('Invalid category. Must be: adventure, supplement, or reference');
+    const validCategories = ['core_rules', 'rules_supplement', 'adventure', 'adventure_supplement', 'reference'];
+    if (!validCategories.includes(category)) {
+      throw new Error(`Invalid category. Must be one of: ${validCategories.join(', ')}`);
     }
 
     console.log(`[SocketHandler] PDF upload request: ${filename} (${category})`);
@@ -1366,5 +1496,240 @@ Build upon this established history in your responses.
       canonId,
       message: 'Canon retconned (deleted)'
     };
+  }
+
+  // ===== House Rules Handlers =====
+
+  /**
+   * Handle submit ruling request.
+   * GM submits a new ruling for a rules discrepancy.
+   *
+   * @param {WebSocket} ws - The WebSocket connection.
+   * @param {Object} payload - The ruling payload.
+   * @returns {Object} Ruling result.
+   */
+  async handleSubmitRuling(ws, payload) {
+    this.requireGM(ws);
+
+    if (!this.houseRulesStore) {
+      throw new Error('House rules store not configured');
+    }
+
+    const {
+      ruleContext,
+      foundryInterpretation,
+      pdfInterpretation,
+      gmRuling,
+      rulingType,
+      sourcePdfId
+    } = payload;
+
+    if (!ruleContext || !gmRuling) {
+      throw new Error('Rule context and GM ruling are required');
+    }
+
+    const ruling = this.houseRulesStore.createRuling(ws.worldId, {
+      ruleContext,
+      foundryInterpretation,
+      pdfInterpretation,
+      gmRuling,
+      rulingType: rulingType || 'session',
+      sourcePdfId,
+      createdBy: ws.userId,
+      createdByName: ws.userName
+    });
+
+    console.log(`[SocketHandler] Created ${rulingType} ruling ${ruling.id} by ${ws.userName}`);
+
+    return {
+      success: true,
+      ruling
+    };
+  }
+
+  /**
+   * Handle list rulings request.
+   *
+   * @param {WebSocket} ws - The WebSocket connection.
+   * @param {Object} payload - The list payload.
+   * @returns {Object} List of rulings.
+   */
+  async handleListRulings(ws, { persistentOnly = false }) {
+    this.requireAuth(ws);
+
+    if (!this.houseRulesStore) {
+      return { rulings: [] };
+    }
+
+    const rulings = this.houseRulesStore.getRulingsForWorld(ws.worldId, persistentOnly);
+
+    return { rulings };
+  }
+
+  /**
+   * Handle update ruling request.
+   * GM updates an existing ruling.
+   *
+   * @param {WebSocket} ws - The WebSocket connection.
+   * @param {Object} payload - The update payload.
+   * @returns {Object} Update result.
+   */
+  async handleUpdateRuling(ws, { rulingId, ...updates }) {
+    this.requireGM(ws);
+
+    if (!this.houseRulesStore) {
+      throw new Error('House rules store not configured');
+    }
+
+    if (!rulingId) {
+      throw new Error('Ruling ID is required');
+    }
+
+    // Verify ruling belongs to this world
+    const ruling = this.houseRulesStore.getRuling(rulingId);
+    if (!ruling) {
+      throw new Error(`Ruling not found: ${rulingId}`);
+    }
+
+    if (ruling.world_id !== ws.worldId) {
+      throw new Error('Ruling does not belong to this world');
+    }
+
+    const success = this.houseRulesStore.updateRuling(rulingId, updates);
+
+    if (!success) {
+      throw new Error('Failed to update ruling');
+    }
+
+    console.log(`[SocketHandler] Updated ruling ${rulingId} by ${ws.userName}`);
+
+    return {
+      success: true,
+      rulingId,
+      message: 'Ruling updated'
+    };
+  }
+
+  /**
+   * Handle delete ruling request.
+   * GM removes a ruling.
+   *
+   * @param {WebSocket} ws - The WebSocket connection.
+   * @param {Object} payload - The delete payload.
+   * @returns {Object} Delete result.
+   */
+  async handleDeleteRuling(ws, { rulingId }) {
+    this.requireGM(ws);
+
+    if (!this.houseRulesStore) {
+      throw new Error('House rules store not configured');
+    }
+
+    if (!rulingId) {
+      throw new Error('Ruling ID is required');
+    }
+
+    // Verify ruling belongs to this world
+    const ruling = this.houseRulesStore.getRuling(rulingId);
+    if (!ruling) {
+      throw new Error(`Ruling not found: ${rulingId}`);
+    }
+
+    if (ruling.world_id !== ws.worldId) {
+      throw new Error('Ruling does not belong to this world');
+    }
+
+    const success = this.houseRulesStore.deleteRuling(rulingId);
+
+    if (!success) {
+      throw new Error('Failed to delete ruling');
+    }
+
+    console.log(`[SocketHandler] Deleted ruling ${rulingId} by ${ws.userName}`);
+
+    return {
+      success: true,
+      rulingId,
+      message: 'Ruling deleted'
+    };
+  }
+
+  /**
+   * Handle get house rules document request.
+   * Returns markdown for the Foundry Journal interface.
+   *
+   * @param {WebSocket} ws - The WebSocket connection.
+   * @returns {Object} Document with markdown content.
+   */
+  async handleGetHouseRulesDocument(ws) {
+    this.requireAuth(ws);
+
+    if (!this.houseRulesStore) {
+      return {
+        markdown: '# House Rules\n\nNo house rules store configured.'
+      };
+    }
+
+    const markdown = this.houseRulesStore.exportAsMarkdown(ws.worldId, true);
+
+    return { markdown };
+  }
+
+  /**
+   * Handle update house rules document request.
+   * Imports markdown from the Foundry Journal interface.
+   *
+   * @param {WebSocket} ws - The WebSocket connection.
+   * @param {Object} payload - The update payload.
+   * @returns {Object} Import result.
+   */
+  async handleUpdateHouseRulesDocument(ws, { markdown }) {
+    this.requireGM(ws);
+
+    if (!this.houseRulesStore) {
+      throw new Error('House rules store not configured');
+    }
+
+    if (!markdown) {
+      throw new Error('Markdown content is required');
+    }
+
+    // Note: This is a simple import that creates new rules from the markdown.
+    // For more sophisticated editing, we might want to diff against existing rules.
+    const result = this.houseRulesStore.importFromMarkdown(
+      ws.worldId,
+      markdown,
+      ws.userId,
+      ws.userName
+    );
+
+    console.log(`[SocketHandler] Imported house rules from markdown by ${ws.userName}`);
+
+    return {
+      success: true,
+      imported: result.imported,
+      errors: result.errors
+    };
+  }
+
+  /**
+   * Handle get house rules stats request.
+   *
+   * @param {WebSocket} ws - The WebSocket connection.
+   * @returns {Object} Statistics object.
+   */
+  async handleGetHouseRulesStats(ws) {
+    this.requireAuth(ws);
+
+    if (!this.houseRulesStore) {
+      return {
+        total: 0,
+        persistent: 0,
+        sessionActive: 0,
+        sessionExpired: 0
+      };
+    }
+
+    return this.houseRulesStore.getStats(ws.worldId);
   }
 }

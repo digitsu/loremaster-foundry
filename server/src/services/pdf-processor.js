@@ -11,6 +11,28 @@ import pdfParse from 'pdf-parse';
 import { config } from '../config/default.js';
 
 /**
+ * PDF category definitions with priority values.
+ * Higher priority means the document has more authority for rules decisions.
+ */
+export const PDF_CATEGORIES = {
+  core_rules: { value: 'core_rules', priority: 100, label: 'Core Rules' },
+  rules_supplement: { value: 'rules_supplement', priority: 80, label: 'Rules Supplement' },
+  adventure: { value: 'adventure', priority: 50, label: 'Adventure Module' },
+  adventure_supplement: { value: 'adventure_supplement', priority: 40, label: 'Adventure Supplement' },
+  reference: { value: 'reference', priority: 30, label: 'Reference' }
+};
+
+/**
+ * Get priority value for a category.
+ *
+ * @param {string} category - The category value.
+ * @returns {number} The priority value (default 50 for unknown categories).
+ */
+export function getCategoryPriority(category) {
+  return PDF_CATEGORIES[category]?.priority ?? 50;
+}
+
+/**
  * PDFProcessor class handles PDF text extraction and processing.
  */
 export class PDFProcessor {
@@ -180,7 +202,7 @@ export class PDFProcessor {
    * @private
    */
   _formatForClaude(text, displayName, category, pdfInfo) {
-    const categoryLabel = {
+    const categoryLabel = PDF_CATEGORIES[category]?.label || {
       adventure: 'Adventure Module',
       supplement: 'Rules Supplement',
       reference: 'Reference Material'

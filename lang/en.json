@@ -107,8 +107,10 @@
         "Upload": "Upload"
       },
       "Category": {
-        "Adventure": "Adventure",
-        "Supplement": "Supplement",
+        "CoreRules": "Core Rules",
+        "RulesSupplement": "Rules Supplement",
+        "Adventure": "Adventure Module",
+        "AdventureSupplement": "Adventure Supplement",
         "Reference": "Reference"
       },
       "Status": {
@@ -199,6 +201,34 @@
     "Guide": {
       "Title": "Loremaster Guide",
       "JournalName": "Loremaster Guide"
+    },
+    "HouseRules": {
+      "Title": "Loremaster House Rules",
+      "JournalName": "Loremaster House Rules",
+      "Empty": "No house rules established",
+      "EmptyHint": "House rules are created when you make GM rulings on rules discrepancies",
+      "SessionOnly": "Session Only",
+      "Persistent": "Persistent",
+      "RuleContext": "Rule Context",
+      "PDFInterpretation": "PDF Rules",
+      "FoundryInterpretation": "Foundry System",
+      "GMRuling": "GM Ruling",
+      "CreatedBy": "Created by",
+      "CreatedAt": "Created",
+      "DiscrepancyDetected": "Rules Discrepancy Detected",
+      "ChooseInterpretation": "Which interpretation should I use?",
+      "OptionA": "Follow PDF rules (may require manual adjustments)",
+      "OptionB": "Follow Foundry system implementation",
+      "RulingTypeQuestion": "Should this be a Session-only ruling or a Persistent House Rule?",
+      "SubmitSuccess": "Ruling submitted successfully",
+      "SubmitError": "Failed to submit ruling",
+      "DeleteSuccess": "Ruling deleted",
+      "DeleteError": "Failed to delete ruling",
+      "UpdateSuccess": "Ruling updated",
+      "UpdateError": "Failed to update ruling",
+      "SyncSuccess": "House rules synced",
+      "SyncError": "Failed to sync house rules",
+      "NoGMNote": "Following Foundry system rules (no GM present)"
     },
     "Private": {
       "GMOnly": "Private chat mode is GM only. Use @lm instead.",

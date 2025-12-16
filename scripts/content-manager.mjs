@@ -34,7 +34,12 @@ export function registerContentManagerHelpers() {
 
   // Get localized category label
   Handlebars.registerHelper('categoryLabel', (category) => {
-    const key = `LOREMASTER.ContentManager.Category.${(category || 'reference').charAt(0).toUpperCase() + (category || 'reference').slice(1)}`;
+    // Convert snake_case to PascalCase for localization key
+    const cat = category || 'reference';
+    const pascalCase = cat.split('_').map(part =>
+      part.charAt(0).toUpperCase() + part.slice(1)
+    ).join('');
+    const key = `LOREMASTER.ContentManager.Category.${pascalCase}`;
     return game.i18n.localize(key);
   });
 }
@@ -93,8 +98,10 @@ export class ContentManager extends Application {
       isUploading: this.isUploading,
       uploadProgress: this.uploadProgress,
       categories: [
+        { value: 'core_rules', label: game.i18n.localize('LOREMASTER.ContentManager.Category.CoreRules') },
+        { value: 'rules_supplement', label: game.i18n.localize('LOREMASTER.ContentManager.Category.RulesSupplement') },
         { value: 'adventure', label: game.i18n.localize('LOREMASTER.ContentManager.Category.Adventure') },
-        { value: 'supplement', label: game.i18n.localize('LOREMASTER.ContentManager.Category.Supplement') },
+        { value: 'adventure_supplement', label: game.i18n.localize('LOREMASTER.ContentManager.Category.AdventureSupplement') },
         { value: 'reference', label: game.i18n.localize('LOREMASTER.ContentManager.Category.Reference') }
       ],
       isGM: game.user.isGM,

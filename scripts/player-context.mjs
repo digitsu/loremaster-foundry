@@ -198,4 +198,59 @@ export class PlayerContext {
     }
     return userContext.userName;
   }
+
+  // ===== GM Presence Detection =====
+
+  /**
+   * Check if any GM is currently present (active/online) in the game.
+   *
+   * @returns {boolean} True if at least one GM is active.
+   */
+  static isGMPresent() {
+    return game.users.some(u => u.isGM && u.active);
+  }
+
+  /**
+   * Check if this is a solo game (single player who is GM).
+   * In solo mode, the player acts as their own GM for ruling purposes.
+   *
+   * @returns {boolean} True if only one user is active and they are GM.
+   */
+  static isSoloGame() {
+    const activeUsers = game.users.filter(u => u.active);
+    return activeUsers.length === 1 && activeUsers[0].isGM;
+  }
+
+  /**
+   * Get the current game mode based on GM presence.
+   * Used to determine how Loremaster handles rules discrepancies.
+   *
+   * @returns {string} Game mode: 'solo', 'gm_present', or 'no_gm'.
+   */
+  static getGameMode() {
+    if (this.isSoloGame()) return 'solo';
+    if (this.isGMPresent()) return 'gm_present';
+    return 'no_gm';
+  }
+
+  /**
+   * Get GM presence context for sending to the server.
+   * Includes game mode and active user counts.
+   *
+   * @returns {Object} GM presence context object.
+   */
+  static getGMPresenceContext() {
+    const activeUsers = game.users.filter(u => u.active);
+    const activeGMs = activeUsers.filter(u => u.isGM);
+    const activePlayers = activeUsers.filter(u => !u.isGM);
+
+    return {
+      gameMode: this.getGameMode(),
+      isGMPresent: activeGMs.length > 0,
+      isSoloGame: this.isSoloGame(),
+      activeGMCount: activeGMs.length,
+      activePlayerCount: activePlayers.length,
+      totalActiveUsers: activeUsers.length
+    };
+  }
 }

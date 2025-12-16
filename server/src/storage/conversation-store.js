@@ -25,6 +25,7 @@ export class ConversationStore {
     this.db = new Database(dbPath);
     this.db.pragma('journal_mode = WAL');
     this.initSchema();
+    this.runMigrations();
     console.log(`[ConversationStore] Database initialized at ${dbPath}`);
   }
 
@@ -97,6 +98,7 @@ export class ConversationStore {
         filename TEXT NOT NULL,
         original_size INTEGER NOT NULL,
         category TEXT NOT NULL,
+        priority INTEGER DEFAULT 50,
         display_name TEXT,
         processing_status TEXT DEFAULT 'pending',
         error_message TEXT,
@@ -134,7 +136,41 @@ export class ConversationStore {
 
       CREATE INDEX IF NOT EXISTS idx_canon_world ON canon_messages(world_id);
       CREATE INDEX IF NOT EXISTS idx_canon_conversation ON canon_messages(conversation_id);
+
+      CREATE TABLE IF NOT EXISTS house_rules (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        world_id TEXT NOT NULL,
+        rule_context TEXT NOT NULL,
+        foundry_interpretation TEXT,
+        pdf_interpretation TEXT,
+        gm_ruling TEXT NOT NULL,
+        ruling_type TEXT NOT NULL DEFAULT 'session',
+        source_pdf_id INTEGER,
+        created_by TEXT NOT NULL,
+        created_by_name TEXT,
+        created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+        expires_at DATETIME,
+        FOREIGN KEY (source_pdf_id) REFERENCES pdf_documents(id)
+      );
+
+      CREATE INDEX IF NOT EXISTS idx_house_rules_world ON house_rules(world_id);
+      CREATE INDEX IF NOT EXISTS idx_house_rules_type ON house_rules(ruling_type);
     `);
+  }
+
+  /**
+   * Run database migrations for schema updates.
+   * Handles adding new columns to existing tables.
+   */
+  runMigrations() {
+    // Check if priority column exists in pdf_documents
+    const pdfColumns = this.db.prepare("PRAGMA table_info(pdf_documents)").all();
+    const hasPriorityColumn = pdfColumns.some(col => col.name === 'priority');
+
+    if (!hasPriorityColumn) {
+      console.log('[ConversationStore] Running migration: adding priority column to pdf_documents');
+      this.db.exec(`ALTER TABLE pdf_documents ADD COLUMN priority INTEGER DEFAULT 50`);
+    }
   }
 
   /**
