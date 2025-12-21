@@ -15,6 +15,7 @@ import { BatchUI, addVetoControls } from './batch-ui.mjs';
 import { DataExtractor } from './data-extractor.mjs';
 import { ContentManager, registerContentManagerHelpers } from './content-manager.mjs';
 import { ConversationManager, registerConversationManagerHelpers } from './conversation-manager.mjs';
+import { UsageMonitor, registerUsageMonitorHelpers } from './usage-monitor.mjs';
 import { registerWelcomeSettings, checkAndShowWelcome, openWelcomeJournal } from './welcome-journal.mjs';
 import { createHouseRulesJournal } from './house-rules-journal.mjs';
 
@@ -40,6 +41,9 @@ Hooks.once('init', () => {
 
   // Register Handlebars helpers for Conversation Manager
   registerConversationManagerHelpers();
+
+  // Register Handlebars helpers for Usage Monitor
+  registerUsageMonitorHelpers();
 });
 
 /**
@@ -129,6 +133,9 @@ async function initializeLoremaster() {
     // Create house rules journal manager
     const houseRulesJournal = createHouseRulesJournal(socketClient);
 
+    // Create usage monitor for API usage tracking
+    const usageMonitor = new UsageMonitor(socketClient);
+
     // Store references on the game object for debugging/access
     game.loremaster = {
       socketClient,
@@ -139,6 +146,7 @@ async function initializeLoremaster() {
       contentManager,
       conversationManager,
       houseRulesJournal,
+      usageMonitor,
       MODULE_ID,
       MODULE_NAME,
       // Convenience methods
@@ -147,6 +155,7 @@ async function initializeLoremaster() {
       openContentManager: () => contentManager.render(true),
       openConversationManager: () => conversationManager.render(true),
       openHouseRulesJournal: () => houseRulesJournal.open(),
+      openUsageMonitor: () => usageMonitor.open(),
       openGuide: () => openWelcomeJournal()
     };
 
@@ -176,15 +185,18 @@ async function initializeLoremaster() {
     // Managers can still work without socket connection for viewing
     const contentManager = new ContentManager(socketClient);
     const conversationManager = new ConversationManager(socketClient);
+    const usageMonitor = new UsageMonitor(socketClient);
     game.loremaster = {
       socketClient,
       contentManager,
       conversationManager,
+      usageMonitor,
       error,
       MODULE_ID,
       MODULE_NAME,
       openContentManager: () => contentManager.render(true),
       openConversationManager: () => conversationManager.render(true),
+      openUsageMonitor: () => usageMonitor.open(),
       openGuide: () => openWelcomeJournal()
     };
 
@@ -293,8 +305,24 @@ Hooks.on('getSceneControlButtons', (controls) => {
     });
 
     loremasterTools.push({
-      name: 'loremaster-guide',
+      name: 'loremaster-usage',
       order: 8,
+      title: game.i18n?.localize('LOREMASTER.UsageMonitor.Title') || 'API Usage Monitor',
+      icon: 'fa-solid fa-chart-bar',
+      button: true,
+      visible: true,
+      onChange: () => {
+        if (game.loremaster?.openUsageMonitor) {
+          game.loremaster.openUsageMonitor();
+        } else {
+          ui.notifications.warn('Loremaster not initialized');
+        }
+      }
+    });
+
+    loremasterTools.push({
+      name: 'loremaster-guide',
+      order: 9,
       title: game.i18n?.localize('LOREMASTER.Guide.Title') || 'Loremaster Guide',
       icon: 'fa-solid fa-book',
       button: true,

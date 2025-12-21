@@ -1,0 +1,159 @@
+{{!--
+  Loremaster Usage Monitor Template
+
+  Template for the Usage Monitor Application window.
+  Displays API usage statistics with horizontal progress bars.
+--}}
+<div class="usage-monitor-container">
+  {{#if isLoading}}
+    <div class="loading-overlay">
+      <i class="fas fa-spinner fa-spin"></i>
+      <span>{{localize "LOREMASTER.UsageMonitor.Loading"}}</span>
+    </div>
+  {{else if stats}}
+    {{!-- All-Time Usage Section --}}
+    <section class="usage-section">
+      <h3 class="section-header">
+        <i class="fas fa-history"></i>
+        {{localize "LOREMASTER.UsageMonitor.AllTimeUsage"}}
+      </h3>
+
+      <div class="usage-main">
+        <div class="usage-label">
+          <span class="usage-title">{{localize "LOREMASTER.UsageMonitor.TokensUsed"}}</span>
+          <span class="usage-values">
+            {{formatNumber stats.allTime.totalTokens}}
+            {{#if hasTokenLimit}}
+              / {{formatNumber maxTokensPerMonth}}
+            {{/if}}
+          </span>
+        </div>
+
+        {{#if hasTokenLimit}}
+          <div class="usage-bar-container">
+            <div class="usage-bar {{usageLevel stats.allTime.totalTokens maxTokensPerMonth}}"
+                 style="width: {{barWidth stats.allTime.totalTokens maxTokensPerMonth}}%"></div>
+          </div>
+          <div class="usage-percent">
+            {{formatPercent stats.allTime.totalTokens maxTokensPerMonth}}
+          </div>
+        {{else}}
+          <div class="usage-no-limit">
+            {{localize "LOREMASTER.UsageMonitor.NoLimitConfigured"}}
+          </div>
+        {{/if}}
+      </div>
+
+      <div class="usage-breakdown">
+        <div class="breakdown-item">
+          <span class="breakdown-label">{{localize "LOREMASTER.UsageMonitor.InputTokens"}}</span>
+          <span class="breakdown-value">{{formatNumber stats.allTime.inputTokens}}</span>
+        </div>
+        <div class="breakdown-item">
+          <span class="breakdown-label">{{localize "LOREMASTER.UsageMonitor.OutputTokens"}}</span>
+          <span class="breakdown-value">{{formatNumber stats.allTime.outputTokens}}</span>
+        </div>
+        <div class="breakdown-item">
+          <span class="breakdown-label">{{localize "LOREMASTER.UsageMonitor.TotalRequests"}}</span>
+          <span class="breakdown-value">{{formatNumber stats.allTime.requestCount}}</span>
+        </div>
+      </div>
+    </section>
+
+    {{!-- Session Usage Section (Trip Meter) --}}
+    <section class="usage-section session-section">
+      <h3 class="section-header">
+        <i class="fas fa-stopwatch"></i>
+        {{localize "LOREMASTER.UsageMonitor.SessionUsage"}}
+        {{#if isGM}}
+          <button type="button" class="reset-session-btn" title="{{localize 'LOREMASTER.UsageMonitor.ResetSession'}}">
+            <i class="fas fa-redo"></i>
+            {{localize "LOREMASTER.UsageMonitor.Reset"}}
+          </button>
+        {{/if}}
+      </h3>
+
+      <div class="session-info">
+        <span class="session-started">
+          <i class="fas fa-clock"></i>
+          {{#if stats.session.sessionStart}}
+            {{localize "LOREMASTER.UsageMonitor.SessionStarted"}}: {{formatDateTime stats.session.sessionStart}}
+          {{else}}
+            {{localize "LOREMASTER.UsageMonitor.NoActiveSession"}}
+          {{/if}}
+        </span>
+      </div>
+
+      <div class="usage-main">
+        <div class="usage-label">
+          <span class="usage-title">{{localize "LOREMASTER.UsageMonitor.TokensThisSession"}}</span>
+          <span class="usage-values session-tokens">
+            {{formatNumber stats.session.totalTokens}}
+          </span>
+        </div>
+
+        {{!-- Session progress bar (relative to configured limit) --}}
+        {{#if hasTokenLimit}}
+          <div class="usage-bar-container session-bar">
+            <div class="usage-bar {{usageLevel stats.session.totalTokens maxTokensPerMonth}}"
+                 style="width: {{barWidth stats.session.totalTokens maxTokensPerMonth}}%"></div>
+          </div>
+        {{/if}}
+      </div>
+
+      <div class="usage-breakdown">
+        <div class="breakdown-item">
+          <span class="breakdown-label">{{localize "LOREMASTER.UsageMonitor.InputTokens"}}</span>
+          <span class="breakdown-value">{{formatNumber stats.session.inputTokens}}</span>
+        </div>
+        <div class="breakdown-item">
+          <span class="breakdown-label">{{localize "LOREMASTER.UsageMonitor.OutputTokens"}}</span>
+          <span class="breakdown-value">{{formatNumber stats.session.outputTokens}}</span>
+        </div>
+        <div class="breakdown-item">
+          <span class="breakdown-label">{{localize "LOREMASTER.UsageMonitor.TotalRequests"}}</span>
+          <span class="breakdown-value">{{formatNumber stats.session.requestCount}}</span>
+        </div>
+      </div>
+    </section>
+
+    {{!-- Usage By Feature Type --}}
+    {{#if stats.byType.length}}
+      <section class="usage-section">
+        <h3 class="section-header">
+          <i class="fas fa-chart-pie"></i>
+          {{localize "LOREMASTER.UsageMonitor.UsageByType"}}
+        </h3>
+
+        <ul class="usage-by-type">
+          {{#each stats.byType}}
+            <li class="type-item">
+              <span class="type-name">{{requestTypeLabel request_type}}</span>
+              <span class="type-stats">
+                <span class="type-tokens">{{formatNumber total_tokens}} tokens</span>
+                <span class="type-requests">({{formatNumber request_count}} requests)</span>
+              </span>
+            </li>
+          {{/each}}
+        </ul>
+      </section>
+    {{/if}}
+
+    {{!-- Refresh Button --}}
+    <footer class="usage-footer">
+      <button type="button" class="refresh-btn">
+        <i class="fas fa-sync-alt"></i>
+        {{localize "LOREMASTER.UsageMonitor.Refresh"}}
+      </button>
+    </footer>
+  {{else}}
+    <div class="no-data">
+      <i class="fas fa-chart-bar"></i>
+      <p>{{localize "LOREMASTER.UsageMonitor.NoData"}}</p>
+      <button type="button" class="refresh-btn">
+        <i class="fas fa-sync-alt"></i>
+        {{localize "LOREMASTER.UsageMonitor.Refresh"}}
+      </button>
+    </div>
+  {{/if}}
+</div>
