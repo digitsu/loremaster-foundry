@@ -258,6 +258,22 @@
       "UpdateError": "Failed to update canon entry",
       "DeleteSuccess": "Canon entry removed",
       "DeleteError": "Failed to remove canon entry"
+    },
+    "GMPrep": {
+      "DialogTitle": "Generate GM Prep Script",
+      "DialogExplanation": "This will analyze the adventure PDF and generate a structured GM preparation script. The script includes:",
+      "DialogBullet1": "Session 0 setup and character integration hooks",
+      "DialogBullet2": "Act-by-act story goals, milestones, and key events",
+      "DialogBullet3": "NPC summaries with motivations and key information",
+      "DialogBullet4": "Strategies to guide players back if they deviate from the story",
+      "OverwriteWarning": "An existing script will be overwritten.",
+      "DialogConfirm": "This may take 1-2 minutes. Proceed?",
+      "Generating": "Generating GM Prep script... This may take a minute.",
+      "Success": "GM Prep script created for \"{name}\"",
+      "Error": "Failed to generate script: {error}",
+      "Generate": "Generate GM Prep Script",
+      "Regenerate": "Regenerate GM Prep Script",
+      "JournalTitle": "Loremaster: {name} - GM Script"
     }
   }
 }

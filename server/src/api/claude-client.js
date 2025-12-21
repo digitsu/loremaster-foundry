@@ -272,6 +272,104 @@ export class ClaudeClient {
   }
 
   /**
+   * Send a raw message to Claude with direct control over messages and system prompt.
+   * Used for specialized tasks like GM Prep script generation.
+   *
+   * @param {string} apiKey - The user's Claude API key.
+   * @param {Array} messages - Array of message objects for Claude API.
+   * @param {Object} options - Request options.
+   * @param {string} options.systemPrompt - The system prompt to use.
+   * @param {Array} options.fileIds - Claude file_ids to include as context.
+   * @param {number} options.maxTokens - Maximum tokens for response.
+   * @returns {Promise<Object>} The Claude API response.
+   */
+  async sendMessageRaw(apiKey, messages, options = {}) {
+    if (!apiKey) {
+      throw new Error('API key not provided');
+    }
+
+    const fileIds = options.fileIds || [];
+    const maxTokens = options.maxTokens || this.maxTokens;
+
+    // If file IDs provided, prepend document blocks to first user message
+    if (fileIds.length > 0) {
+      const processedMessages = messages.map((msg, index) => {
+        if (msg.role === 'user' && index === 0) {
+          // Add file references to first user message
+          const content = [];
+          for (const fileId of fileIds) {
+            content.push({
+              type: 'document',
+              source: {
+                type: 'file',
+                file_id: fileId
+              }
+            });
+          }
+          // Add original content
+          if (typeof msg.content === 'string') {
+            content.push({ type: 'text', text: msg.content });
+          } else if (Array.isArray(msg.content)) {
+            content.push(...msg.content);
+          }
+          return { ...msg, content };
+        }
+        return msg;
+      });
+      messages = processedMessages;
+    }
+
+    // Build request body
+    const requestBody = {
+      model: this.model,
+      max_tokens: maxTokens,
+      messages
+    };
+
+    if (options.systemPrompt) {
+      requestBody.system = options.systemPrompt;
+    }
+
+    // Build headers
+    const headers = {
+      'Content-Type': 'application/json',
+      'x-api-key': apiKey,
+      'anthropic-version': this.apiVersion
+    };
+
+    // Add beta header if using files
+    if (fileIds.length > 0) {
+      headers['anthropic-beta'] = config.claude.filesApiBeta;
+    }
+
+    try {
+      console.log(`[ClaudeClient] Sending raw request to ${this.model} (maxTokens: ${maxTokens})`);
+
+      const response = await fetch(this.apiEndpoint, {
+        method: 'POST',
+        headers,
+        body: JSON.stringify(requestBody)
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        const errorMessage = errorData.error?.message || `HTTP ${response.status}`;
+        console.error(`[ClaudeClient] API error: ${errorMessage}`);
+        throw new Error(`Claude API error: ${errorMessage}`);
+      }
+
+      const data = await response.json();
+      console.log(`[ClaudeClient] Raw response received, stop_reason: ${data.stop_reason}`);
+
+      return data;
+
+    } catch (error) {
+      console.error('[ClaudeClient] Raw request failed:', error.message);
+      throw error;
+    }
+  }
+
+  /**
    * Format game context as inline text.
    *
    * @param {Object} context - Game context object.

@@ -74,6 +74,18 @@
                 </div>
               </div>
               <div class="pdf-actions">
+                {{!-- GM Prep button for adventure PDFs (GM only) --}}
+                {{#if ../isGM}}
+                  {{#if (eq category "adventure")}}
+                    <button type="button" class="gm-prep-btn {{#if hasGMPrepScript}}has-script{{/if}}"
+                            data-pdf-id="{{id}}"
+                            data-pdf-name="{{display_name}}"
+                            data-has-script="{{hasGMPrepScript}}"
+                            title="{{#if hasGMPrepScript}}{{localize 'LOREMASTER.GMPrep.Regenerate'}}{{else}}{{localize 'LOREMASTER.GMPrep.Generate'}}{{/if}}">
+                      <i class="fas {{#if hasGMPrepScript}}fa-sync{{else}}fa-wand-magic-sparkles{{/if}}"></i>
+                    </button>
+                  {{/if}}
+                {{/if}}
                 <button type="button" class="delete-pdf-btn" data-pdf-id="{{id}}" data-pdf-name="{{display_name}}"
                         title="{{localize 'LOREMASTER.ContentManager.Delete'}}">
                   <i class="fas fa-trash"></i>

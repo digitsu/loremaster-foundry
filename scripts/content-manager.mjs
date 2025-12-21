@@ -135,6 +135,9 @@ export class ContentManager extends Application {
     // Delete buttons
     html.find('.delete-pdf-btn').on('click', this._onDeletePDF.bind(this));
 
+    // GM Prep buttons
+    html.find('.gm-prep-btn').on('click', this._onGMPrep.bind(this));
+
     // Refresh button
     html.find('.refresh-btn').on('click', this._onRefresh.bind(this));
   }
@@ -157,6 +160,7 @@ export class ContentManager extends Application {
 
   /**
    * Load PDFs from the server.
+   * Also loads GM Prep status for adventure PDFs.
    *
    * @private
    */
@@ -164,6 +168,24 @@ export class ContentManager extends Application {
     try {
       this.pdfs = await this.socketClient.listPDFs();
       this.stats = await this.socketClient.getPDFStats();
+
+      // Load GM Prep status for adventure PDFs (GM only)
+      if (game.user.isGM) {
+        for (const pdf of this.pdfs) {
+          if (pdf.category === 'adventure') {
+            try {
+              const status = await this.socketClient.getGMPrepStatus(pdf.id);
+              pdf.hasGMPrepScript = status.hasScript;
+              pdf.gmPrepStatus = status.status;
+              pdf.gmPrepScriptId = status.scriptId;
+            } catch (error) {
+              console.warn(`${MODULE_ID} | Failed to get GM Prep status for PDF ${pdf.id}:`, error);
+              pdf.hasGMPrepScript = false;
+            }
+          }
+        }
+      }
+
       this.render(false);
     } catch (error) {
       console.error(`${MODULE_ID} | Failed to load PDFs:`, error);
@@ -462,5 +484,214 @@ export class ContentManager extends Application {
   static getCategoryLabel(category) {
     const key = `LOREMASTER.ContentManager.Category.${category.charAt(0).toUpperCase() + category.slice(1)}`;
     return game.i18n.localize(key);
+  }
+
+  // ===== GM Prep Methods =====
+
+  /**
+   * Handle GM Prep button click.
+   * Opens a confirmation dialog and generates the adventure script.
+   *
+   * @param {Event} event - The click event.
+   * @private
+   */
+  async _onGMPrep(event) {
+    event.preventDefault();
+
+    const pdfId = parseInt(event.currentTarget.dataset.pdfId, 10);
+    const pdfName = event.currentTarget.dataset.pdfName;
+    const hasExisting = event.currentTarget.dataset.hasScript === 'true';
+
+    // Show confirmation dialog with explanation
+    const confirmed = await this._showGMPrepDialog(pdfName, hasExisting);
+    if (!confirmed) return;
+
+    try {
+      // Show notification that generation is starting
+      ui.notifications.info(game.i18n.localize('LOREMASTER.GMPrep.Generating'));
+
+      // Generate script with progress callback
+      const result = await this.socketClient.generateGMPrep(
+        pdfId,
+        pdfName,
+        hasExisting, // overwrite if existing
+        (stage, progress, message) => {
+          // Could update a progress UI here if desired
+          console.log(`${MODULE_ID} | GM Prep progress: ${stage} - ${progress}% - ${message}`);
+        }
+      );
+
+      // Create/update journal entry with the script
+      await this._createGMPrepJournal(result.adventureName, result.scriptContent, result.scriptId);
+
+      ui.notifications.info(game.i18n.format('LOREMASTER.GMPrep.Success', { name: pdfName }));
+      this.render(false);
+
+    } catch (error) {
+      console.error(`${MODULE_ID} | GM Prep generation failed:`, error);
+      ui.notifications.error(game.i18n.format('LOREMASTER.GMPrep.Error', { error: error.message }));
+    }
+  }
+
+  /**
+   * Show the GM Prep confirmation dialog.
+   * Explains what GM Prep does and confirms the action.
+   *
+   * @param {string} adventureName - The name of the adventure.
+   * @param {boolean} hasExisting - Whether a script already exists.
+   * @returns {Promise<boolean>} True if confirmed.
+   * @private
+   */
+  async _showGMPrepDialog(adventureName, hasExisting) {
+    const warningHtml = hasExisting
+      ? `<p class="gm-prep-warning"><i class="fas fa-exclamation-triangle"></i> ${game.i18n.localize('LOREMASTER.GMPrep.OverwriteWarning')}</p>`
+      : '';
+
+    return Dialog.confirm({
+      title: game.i18n.localize('LOREMASTER.GMPrep.DialogTitle'),
+      content: `
+        <div class="gm-prep-dialog">
+          <p>${game.i18n.localize('LOREMASTER.GMPrep.DialogExplanation')}</p>
+          <ul>
+            <li>${game.i18n.localize('LOREMASTER.GMPrep.DialogBullet1')}</li>
+            <li>${game.i18n.localize('LOREMASTER.GMPrep.DialogBullet2')}</li>
+            <li>${game.i18n.localize('LOREMASTER.GMPrep.DialogBullet3')}</li>
+            <li>${game.i18n.localize('LOREMASTER.GMPrep.DialogBullet4')}</li>
+          </ul>
+          ${warningHtml}
+          <p><strong>${game.i18n.localize('LOREMASTER.GMPrep.DialogConfirm')}</strong></p>
+        </div>
+      `,
+      yes: () => true,
+      no: () => false,
+      defaultYes: false
+    });
+  }
+
+  /**
+   * Create or update a Foundry journal entry with the GM Prep script.
+   * The journal is GM-only and contains the full adventure script.
+   *
+   * @param {string} adventureName - The name of the adventure.
+   * @param {string} scriptContent - The markdown script content.
+   * @param {number} scriptId - The server-side script ID.
+   * @returns {Promise<JournalEntry>} The created/updated journal entry.
+   * @private
+   */
+  async _createGMPrepJournal(adventureName, scriptContent, scriptId) {
+    const journalName = `Loremaster: ${adventureName} - GM Script`;
+
+    // Check for existing journal
+    let journal = game.journal.find(j => j.name === journalName);
+
+    // Convert markdown to HTML for Foundry journal
+    const htmlContent = this._markdownToHtml(scriptContent);
+
+    if (journal) {
+      // Update existing journal
+      const page = journal.pages.contents[0];
+      if (page) {
+        await page.update({
+          'text.content': htmlContent
+        });
+      }
+    } else {
+      // Create new journal (GM only visibility)
+      journal = await JournalEntry.create({
+        name: journalName,
+        ownership: { default: CONST.DOCUMENT_OWNERSHIP_LEVELS.NONE },
+        flags: {
+          loremaster: {
+            isGMPrepScript: true,
+            scriptId: scriptId,
+            adventureName: adventureName
+          }
+        },
+        pages: [{
+          name: 'GM Prep Script',
+          type: 'text',
+          text: {
+            format: 1, // HTML format
+            content: htmlContent
+          }
+        }]
+      });
+    }
+
+    // Store journal UUID on server
+    try {
+      await this.socketClient.updateGMPrepJournal(scriptId, journal.uuid);
+    } catch (error) {
+      console.warn(`${MODULE_ID} | Failed to update journal UUID on server:`, error);
+    }
+
+    // Open the journal for the GM
+    journal.sheet.render(true);
+
+    return journal;
+  }
+
+  /**
+   * Convert markdown to HTML for Foundry journal display.
+   * Handles headers, lists, bold, italic, and basic formatting.
+   *
+   * @param {string} markdown - The markdown content.
+   * @returns {string} HTML content.
+   * @private
+   */
+  _markdownToHtml(markdown) {
+    let html = markdown
+      // Escape HTML special chars first
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      // Headers (must be before other replacements)
+      .replace(/^#### (.*$)/gim, '<h4>$1</h4>')
+      .replace(/^### (.*$)/gim, '<h3>$1</h3>')
+      .replace(/^## (.*$)/gim, '<h2>$1</h2>')
+      .replace(/^# (.*$)/gim, '<h1>$1</h1>')
+      // Horizontal rules
+      .replace(/^---$/gim, '<hr>')
+      // Bold and italic
+      .replace(/\*\*\*(.*?)\*\*\*/gim, '<strong><em>$1</em></strong>')
+      .replace(/\*\*(.*?)\*\*/gim, '<strong>$1</strong>')
+      .replace(/\*(.*?)\*/gim, '<em>$1</em>')
+      // Code blocks (simple handling)
+      .replace(/`([^`]+)`/gim, '<code>$1</code>')
+      // Checkboxes
+      .replace(/^\- \[ \] (.*$)/gim, '<li class="unchecked">$1</li>')
+      .replace(/^\- \[x\] (.*$)/gim, '<li class="checked">$1</li>')
+      // Unordered list items
+      .replace(/^\- (.*$)/gim, '<li>$1</li>')
+      .replace(/^\* (.*$)/gim, '<li>$1</li>')
+      // Ordered list items
+      .replace(/^\d+\. (.*$)/gim, '<li>$1</li>')
+      // Line breaks
+      .replace(/\n\n/g, '</p><p>')
+      .replace(/\n/g, '<br>');
+
+    // Wrap consecutive li elements in ul tags
+    html = html.replace(/(<li[^>]*>.*?<\/li>)(\s*<br>)?(\s*<li)/g, '$1$3');
+    html = html.replace(/(<li[^>]*>.*?<\/li>)+/g, (match) => {
+      if (match.includes('class="checked"') || match.includes('class="unchecked"')) {
+        return `<ul class="gm-prep-checklist">${match}</ul>`;
+      }
+      return `<ul>${match}</ul>`;
+    });
+
+    // Handle tables (basic support)
+    html = html.replace(/\|(.+)\|/g, (match, content) => {
+      const cells = content.split('|').map(cell => cell.trim());
+      if (cells.every(cell => cell.match(/^-+$/))) {
+        return ''; // Skip separator rows
+      }
+      const cellHtml = cells.map(cell => `<td>${cell}</td>`).join('');
+      return `<tr>${cellHtml}</tr>`;
+    });
+    html = html.replace(/(<tr>.*?<\/tr>)+/g, (match) => {
+      return `<table class="gm-prep-table">${match}</table>`;
+    });
+
+    return `<div class="gm-prep-script">${html}</div>`;
   }
 }

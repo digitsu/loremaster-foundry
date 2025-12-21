@@ -15,6 +15,8 @@ import { config } from './config/default.js';
 import { SocketHandler } from './websocket/socket-handler.js';
 import { ConversationStore } from './storage/conversation-store.js';
 import { CredentialsStore } from './storage/credentials-store.js';
+import { HouseRulesStore } from './storage/house-rules-store.js';
+import { GMPrepStore } from './storage/gm-prep-store.js';
 import { ClaudeClient } from './api/claude-client.js';
 import { FilesManager } from './api/files-manager.js';
 import { PDFRegistry } from './storage/pdf-registry.js';
@@ -62,8 +64,23 @@ const filesManager = new FilesManager(conversationStore.db);
 const pdfRegistry = new PDFRegistry(conversationStore.db);
 const pdfProcessor = new PDFProcessor(pdfRegistry, filesManager);
 
+// Initialize house rules store (uses same database connection)
+const houseRulesStore = new HouseRulesStore(conversationStore.db);
+
+// Initialize GM Prep store (uses same database connection)
+const gmPrepStore = new GMPrepStore(conversationStore.db);
+
 // Initialize socket handler with all services
-const socketHandler = new SocketHandler(wss, claudeClient, conversationStore, credentialsStore, filesManager, pdfProcessor);
+const socketHandler = new SocketHandler(
+  wss,
+  claudeClient,
+  conversationStore,
+  credentialsStore,
+  filesManager,
+  pdfProcessor,
+  houseRulesStore,
+  gmPrepStore
+);
 
 // Initialize tool executor (requires socketHandler for client communication)
 const toolExecutor = new ToolExecutor(socketHandler);

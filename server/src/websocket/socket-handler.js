@@ -14,6 +14,11 @@ import {
   getDiscrepancyDetectionPrompt,
   formatHouseRulesForPrompt
 } from '../prompts/multiplayer-system.js';
+import {
+  getGMPrepGenerationPrompt,
+  getGMPrepGuidancePrompt,
+  buildGMPrepGenerationMessages
+} from '../prompts/gm-prep-prompts.js';
 import { getToolDefinitions } from '../tools/tool-definitions.js';
 
 export class SocketHandler {
@@ -26,8 +31,10 @@ export class SocketHandler {
    * @param {CredentialsStore} credentialsStore - The encrypted credentials storage.
    * @param {FilesManager} filesManager - The Claude Files API manager.
    * @param {PDFProcessor} pdfProcessor - The PDF processor for adventure uploads.
+   * @param {HouseRulesStore} houseRulesStore - The house rules storage.
+   * @param {GMPrepStore} gmPrepStore - The GM Prep scripts storage.
    */
-  constructor(wss, claudeClient, conversationStore, credentialsStore, filesManager = null, pdfProcessor = null, houseRulesStore = null) {
+  constructor(wss, claudeClient, conversationStore, credentialsStore, filesManager = null, pdfProcessor = null, houseRulesStore = null, gmPrepStore = null) {
     this.wss = wss;
     this.claudeClient = claudeClient;
     this.conversationStore = conversationStore;
@@ -35,6 +42,7 @@ export class SocketHandler {
     this.filesManager = filesManager;
     this.pdfProcessor = pdfProcessor;
     this.houseRulesStore = houseRulesStore;
+    this.gmPrepStore = gmPrepStore;
 
     // Map of worldId -> client connection info
     this.clients = new Map();
@@ -238,6 +246,26 @@ export class SocketHandler {
           result = await this.handleGetHouseRulesStats(ws);
           break;
 
+        case 'generate-gm-prep':
+          result = await this.handleGenerateGMPrep(ws, payload);
+          break;
+
+        case 'get-gm-prep':
+          result = await this.handleGetGMPrep(ws, payload);
+          break;
+
+        case 'get-gm-prep-status':
+          result = await this.handleGetGMPrepStatus(ws, payload);
+          break;
+
+        case 'delete-gm-prep':
+          result = await this.handleDeleteGMPrep(ws, payload);
+          break;
+
+        case 'update-gm-prep-journal':
+          result = await this.handleUpdateGMPrepJournal(ws, payload);
+          break;
+
         default:
           throw new Error(`Unknown message type: ${type}`);
       }
@@ -409,6 +437,20 @@ Build upon this established history in your responses.
 
     additionalSystemPrompt += getDiscrepancyDetectionPrompt(gmPresent, isSolo, houseRulesText);
 
+    // Add GM Prep script guidance if available
+    if (this.gmPrepStore) {
+      const completedScripts = this.gmPrepStore.getCompletedScriptsForWorld(worldId);
+      if (completedScripts.length > 0) {
+        // Use the most recently updated script
+        const activeScript = completedScripts[0];
+        if (activeScript.script_content) {
+          // Get canon history for position inference
+          const canonText = canonHistory.messages.join('\n\n---\n\n');
+          additionalSystemPrompt += getGMPrepGuidancePrompt(activeScript.script_content, canonText);
+        }
+      }
+    }
+
     // Send to Claude with tools
     const response = await this.claudeClient.sendMessage(
       apiKey,
@@ -521,7 +563,21 @@ Build upon this established history in your responses.
     }
 
     const discrepancyPrompt = getDiscrepancyDetectionPrompt(gmPresent, isSolo, houseRulesText);
-    const combinedSystemPrompt = multiplayerPrompt + '\n\n' + discrepancyPrompt;
+    let combinedSystemPrompt = multiplayerPrompt + '\n\n' + discrepancyPrompt;
+
+    // Add GM Prep script guidance if available
+    if (this.gmPrepStore) {
+      const completedScripts = this.gmPrepStore.getCompletedScriptsForWorld(worldId);
+      if (completedScripts.length > 0) {
+        const activeScript = completedScripts[0];
+        if (activeScript.script_content) {
+          // Get canon history for position inference
+          const canonHistory = this.conversationStore.getCanonForContext(worldId, 15000);
+          const canonText = canonHistory.messages.join('\n\n---\n\n');
+          combinedSystemPrompt += getGMPrepGuidancePrompt(activeScript.script_content, canonText);
+        }
+      }
+    }
 
     // Send to Claude with multiplayer prompt and tools
     const response = await this.claudeClient.sendMessage(
@@ -1731,5 +1787,294 @@ Build upon this established history in your responses.
     }
 
     return this.houseRulesStore.getStats(ws.worldId);
+  }
+
+  // ===== GM Prep Handlers =====
+
+  /**
+   * Handle GM Prep script generation request.
+   * GM-only: Generates a structured adventure script from a PDF.
+   *
+   * @param {WebSocket} ws - The WebSocket connection.
+   * @param {Object} payload - The generation payload.
+   * @returns {Object} Generation result with script content.
+   */
+  async handleGenerateGMPrep(ws, { pdfId, adventureName, overwrite = false }) {
+    this.requireGM(ws);
+
+    const worldId = ws.worldId;
+    const apiKey = this.credentialsStore.getApiKey(worldId);
+
+    if (!apiKey) {
+      throw new Error('API key not found for this world');
+    }
+
+    if (!this.gmPrepStore) {
+      throw new Error('GM Prep store not configured');
+    }
+
+    if (!this.pdfProcessor) {
+      throw new Error('PDF processor not configured');
+    }
+
+    if (!pdfId) {
+      throw new Error('PDF ID is required');
+    }
+
+    // Get the PDF record
+    const pdf = this.pdfProcessor.getPDF(pdfId);
+    if (!pdf) {
+      throw new Error(`PDF not found: ${pdfId}`);
+    }
+
+    // Verify PDF belongs to this world
+    if (pdf.world_id !== worldId) {
+      throw new Error('PDF does not belong to this world');
+    }
+
+    // Verify PDF is an adventure type
+    if (pdf.category !== 'adventure') {
+      throw new Error('GM Prep can only be generated for adventure module PDFs');
+    }
+
+    // Check for existing script
+    const existingScript = this.gmPrepStore.getScriptByPdfId(worldId, pdfId);
+    if (existingScript && existingScript.generation_status === 'completed' && !overwrite) {
+      throw new Error('A GM Prep script already exists for this PDF. Set overwrite=true to regenerate.');
+    }
+
+    const displayName = adventureName || pdf.display_name || pdf.filename;
+
+    console.log(`[SocketHandler] Generating GM Prep script for PDF ${pdfId}: ${displayName}`);
+
+    // Create or reset the script record
+    const scriptRecord = this.gmPrepStore.createScript(worldId, pdfId, displayName);
+
+    // Update status to generating
+    this.gmPrepStore.updateScript(scriptRecord.id, { status: 'generating' });
+
+    // Send progress update
+    try {
+      ws.send(JSON.stringify({
+        type: 'gm-prep-progress',
+        stage: 'generating',
+        progress: 10,
+        message: 'Analyzing adventure PDF...'
+      }));
+    } catch (err) {
+      console.warn('[SocketHandler] Could not send progress update:', err.message);
+    }
+
+    try {
+      // Get the PDF file ID for Claude context
+      if (!pdf.claude_file_id) {
+        throw new Error('PDF has not been processed yet. Please wait for processing to complete.');
+      }
+
+      // Build the generation prompt
+      const systemPrompt = getGMPrepGenerationPrompt(displayName);
+      const messages = buildGMPrepGenerationMessages(displayName);
+
+      // Send progress update
+      try {
+        ws.send(JSON.stringify({
+          type: 'gm-prep-progress',
+          stage: 'generating',
+          progress: 30,
+          message: 'Generating adventure script structure...'
+        }));
+      } catch (err) {
+        // Ignore progress update errors
+      }
+
+      // Call Claude API with the PDF file as context
+      const response = await this.claudeClient.sendMessageRaw(
+        apiKey,
+        messages,
+        {
+          systemPrompt,
+          fileIds: [pdf.claude_file_id],
+          maxTokens: 8000 // Allow for detailed script generation
+        }
+      );
+
+      // Extract text content from response
+      const scriptContent = response.content
+        .filter(block => block.type === 'text')
+        .map(block => block.text)
+        .join('\n');
+
+      if (!scriptContent || scriptContent.trim().length < 100) {
+        throw new Error('Generated script is too short or empty');
+      }
+
+      // Send progress update
+      try {
+        ws.send(JSON.stringify({
+          type: 'gm-prep-progress',
+          stage: 'complete',
+          progress: 100,
+          message: 'GM Prep script generated successfully'
+        }));
+      } catch (err) {
+        // Ignore progress update errors
+      }
+
+      // Update script record with content
+      this.gmPrepStore.updateScript(scriptRecord.id, {
+        scriptContent,
+        status: 'completed'
+      });
+
+      console.log(`[SocketHandler] GM Prep script generated for PDF ${pdfId} (${scriptContent.length} chars)`);
+
+      return {
+        success: true,
+        scriptId: scriptRecord.id,
+        adventureName: displayName,
+        scriptContent,
+        usage: response.usage
+      };
+
+    } catch (error) {
+      console.error(`[SocketHandler] GM Prep generation failed:`, error);
+
+      // Update script record with error
+      this.gmPrepStore.updateScript(scriptRecord.id, {
+        status: 'failed',
+        errorMessage: error.message
+      });
+
+      throw error;
+    }
+  }
+
+  /**
+   * Handle get GM Prep script request.
+   *
+   * @param {WebSocket} ws - The WebSocket connection.
+   * @param {Object} payload - The request payload.
+   * @returns {Object} The script record if found.
+   */
+  async handleGetGMPrep(ws, { pdfId, scriptId }) {
+    this.requireAuth(ws);
+
+    if (!this.gmPrepStore) {
+      return { script: null };
+    }
+
+    let script;
+    if (scriptId) {
+      script = this.gmPrepStore.getScript(scriptId);
+    } else if (pdfId) {
+      script = this.gmPrepStore.getScriptByPdfId(ws.worldId, pdfId);
+    } else {
+      throw new Error('Either pdfId or scriptId is required');
+    }
+
+    return { script };
+  }
+
+  /**
+   * Handle get GM Prep status request.
+   * Returns status info for a PDF's script without the full content.
+   *
+   * @param {WebSocket} ws - The WebSocket connection.
+   * @param {Object} payload - The request payload.
+   * @returns {Object} Status information.
+   */
+  async handleGetGMPrepStatus(ws, { pdfId }) {
+    this.requireAuth(ws);
+
+    if (!this.gmPrepStore) {
+      return { hasScript: false, status: null };
+    }
+
+    if (!pdfId) {
+      throw new Error('PDF ID is required');
+    }
+
+    return this.gmPrepStore.getScriptStatus(ws.worldId, pdfId);
+  }
+
+  /**
+   * Handle delete GM Prep script request.
+   * GM-only: Removes a generated script.
+   *
+   * @param {WebSocket} ws - The WebSocket connection.
+   * @param {Object} payload - The delete payload.
+   * @returns {Object} Delete result.
+   */
+  async handleDeleteGMPrep(ws, { scriptId }) {
+    this.requireGM(ws);
+
+    if (!this.gmPrepStore) {
+      throw new Error('GM Prep store not configured');
+    }
+
+    if (!scriptId) {
+      throw new Error('Script ID is required');
+    }
+
+    // Verify script exists and belongs to this world
+    const script = this.gmPrepStore.getScript(scriptId);
+    if (!script) {
+      throw new Error(`Script not found: ${scriptId}`);
+    }
+
+    if (script.world_id !== ws.worldId) {
+      throw new Error('Script does not belong to this world');
+    }
+
+    this.gmPrepStore.deleteScript(scriptId);
+
+    console.log(`[SocketHandler] Deleted GM Prep script ${scriptId} by ${ws.userName}`);
+
+    return {
+      success: true,
+      scriptId,
+      message: 'GM Prep script deleted'
+    };
+  }
+
+  /**
+   * Handle update GM Prep journal UUID request.
+   * Called after client creates/updates the Foundry journal entry.
+   *
+   * @param {WebSocket} ws - The WebSocket connection.
+   * @param {Object} payload - The update payload.
+   * @returns {Object} Update result.
+   */
+  async handleUpdateGMPrepJournal(ws, { scriptId, journalUuid }) {
+    this.requireGM(ws);
+
+    if (!this.gmPrepStore) {
+      throw new Error('GM Prep store not configured');
+    }
+
+    if (!scriptId || !journalUuid) {
+      throw new Error('Script ID and journal UUID are required');
+    }
+
+    // Verify script exists and belongs to this world
+    const script = this.gmPrepStore.getScript(scriptId);
+    if (!script) {
+      throw new Error(`Script not found: ${scriptId}`);
+    }
+
+    if (script.world_id !== ws.worldId) {
+      throw new Error('Script does not belong to this world');
+    }
+
+    this.gmPrepStore.updateScript(scriptId, { journalUuid });
+
+    console.log(`[SocketHandler] Updated GM Prep script ${scriptId} with journal UUID ${journalUuid}`);
+
+    return {
+      success: true,
+      scriptId,
+      journalUuid,
+      message: 'Journal UUID updated'
+    };
   }
 }
