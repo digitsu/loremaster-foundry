@@ -13,6 +13,12 @@ const MODULE_ID = 'loremaster';
  * Called once during module initialization.
  */
 export function registerContentManagerHelpers() {
+  // Equality comparison helper
+  Handlebars.registerHelper('eq', (a, b) => a === b);
+
+  // Not equal comparison helper
+  Handlebars.registerHelper('ne', (a, b) => a !== b);
+
   // Format file size (bytes to human readable)
   Handlebars.registerHelper('formatSize', (bytes) => {
     if (typeof bytes !== 'number' || isNaN(bytes)) return '0 B';
@@ -62,6 +68,11 @@ export class ContentManager extends Application {
     this.stats = null;
     this.isUploading = false;
     this.uploadProgress = { stage: '', progress: 0, message: '' };
+    // Active Adventure data
+    this.activeAdventure = null;
+    this.availableAdventures = { pdfAdventures: [], moduleAdventures: [] };
+    this.transitionState = null;
+    this.linkedGMPrepScript = null;
   }
 
   /**
@@ -78,7 +89,8 @@ export class ContentManager extends Application {
       width: 600,
       height: 500,
       resizable: true,
-      tabs: [{ navSelector: '.tabs', contentSelector: '.content', initial: 'pdfs' }]
+      tabs: [{ navSelector: '.tabs', contentSelector: '.content', initial: 'pdfs' }],
+      scrollY: ['.tab']
     });
   }
 
@@ -105,7 +117,12 @@ export class ContentManager extends Application {
         { value: 'reference', label: game.i18n.localize('LOREMASTER.ContentManager.Category.Reference') }
       ],
       isGM: game.user.isGM,
-      maxFileSize: this._formatFileSize(50 * 1024 * 1024)
+      maxFileSize: this._formatFileSize(50 * 1024 * 1024),
+      // Active Adventure data
+      activeAdventure: this.activeAdventure,
+      availableAdventures: this.availableAdventures,
+      transitionState: this.transitionState,
+      linkedGMPrepScript: this.linkedGMPrepScript
     };
   }
 
@@ -140,6 +157,31 @@ export class ContentManager extends Application {
 
     // Refresh button
     html.find('.refresh-btn').on('click', this._onRefresh.bind(this));
+
+    // ===== Active Adventure Tab =====
+    // Adventure selector
+    html.find('.adventure-select').on('change', this._onAdventureSelect.bind(this));
+
+    // Clear active adventure
+    html.find('.clear-adventure-btn').on('click', this._onClearAdventure.bind(this));
+
+    // Complete transition
+    html.find('.complete-transition-btn').on('click', this._onCompleteTransition.bind(this));
+
+    // View GM Prep script
+    html.find('.view-gm-prep-btn').on('click', this._onViewGMPrepScript.bind(this));
+
+    // Foundry module selector
+    html.find('.foundry-module-select').on('change', this._onFoundryModuleSelect.bind(this));
+
+    // Register module
+    html.find('.register-module-btn').on('click', this._onRegisterModule.bind(this));
+
+    // Unregister module
+    html.find('.unregister-module-btn').on('click', this._onUnregisterModule.bind(this));
+
+    // Populate Foundry modules dropdown on adventure tab
+    this._populateFoundryModules(html);
   }
 
   /**
@@ -151,10 +193,14 @@ export class ContentManager extends Application {
   async _render(force = false, options = {}) {
     await super._render(force, options);
 
-    // Load PDFs on first render
+    // Load data on first render
     if (!this._loaded) {
       this._loaded = true;
       await this._loadPDFs();
+      // Load adventure data for GMs
+      if (game.user.isGM) {
+        await this._loadAdventureData();
+      }
     }
   }
 
@@ -313,7 +359,7 @@ export class ContentManager extends Application {
       );
 
       ui.notifications.info(game.i18n.format('LOREMASTER.ContentManager.UploadSuccess', {
-        name: result.displayName
+        name: result.pdf?.displayName || result.displayName || displayName
       }));
 
       // Reset form and reload
@@ -525,7 +571,9 @@ export class ContentManager extends Application {
       await this._createGMPrepJournal(result.adventureName, result.scriptContent, result.scriptId);
 
       ui.notifications.info(game.i18n.format('LOREMASTER.GMPrep.Success', { name: pdfName }));
-      this.render(false);
+
+      // Reload PDFs to update the GM Script status tag
+      await this._loadPDFs();
 
     } catch (error) {
       console.error(`${MODULE_ID} | GM Prep generation failed:`, error);
@@ -693,5 +741,435 @@ export class ContentManager extends Application {
     });
 
     return `<div class="gm-prep-script">${html}</div>`;
+  }
+
+  // ===== Active Adventure Methods =====
+
+  /**
+   * Load active adventure data from the server.
+   * Fetches current adventure, available adventures, and transition state.
+   *
+   * @private
+   */
+  async _loadAdventureData() {
+    try {
+      // Load in parallel for efficiency
+      const [activeResult, adventuresResult, transitionResult] = await Promise.all([
+        this.socketClient.getActiveAdventure(),
+        this.socketClient.listAvailableAdventures(),
+        this.socketClient.getTransitionState()
+      ]);
+
+      // Extract data from response wrappers
+      this.activeAdventure = activeResult?.activeAdventure || null;
+      this.availableAdventures = adventuresResult || { pdfAdventures: [], moduleAdventures: [] };
+      this.transitionState = transitionResult?.transitionState || null;
+
+      // If there's an active adventure with a GM Prep script, load its details
+      if (this.activeAdventure?.gm_prep_script_id) {
+        this.linkedGMPrepScript = { id: this.activeAdventure.gm_prep_script_id };
+      } else {
+        this.linkedGMPrepScript = null;
+      }
+
+      this.render(false);
+    } catch (error) {
+      console.error(`${MODULE_ID} | Failed to load adventure data:`, error);
+    }
+  }
+
+  /**
+   * Handle adventure selection change.
+   * Shows transition dialog if changing from an existing adventure.
+   *
+   * @param {Event} event - The change event.
+   * @private
+   */
+  async _onAdventureSelect(event) {
+    const value = event.target.value;
+    if (!value) return;
+
+    // Parse selection value (format: "pdf:123" or "module:module-id")
+    const [type, id] = value.split(':');
+    const adventureType = type;
+    const adventureId = type === 'pdf' ? parseInt(id, 10) : id;
+
+    // Find the adventure name
+    let adventureName = '';
+    let gmPrepScriptId = null;
+    if (adventureType === 'pdf') {
+      const pdf = this.availableAdventures.pdfAdventures.find(p => p.id === adventureId);
+      adventureName = pdf?.display_name || 'Unknown Adventure';
+      gmPrepScriptId = pdf?.gmPrepScriptId || null;
+    } else {
+      const module = this.availableAdventures.moduleAdventures.find(m => m.module_id === adventureId);
+      adventureName = module?.module_name || adventureId;
+    }
+
+    // If there's an existing active adventure, show transition dialog
+    if (this.activeAdventure) {
+      const transitionChoice = await this._showTransitionDialog(
+        this.activeAdventure.adventure_name,
+        adventureName
+      );
+
+      if (transitionChoice === 'cancel') {
+        // Reset the selector to current value
+        this.render(false);
+        return;
+      }
+
+      // Set the adventure with transition options
+      try {
+        await this.socketClient.setActiveAdventure(adventureType, adventureId, {
+          adventureName,
+          gmPrepScriptId,
+          transitionType: transitionChoice,
+          transitionPrompt: transitionChoice === 'narrative' ?
+            await this._getTransitionPrompt(this.activeAdventure.adventure_name, adventureName) : null
+        });
+
+        ui.notifications.info(game.i18n.format('LOREMASTER.ActiveAdventure.SwitchSuccess', {
+          name: adventureName
+        }));
+
+        await this._loadAdventureData();
+      } catch (error) {
+        console.error(`${MODULE_ID} | Failed to set adventure:`, error);
+        ui.notifications.error(game.i18n.format('LOREMASTER.ActiveAdventure.SwitchError', {
+          error: error.message
+        }));
+      }
+    } else {
+      // No existing adventure, just set it
+      try {
+        await this.socketClient.setActiveAdventure(adventureType, adventureId, {
+          adventureName,
+          gmPrepScriptId
+        });
+
+        ui.notifications.info(game.i18n.format('LOREMASTER.ActiveAdventure.SetSuccess', {
+          name: adventureName
+        }));
+
+        await this._loadAdventureData();
+      } catch (error) {
+        console.error(`${MODULE_ID} | Failed to set adventure:`, error);
+        ui.notifications.error(game.i18n.format('LOREMASTER.ActiveAdventure.SetError', {
+          error: error.message
+        }));
+      }
+    }
+  }
+
+  /**
+   * Show the adventure transition dialog.
+   * Lets GM choose between immediate switch or narrative bridge.
+   *
+   * @param {string} fromName - Current adventure name.
+   * @param {string} toName - New adventure name.
+   * @returns {Promise<string>} 'immediate', 'narrative', or 'cancel'.
+   * @private
+   */
+  async _showTransitionDialog(fromName, toName) {
+    return new Promise((resolve) => {
+      new Dialog({
+        title: game.i18n.localize('LOREMASTER.ActiveAdventure.TransitionTitle'),
+        content: `
+          <div class="adventure-transition-dialog">
+            <p>${game.i18n.format('LOREMASTER.ActiveAdventure.TransitionMessage', {
+              from: fromName,
+              to: toName
+            })}</p>
+            <p class="hint">${game.i18n.localize('LOREMASTER.ActiveAdventure.TransitionHint')}</p>
+          </div>
+        `,
+        buttons: {
+          immediate: {
+            icon: '<i class="fas fa-forward"></i>',
+            label: game.i18n.localize('LOREMASTER.ActiveAdventure.TransitionImmediate'),
+            callback: () => resolve('immediate')
+          },
+          narrative: {
+            icon: '<i class="fas fa-book-open"></i>',
+            label: game.i18n.localize('LOREMASTER.ActiveAdventure.TransitionNarrative'),
+            callback: () => resolve('narrative')
+          },
+          cancel: {
+            icon: '<i class="fas fa-times"></i>',
+            label: game.i18n.localize('Cancel'),
+            callback: () => resolve('cancel')
+          }
+        },
+        default: 'immediate',
+        close: () => resolve('cancel')
+      }).render(true);
+    });
+  }
+
+  /**
+   * Get transition prompt from GM for narrative bridge.
+   *
+   * @param {string} fromName - Current adventure name.
+   * @param {string} toName - New adventure name.
+   * @returns {Promise<string|null>} The transition prompt or null if cancelled.
+   * @private
+   */
+  async _getTransitionPrompt(fromName, toName) {
+    return new Promise((resolve) => {
+      new Dialog({
+        title: game.i18n.localize('LOREMASTER.ActiveAdventure.TransitionPromptTitle'),
+        content: `
+          <div class="transition-prompt-dialog">
+            <p>${game.i18n.format('LOREMASTER.ActiveAdventure.TransitionPromptMessage', {
+              from: fromName,
+              to: toName
+            })}</p>
+            <div class="form-group">
+              <label>${game.i18n.localize('LOREMASTER.ActiveAdventure.TransitionPromptLabel')}</label>
+              <textarea class="transition-prompt-input" rows="4"
+                placeholder="${game.i18n.localize('LOREMASTER.ActiveAdventure.TransitionPromptPlaceholder')}"></textarea>
+            </div>
+          </div>
+        `,
+        buttons: {
+          submit: {
+            icon: '<i class="fas fa-check"></i>',
+            label: game.i18n.localize('Submit'),
+            callback: (html) => {
+              const prompt = html.find('.transition-prompt-input').val().trim();
+              resolve(prompt || null);
+            }
+          },
+          cancel: {
+            icon: '<i class="fas fa-times"></i>',
+            label: game.i18n.localize('Cancel'),
+            callback: () => resolve(null)
+          }
+        },
+        default: 'submit'
+      }).render(true);
+    });
+  }
+
+  /**
+   * Handle clearing the active adventure.
+   *
+   * @param {Event} event - The click event.
+   * @private
+   */
+  async _onClearAdventure(event) {
+    event.preventDefault();
+
+    const confirmed = await Dialog.confirm({
+      title: game.i18n.localize('LOREMASTER.ActiveAdventure.ClearTitle'),
+      content: game.i18n.format('LOREMASTER.ActiveAdventure.ClearConfirm', {
+        name: this.activeAdventure?.adventure_name || ''
+      }),
+      yes: () => true,
+      no: () => false
+    });
+
+    if (!confirmed) return;
+
+    try {
+      await this.socketClient.clearActiveAdventure();
+      ui.notifications.info(game.i18n.localize('LOREMASTER.ActiveAdventure.ClearSuccess'));
+      await this._loadAdventureData();
+    } catch (error) {
+      console.error(`${MODULE_ID} | Failed to clear adventure:`, error);
+      ui.notifications.error(game.i18n.format('LOREMASTER.ActiveAdventure.ClearError', {
+        error: error.message
+      }));
+    }
+  }
+
+  /**
+   * Handle completing a narrative transition.
+   *
+   * @param {Event} event - The click event.
+   * @private
+   */
+  async _onCompleteTransition(event) {
+    event.preventDefault();
+
+    try {
+      await this.socketClient.completeTransition();
+      ui.notifications.info(game.i18n.localize('LOREMASTER.ActiveAdventure.TransitionCompleted'));
+      await this._loadAdventureData();
+    } catch (error) {
+      console.error(`${MODULE_ID} | Failed to complete transition:`, error);
+      ui.notifications.error(game.i18n.format('LOREMASTER.ActiveAdventure.TransitionError', {
+        error: error.message
+      }));
+    }
+  }
+
+  /**
+   * Handle viewing the linked GM Prep script.
+   *
+   * @param {Event} event - The click event.
+   * @private
+   */
+  async _onViewGMPrepScript(event) {
+    event.preventDefault();
+
+    // Find the Loremaster GM Script journal
+    const adventureName = this.activeAdventure?.adventure_name;
+    if (!adventureName) return;
+
+    const journalName = `Loremaster: ${adventureName} - GM Script`;
+    const journal = game.journal.find(j => j.name === journalName);
+
+    if (journal) {
+      journal.sheet.render(true);
+    } else {
+      ui.notifications.warn(game.i18n.localize('LOREMASTER.ActiveAdventure.ScriptNotFound'));
+    }
+  }
+
+  /**
+   * Handle Foundry module selection change.
+   * Enables/disables the register button based on selection.
+   *
+   * @param {Event} event - The change event.
+   * @private
+   */
+  _onFoundryModuleSelect(event) {
+    const value = event.target.value;
+    const html = this.element;
+    html.find('.register-module-btn').prop('disabled', !value);
+  }
+
+  /**
+   * Handle registering a Foundry module as an adventure source.
+   *
+   * @param {Event} event - The click event.
+   * @private
+   */
+  async _onRegisterModule(event) {
+    event.preventDefault();
+
+    const html = this.element;
+    const moduleSelect = html.find('.foundry-module-select');
+    const moduleId = moduleSelect.val();
+
+    if (!moduleId) return;
+
+    // Get module info from Foundry
+    const module = game.modules.get(moduleId);
+    if (!module) {
+      ui.notifications.error(game.i18n.localize('LOREMASTER.ActiveAdventure.ModuleNotFound'));
+      return;
+    }
+
+    const moduleName = module.title || moduleId;
+
+    try {
+      await this.socketClient.registerAdventureModule(moduleId, moduleName, module.description || '');
+      ui.notifications.info(game.i18n.format('LOREMASTER.ActiveAdventure.RegisterSuccess', {
+        name: moduleName
+      }));
+
+      // Reset selector and reload
+      moduleSelect.val('');
+      html.find('.register-module-btn').prop('disabled', true);
+      await this._loadAdventureData();
+    } catch (error) {
+      console.error(`${MODULE_ID} | Failed to register module:`, error);
+      ui.notifications.error(game.i18n.format('LOREMASTER.ActiveAdventure.RegisterError', {
+        error: error.message
+      }));
+    }
+  }
+
+  /**
+   * Handle unregistering a Foundry module from adventure sources.
+   *
+   * @param {Event} event - The click event.
+   * @private
+   */
+  async _onUnregisterModule(event) {
+    event.preventDefault();
+
+    const moduleId = event.currentTarget.dataset.moduleId;
+    const module = this.availableAdventures.moduleAdventures.find(m => m.module_id === moduleId);
+    const moduleName = module?.module_name || moduleId;
+
+    const confirmed = await Dialog.confirm({
+      title: game.i18n.localize('LOREMASTER.ActiveAdventure.UnregisterTitle'),
+      content: game.i18n.format('LOREMASTER.ActiveAdventure.UnregisterConfirm', {
+        name: moduleName
+      }),
+      yes: () => true,
+      no: () => false
+    });
+
+    if (!confirmed) return;
+
+    try {
+      await this.socketClient.unregisterAdventureModule(moduleId);
+      ui.notifications.info(game.i18n.format('LOREMASTER.ActiveAdventure.UnregisterSuccess', {
+        name: moduleName
+      }));
+      await this._loadAdventureData();
+    } catch (error) {
+      console.error(`${MODULE_ID} | Failed to unregister module:`, error);
+      ui.notifications.error(game.i18n.format('LOREMASTER.ActiveAdventure.UnregisterError', {
+        error: error.message
+      }));
+    }
+  }
+
+  /**
+   * Populate the Foundry modules dropdown with installed adventure-type modules.
+   * Excludes already-registered modules from the list.
+   *
+   * @param {jQuery} html - The rendered HTML.
+   * @private
+   */
+  _populateFoundryModules(html) {
+    const select = html.find('.foundry-module-select');
+    if (!select.length) return;
+
+    // Get list of already registered module IDs
+    const registeredIds = new Set(
+      this.availableAdventures.moduleAdventures.map(m => m.module_id)
+    );
+
+    // Find eligible modules (active, not registered, likely adventure content)
+    const eligibleModules = [];
+    for (const [id, module] of game.modules.entries()) {
+      if (!module.active) continue;
+      if (registeredIds.has(id)) continue;
+      if (id === 'loremaster') continue; // Don't list ourselves
+
+      // Check if it looks like an adventure/content module
+      // (has compendiums, or has "adventure" in title/description)
+      const hasCompendiums = module.packs?.size > 0;
+      const looksLikeAdventure =
+        module.title?.toLowerCase().includes('adventure') ||
+        module.description?.toLowerCase().includes('adventure') ||
+        module.title?.toLowerCase().includes('module') ||
+        module.title?.toLowerCase().includes('content');
+
+      if (hasCompendiums || looksLikeAdventure) {
+        eligibleModules.push({
+          id,
+          title: module.title || id
+        });
+      }
+    }
+
+    // Sort alphabetically
+    eligibleModules.sort((a, b) => a.title.localeCompare(b.title));
+
+    // Build options HTML
+    select.empty();
+    select.append(`<option value="">${game.i18n.localize('LOREMASTER.ActiveAdventure.SelectModule')}</option>`);
+
+    for (const module of eligibleModules) {
+      select.append(`<option value="${module.id}">${module.title}</option>`);
+    }
   }
 }

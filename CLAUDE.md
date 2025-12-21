@@ -5,6 +5,11 @@
 - **Foundry VTT Version**: 13
 - **Module Compatibility**: Minimum V13, Verified V13
 
+## Code Locations
+
+- **Foundry Module (Client)**: `/Users/jerrychan/foundrydata/Data/modules/loremaster/`
+- **Proxy Server**: `~/work/loremaster-proxy/` (separate repository)
+
 ## Git Commit Guidelines
 
 - Do NOT include any "Co-authored by", "Generated with Claude Code", or "Co-Authored-By" lines in commit messages
