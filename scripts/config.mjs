@@ -163,6 +163,18 @@ export function registerSettings() {
     default: '!send'
   });
 
+  // ===== Usage Monitoring Settings =====
+
+  // Maximum tokens per month (for usage tracking display)
+  game.settings.register(MODULE_ID, 'maxTokensPerMonth', {
+    name: 'LOREMASTER.Settings.MaxTokensPerMonth.Name',
+    hint: 'LOREMASTER.Settings.MaxTokensPerMonth.Hint',
+    scope: 'world',
+    config: true,
+    type: Number,
+    default: 0
+  });
+
   console.log(`${MODULE_ID} | Settings registered`);
 }
 

@@ -800,6 +800,150 @@ export class SocketClient {
     return this._sendRequest('update-gm-prep-journal', { scriptId, journalUuid });
   }
 
+  // ===== Active Adventure Methods =====
+
+  /**
+   * Get the current active adventure for this world.
+   *
+   * @returns {Promise<object>} Object with activeAdventure or null.
+   */
+  async getActiveAdventure() {
+    this._requireAuth();
+    return this._sendRequest('get-active-adventure', {});
+  }
+
+  /**
+   * Set the active adventure.
+   * GM only. Optionally includes transition handling.
+   *
+   * @param {string} adventureType - 'pdf' or 'module'.
+   * @param {number|string} adventureId - PDF ID or module ID.
+   * @param {object} options - Optional transition options.
+   * @param {string} options.transitionType - 'immediate' or 'narrative'.
+   * @param {string} options.transitionPrompt - GM instructions for narrative bridge.
+   * @returns {Promise<object>} Result with new active adventure.
+   */
+  async setActiveAdventure(adventureType, adventureId, options = {}) {
+    this._requireAuth();
+    if (!this.isGM) {
+      throw new Error('Setting active adventure requires GM permissions');
+    }
+    return this._sendRequest('set-active-adventure', {
+      adventureType,
+      adventureId,
+      ...options
+    });
+  }
+
+  /**
+   * Clear the active adventure (no adventure selected).
+   *
+   * @returns {Promise<object>} Result.
+   */
+  async clearActiveAdventure() {
+    this._requireAuth();
+    if (!this.isGM) {
+      throw new Error('Clearing active adventure requires GM permissions');
+    }
+    return this._sendRequest('clear-active-adventure', {});
+  }
+
+  /**
+   * List all available adventures (PDFs + registered modules).
+   *
+   * @returns {Promise<object>} Object with pdfAdventures and moduleAdventures arrays.
+   */
+  async listAvailableAdventures() {
+    this._requireAuth();
+    return this._sendRequest('list-available-adventures', {});
+  }
+
+  /**
+   * Register a Foundry module as an adventure source.
+   * GM only.
+   *
+   * @param {string} moduleId - The Foundry module ID.
+   * @param {string} moduleName - Display name.
+   * @param {string} description - Optional description.
+   * @returns {Promise<object>} Result with created record.
+   */
+  async registerAdventureModule(moduleId, moduleName, description = null) {
+    this._requireAuth();
+    if (!this.isGM) {
+      throw new Error('Registering adventure modules requires GM permissions');
+    }
+    return this._sendRequest('register-adventure-module', {
+      moduleId,
+      moduleName,
+      description
+    });
+  }
+
+  /**
+   * Unregister a Foundry module from adventure sources.
+   *
+   * @param {string} moduleId - The Foundry module ID.
+   * @returns {Promise<object>} Result.
+   */
+  async unregisterAdventureModule(moduleId) {
+    this._requireAuth();
+    if (!this.isGM) {
+      throw new Error('Unregistering adventure modules requires GM permissions');
+    }
+    return this._sendRequest('unregister-adventure-module', { moduleId });
+  }
+
+  /**
+   * Get current transition state.
+   *
+   * @returns {Promise<object>} Transition state info.
+   */
+  async getTransitionState() {
+    this._requireAuth();
+    return this._sendRequest('get-transition-state', {});
+  }
+
+  /**
+   * Mark an adventure transition as complete.
+   * GM only.
+   *
+   * @returns {Promise<object>} Result.
+   */
+  async completeTransition() {
+    this._requireAuth();
+    if (!this.isGM) {
+      throw new Error('Completing transition requires GM permissions');
+    }
+    return this._sendRequest('complete-transition', {});
+  }
+
+  // ===== Usage Monitoring Methods =====
+
+  /**
+   * Get API usage statistics for the current world.
+   * Returns both all-time totals and session (trip meter) totals.
+   *
+   * @returns {Promise<object>} Usage statistics with allTime, session, and byType properties.
+   */
+  async getUsageStats() {
+    this._requireAuth();
+    return this._sendRequest('get-usage-stats', {});
+  }
+
+  /**
+   * Reset the session marker for trip meter functionality.
+   * GM only. Starts a new session for tracking usage.
+   *
+   * @returns {Promise<object>} Result with new session start time.
+   */
+  async resetSession() {
+    this._requireAuth();
+    if (!this.isGM) {
+      throw new Error('Resetting session requires GM permissions');
+    }
+    return this._sendRequest('reset-session', {});
+  }
+
   /**
    * Register a tool handler for execution requests from the proxy.
    *

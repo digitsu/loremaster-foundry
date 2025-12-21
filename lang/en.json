@@ -63,6 +63,10 @@
       "GMSendKeyword": {
         "Name": "GM Send Keyword",
         "Hint": "Keyword for GM to trigger immediate batch send (e.g., @lm !send)."
+      },
+      "MaxTokensPerMonth": {
+        "Name": "Token Limit (for display)",
+        "Hint": "Set a monthly token limit to display usage percentage in the Usage Monitor. Set to 0 to disable limit display."
       }
     },
     "Messages": {
@@ -104,7 +108,8 @@
       "Title": "Loremaster Content Manager",
       "Tab": {
         "PDFs": "Documents",
-        "Upload": "Upload"
+        "Upload": "Upload",
+        "Adventure": "Active Adventure"
       },
       "Category": {
         "CoreRules": "Core Rules",
@@ -273,7 +278,88 @@
       "Error": "Failed to generate script: {error}",
       "Generate": "Generate GM Prep Script",
       "Regenerate": "Regenerate GM Prep Script",
-      "JournalTitle": "Loremaster: {name} - GM Script"
+      "JournalTitle": "Loremaster: {name} - GM Script",
+      "ScriptReady": "GM Script Ready",
+      "ScriptGenerating": "Generating...",
+      "ScriptFailed": "Generation Failed",
+      "ReuploadRequired": "Re-upload required: Delete this PDF and upload it again to enable GM Prep"
+    },
+    "ActiveAdventure": {
+      "CurrentTitle": "Current Adventure",
+      "SelectTitle": "Select Adventure",
+      "SelectPlaceholder": "-- Select an adventure --",
+      "NoSelection": "No adventure selected",
+      "NoSelectionHint": "Select an adventure to focus Loremaster's context",
+      "PDFAdventures": "PDF Adventures",
+      "ModuleAdventures": "Foundry Modules",
+      "TypePDF": "PDF Adventure",
+      "TypeModule": "Foundry Module",
+      "ViewScript": "View Script",
+      "Clear": "Clear active adventure",
+      "ClearTitle": "Clear Active Adventure",
+      "ClearConfirm": "Are you sure you want to clear \"{name}\" as the active adventure?",
+      "ClearSuccess": "Active adventure cleared",
+      "ClearError": "Failed to clear adventure: {error}",
+      "SetSuccess": "Active adventure set to \"{name}\"",
+      "SetError": "Failed to set adventure: {error}",
+      "SwitchSuccess": "Switched to \"{name}\"",
+      "SwitchError": "Failed to switch adventure: {error}",
+      "ScriptNotFound": "GM Prep script journal not found",
+      "TransitionTitle": "Adventure Transition",
+      "TransitionMessage": "You are switching from \"{from}\" to \"{to}\".",
+      "TransitionHint": "Choose how to handle the transition:",
+      "TransitionImmediate": "Immediate Switch",
+      "TransitionNarrative": "Narrative Bridge",
+      "TransitionInProgress": "Transition in progress from:",
+      "CompleteTransition": "Complete Transition",
+      "TransitionCompleted": "Adventure transition completed",
+      "TransitionError": "Failed to complete transition: {error}",
+      "TransitionPromptTitle": "Narrative Bridge Instructions",
+      "TransitionPromptMessage": "Provide instructions for Loremaster to weave a narrative bridge from \"{from}\" to \"{to}\".",
+      "TransitionPromptLabel": "Transition Instructions",
+      "TransitionPromptPlaceholder": "How should the story transition between adventures? (e.g., time skip, travel sequence, specific events...)",
+      "RegisterModuleTitle": "Register Foundry Module",
+      "RegisterModuleHint": "Mark installed modules as adventure sources for Loremaster.",
+      "SelectModule": "-- Select a module --",
+      "Register": "Register",
+      "RegisterSuccess": "Registered \"{name}\" as an adventure source",
+      "RegisterError": "Failed to register module: {error}",
+      "RegisteredModules": "Registered Modules:",
+      "UnregisterTitle": "Unregister Module",
+      "UnregisterConfirm": "Are you sure you want to remove \"{name}\" from adventure sources?",
+      "UnregisterSuccess": "Unregistered \"{name}\"",
+      "UnregisterError": "Failed to unregister module: {error}",
+      "ModuleNotFound": "Module not found",
+      "GMOnly": "Only the GM can manage active adventures"
+    },
+    "UsageMonitor": {
+      "Title": "API Usage Monitor",
+      "Loading": "Loading usage data...",
+      "AllTimeUsage": "All-Time Usage",
+      "SessionUsage": "Session Usage (Trip Meter)",
+      "TokensUsed": "Tokens Used",
+      "TokensThisSession": "Tokens This Session",
+      "SessionStarted": "Started",
+      "NoActiveSession": "No session started",
+      "Reset": "Reset",
+      "ResetSession": "Reset Session",
+      "ResetConfirm": "Start a new session? This will reset the trip meter for tracking usage from this point forward.",
+      "SessionReset": "Session reset - trip meter started",
+      "ResetError": "Failed to reset session: {error}",
+      "InputTokens": "Input",
+      "OutputTokens": "Output",
+      "TotalRequests": "Requests",
+      "UsageByType": "Usage by Feature",
+      "Refresh": "Refresh",
+      "NoData": "No usage data available yet",
+      "LoadError": "Failed to load usage statistics",
+      "NoLimitConfigured": "No token limit configured - set in module settings",
+      "RequestTypes": {
+        "chat": "Chat Messages",
+        "chat-batch": "Batched Messages",
+        "veto": "Veto/Corrections",
+        "gm-prep": "GM Prep Scripts"
+      }
     }
   }
 }
