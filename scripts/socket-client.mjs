@@ -678,6 +678,128 @@ export class SocketClient {
     return this._sendRequest('get-house-rules-stats', {});
   }
 
+  // ===== GM Prep Methods =====
+
+  /**
+   * Generate a GM Prep script for an adventure PDF.
+   * GM-only operation that sends PDF to Claude for script generation.
+   *
+   * @param {number} pdfId - The PDF document ID.
+   * @param {string} adventureName - Display name for the adventure.
+   * @param {boolean} overwrite - If true, overwrite existing script.
+   * @param {Function} onProgress - Progress callback: (stage, progress, message) => void.
+   * @returns {Promise<object>} Generation result with script content.
+   */
+  async generateGMPrep(pdfId, adventureName, overwrite = false, onProgress = null) {
+    this._requireAuth();
+
+    if (!this.isGM) {
+      throw new Error('GM Prep generation requires GM permissions');
+    }
+
+    const requestId = `req_${++this.requestIdCounter}`;
+
+    // Store progress callback if provided
+    if (onProgress) {
+      this.progressCallbacks.set(requestId, onProgress);
+    }
+
+    return new Promise((resolve, reject) => {
+      // Set up timeout (3 minutes for script generation)
+      const timeout = 180000;
+      const timeoutId = setTimeout(() => {
+        this.pendingRequests.delete(requestId);
+        this.progressCallbacks.delete(requestId);
+        reject(new Error('GM Prep generation timeout'));
+      }, timeout);
+
+      // Store pending request
+      this.pendingRequests.set(requestId, {
+        resolve: (data) => {
+          clearTimeout(timeoutId);
+          this.pendingRequests.delete(requestId);
+          this.progressCallbacks.delete(requestId);
+          resolve(data);
+        },
+        reject: (error) => {
+          clearTimeout(timeoutId);
+          this.pendingRequests.delete(requestId);
+          this.progressCallbacks.delete(requestId);
+          reject(error);
+        }
+      });
+
+      // Send request
+      this.ws.send(JSON.stringify({
+        type: 'generate-gm-prep',
+        requestId,
+        pdfId,
+        adventureName,
+        overwrite
+      }));
+    });
+  }
+
+  /**
+   * Get a GM Prep script by PDF ID or script ID.
+   *
+   * @param {object} params - Query parameters.
+   * @param {number} params.pdfId - The PDF document ID.
+   * @param {number} params.scriptId - The script ID.
+   * @returns {Promise<object>} Object with script record or null.
+   */
+  async getGMPrep({ pdfId, scriptId } = {}) {
+    this._requireAuth();
+
+    return this._sendRequest('get-gm-prep', { pdfId, scriptId });
+  }
+
+  /**
+   * Get GM Prep status for a PDF (without full content).
+   *
+   * @param {number} pdfId - The PDF document ID.
+   * @returns {Promise<object>} Status object with hasScript, status, scriptId.
+   */
+  async getGMPrepStatus(pdfId) {
+    this._requireAuth();
+
+    return this._sendRequest('get-gm-prep-status', { pdfId });
+  }
+
+  /**
+   * Delete a GM Prep script.
+   *
+   * @param {number} scriptId - The script ID.
+   * @returns {Promise<object>} Delete result.
+   */
+  async deleteGMPrep(scriptId) {
+    this._requireAuth();
+
+    if (!this.isGM) {
+      throw new Error('Deleting GM Prep requires GM permissions');
+    }
+
+    return this._sendRequest('delete-gm-prep', { scriptId });
+  }
+
+  /**
+   * Update the journal UUID for a GM Prep script.
+   * Called after creating/updating the Foundry journal entry.
+   *
+   * @param {number} scriptId - The script ID.
+   * @param {string} journalUuid - The Foundry journal UUID.
+   * @returns {Promise<object>} Update result.
+   */
+  async updateGMPrepJournal(scriptId, journalUuid) {
+    this._requireAuth();
+
+    if (!this.isGM) {
+      throw new Error('Updating GM Prep journal requires GM permissions');
+    }
+
+    return this._sendRequest('update-gm-prep-journal', { scriptId, journalUuid });
+  }
+
   /**
    * Register a tool handler for execution requests from the proxy.
    *
@@ -764,6 +886,12 @@ export class SocketClient {
         return;
       }
 
+      // Handle GM Prep progress updates
+      if (message.type === 'gm-prep-progress') {
+        this._handleGMPrepProgress(message);
+        return;
+      }
+
       // Handle response to pending request
       const { requestId, success, data: responseData, error } = message;
 
@@ -797,6 +925,29 @@ export class SocketClient {
         callback(stage, progress, progressMessage);
       } catch (error) {
         console.error(`${MODULE_ID} | Error in progress callback:`, error);
+      }
+    }
+  }
+
+  /**
+   * Handle GM Prep progress message.
+   *
+   * @param {object} message - Progress message with requestId, stage, progress, message.
+   * @private
+   */
+  _handleGMPrepProgress(message) {
+    const { requestId, stage, progress, message: progressMessage } = message;
+
+    // Find the most recent pending generateGMPrep request callback
+    // Progress messages may not have requestId, so check all callbacks
+    for (const [reqId, callback] of this.progressCallbacks) {
+      if (reqId.startsWith('req_')) {
+        try {
+          callback(stage, progress, progressMessage);
+        } catch (error) {
+          console.error(`${MODULE_ID} | Error in GM Prep progress callback:`, error);
+        }
+        break; // Only call the most recent one
       }
     }
   }

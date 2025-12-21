@@ -1498,3 +1498,187 @@
 .loremaster-canon-badge i {
   font-size: 0.9em;
 }
+
+/* ===== GM Prep Button and Dialog Styles ===== */
+
+/* GM Prep button in PDF list */
+.gm-prep-btn {
+  background: transparent;
+  border: 1px solid #7b2c9e;
+  color: #7b2c9e;
+  padding: 6px 10px;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.gm-prep-btn:hover {
+  background: #7b2c9e;
+  color: white;
+}
+
+/* GM Prep button with existing script */
+.gm-prep-btn.has-script {
+  background: rgba(76, 175, 80, 0.1);
+  border-color: #4CAF50;
+  color: #4CAF50;
+}
+
+.gm-prep-btn.has-script:hover {
+  background: #4CAF50;
+  color: white;
+}
+
+/* GM Prep dialog styling */
+.gm-prep-dialog {
+  padding: 5px;
+}
+
+.gm-prep-dialog ul {
+  margin: 15px 0;
+  padding-left: 25px;
+}
+
+.gm-prep-dialog li {
+  margin-bottom: 8px;
+  line-height: 1.4;
+}
+
+.gm-prep-warning {
+  background: rgba(255, 152, 0, 0.15);
+  border: 1px solid rgba(255, 152, 0, 0.4);
+  border-radius: 4px;
+  padding: 10px 15px;
+  color: #f57c00;
+  margin: 15px 0;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.gm-prep-warning i {
+  font-size: 1.2em;
+}
+
+/* ===== GM Prep Journal Styles ===== */
+
+/* Wrapper for GM Prep script content in journals */
+.gm-prep-script {
+  font-family: inherit;
+  line-height: 1.6;
+}
+
+.gm-prep-script h1 {
+  border-bottom: 2px solid #7b2c9e;
+  padding-bottom: 0.5rem;
+  margin-top: 1.5rem;
+  color: #5a1f75;
+}
+
+.gm-prep-script h1:first-child {
+  margin-top: 0;
+}
+
+.gm-prep-script h2 {
+  color: #7b2c9e;
+  margin-top: 1.5rem;
+  margin-bottom: 0.5rem;
+  border-bottom: 1px solid rgba(123, 44, 158, 0.3);
+  padding-bottom: 0.3rem;
+}
+
+.gm-prep-script h3 {
+  color: #333;
+  margin-top: 1rem;
+  margin-bottom: 0.5rem;
+}
+
+.gm-prep-script h4 {
+  color: #666;
+  font-style: italic;
+  margin-top: 0.8rem;
+  margin-bottom: 0.4rem;
+}
+
+.gm-prep-script hr {
+  border: none;
+  border-top: 2px solid rgba(123, 44, 158, 0.2);
+  margin: 1.5rem 0;
+}
+
+.gm-prep-script ul {
+  margin: 0.5rem 0;
+  padding-left: 1.5rem;
+}
+
+.gm-prep-script li {
+  margin-bottom: 0.4rem;
+}
+
+/* Checklist styling for milestones */
+.gm-prep-script ul.gm-prep-checklist {
+  list-style: none;
+  padding-left: 0;
+}
+
+.gm-prep-script ul.gm-prep-checklist li {
+  padding-left: 1.8rem;
+  position: relative;
+}
+
+.gm-prep-script ul.gm-prep-checklist li::before {
+  content: '\f0c8';
+  font-family: 'Font Awesome 5 Free';
+  font-weight: 400;
+  position: absolute;
+  left: 0;
+  color: #999;
+}
+
+.gm-prep-script ul.gm-prep-checklist li.checked::before {
+  content: '\f14a';
+  color: #4CAF50;
+}
+
+/* Table styling for NPC summaries, etc. */
+.gm-prep-script table.gm-prep-table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 1rem 0;
+  font-size: 0.9em;
+}
+
+.gm-prep-script table.gm-prep-table tr:first-child td {
+  background: rgba(123, 44, 158, 0.1);
+  font-weight: bold;
+  color: #5a1f75;
+}
+
+.gm-prep-script table.gm-prep-table td {
+  border: 1px solid rgba(0, 0, 0, 0.1);
+  padding: 8px 12px;
+  vertical-align: top;
+}
+
+.gm-prep-script table.gm-prep-table tr:nth-child(even) {
+  background: rgba(0, 0, 0, 0.02);
+}
+
+/* Code/inline code styling */
+.gm-prep-script code {
+  background: rgba(0, 0, 0, 0.05);
+  padding: 2px 6px;
+  border-radius: 3px;
+  font-family: monospace;
+  font-size: 0.9em;
+}
+
+/* Strong/emphasis styling */
+.gm-prep-script strong {
+  color: #333;
+}
+
+.gm-prep-script em {
+  font-style: italic;
+  color: #555;
+}

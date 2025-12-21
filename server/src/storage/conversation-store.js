@@ -155,6 +155,24 @@ export class ConversationStore {
 
       CREATE INDEX IF NOT EXISTS idx_house_rules_world ON house_rules(world_id);
       CREATE INDEX IF NOT EXISTS idx_house_rules_type ON house_rules(ruling_type);
+
+      CREATE TABLE IF NOT EXISTS gm_prep_scripts (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        world_id TEXT NOT NULL,
+        pdf_id INTEGER NOT NULL,
+        adventure_name TEXT NOT NULL,
+        journal_uuid TEXT,
+        script_content TEXT,
+        generation_status TEXT DEFAULT 'pending',
+        error_message TEXT,
+        created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+        updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+        FOREIGN KEY (pdf_id) REFERENCES pdf_documents(id) ON DELETE CASCADE,
+        UNIQUE(world_id, pdf_id)
+      );
+
+      CREATE INDEX IF NOT EXISTS idx_gm_prep_world ON gm_prep_scripts(world_id);
+      CREATE INDEX IF NOT EXISTS idx_gm_prep_pdf ON gm_prep_scripts(pdf_id);
     `);
   }
 
