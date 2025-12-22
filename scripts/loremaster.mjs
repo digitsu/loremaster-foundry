@@ -62,8 +62,8 @@ Hooks.once('ready', async () => {
   // Force re-render of scene controls to show our buttons
   // V13 may cache controls before our hook adds tools
   if (ui.controls) {
-    console.log(`${MODULE_NAME} | Re-initializing scene controls`);
-    ui.controls.initialize();
+    console.log(`${MODULE_NAME} | Re-rendering scene controls`);
+    ui.controls.render();
   }
 });
 
