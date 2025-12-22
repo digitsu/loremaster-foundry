@@ -443,21 +443,46 @@ export class ChatHandler {
 
   /**
    * Show a typing indicator in the chat.
+   * Creates a temporary chat message with a spinning indicator.
    *
    * @private
    */
   _showTypingIndicator() {
-    // TODO: Implement visual typing indicator
+    // Remove any existing indicator first
+    this._hideTypingIndicator();
+
+    // Create the indicator element
+    const indicatorHtml = `
+      <div id="loremaster-typing-indicator" class="loremaster-typing-container">
+        <div class="loremaster-typing">
+          <div class="loremaster-processing-spinner"></div>
+          <span class="loremaster-processing-text">Loremaster is thinking...</span>
+        </div>
+      </div>
+    `;
+
+    // Append to chat log
+    const chatLog = document.querySelector('#chat-log');
+    if (chatLog) {
+      chatLog.insertAdjacentHTML('beforeend', indicatorHtml);
+      // Scroll to bottom to show indicator
+      chatLog.scrollTop = chatLog.scrollHeight;
+    }
+
     console.log(`${MODULE_ID} | AI is thinking...`);
   }
 
   /**
    * Hide the typing indicator.
+   * Removes the temporary indicator element from the chat.
    *
    * @private
    */
   _hideTypingIndicator() {
-    // TODO: Implement visual typing indicator removal
+    const indicator = document.getElementById('loremaster-typing-indicator');
+    if (indicator) {
+      indicator.remove();
+    }
     console.log(`${MODULE_ID} | AI finished thinking`);
   }
 
