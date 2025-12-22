@@ -80,6 +80,10 @@ export function registerUsageMonitorHelpers() {
 /**
  * UsageMonitor Application class for displaying API usage statistics.
  * Extends Foundry's Application class to provide a dedicated window.
+ *
+ * TODO: Migrate to ApplicationV2 before Foundry V16
+ * The V1 Application framework is deprecated since V13 and will be removed in V16.
+ * See: foundry.applications.api.ApplicationV2
  */
 export class UsageMonitor extends Application {
   /**
