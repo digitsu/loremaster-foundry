@@ -135,6 +135,9 @@ export class ConversationManager extends Application {
     // Delete conversation
     html.find('.delete-btn').on('click', this._onDeleteConversation.bind(this));
 
+    // Export to journal
+    html.find('.export-journal-btn').on('click', this._onExportToJournal.bind(this));
+
     // New conversation button
     html.find('.new-conversation-btn').on('click', this._onNewConversation.bind(this));
 
@@ -173,13 +176,17 @@ export class ConversationManager extends Application {
   async _loadConversations(append = false) {
     try {
       const offset = append ? this.currentOffset : 0;
+      console.log(`${MODULE_ID} | Loading conversations, offset: ${offset}, limit: ${this.pageSize}`);
       const result = await this.socketClient.listConversations(this.pageSize, offset);
+      console.log(`${MODULE_ID} | Server returned:`, result);
 
       if (append) {
         this.conversations = [...this.conversations, ...result.conversations];
       } else {
         this.conversations = result.conversations || [];
       }
+
+      console.log(`${MODULE_ID} | Loaded ${this.conversations.length} conversations`);
 
       this.hasMore = result.hasMore || false;
       this.currentOffset = this.conversations.length;
@@ -235,34 +242,40 @@ export class ConversationManager extends Application {
     }
 
     panel.removeClass('hidden');
-    const conv = this.selectedConversation;
+
+    // Server returns { conversation, stats, messages }
+    const conv = this.selectedConversation.conversation || this.selectedConversation;
+    const stats = this.selectedConversation.stats || {};
+    const messages = this.selectedConversation.messages || [];
+
+    // Store the conversation object for rename/other operations
+    this._selectedConv = conv;
 
     panel.find('.detail-title').text(conv.title || game.i18n.localize('LOREMASTER.ConversationManager.Untitled'));
     panel.find('.detail-created').text(new Date(conv.created_at).toLocaleString());
     panel.find('.detail-updated').text(new Date(conv.updated_at).toLocaleString());
-    panel.find('.detail-messages').text(conv.messageCount || 0);
-    panel.find('.detail-tokens').text(conv.total_tokens || 0);
+    panel.find('.detail-messages').text(stats.messageCount || 0);
+    panel.find('.detail-tokens').text(stats.totalTokens || conv.total_tokens || 0);
 
     // Show/hide action buttons based on whether it's the active conversation
     const isActive = conv.id === this.activeConversationId;
     panel.find('.switch-btn').toggleClass('hidden', isActive);
     panel.find('.active-badge').toggleClass('hidden', !isActive);
 
-    // Recent messages preview
+    // Recent messages preview - show most recent AI responses only
     const messagesPreview = panel.find('.messages-preview');
     messagesPreview.empty();
 
-    if (conv.messages && conv.messages.length > 0) {
-      conv.messages.slice(0, 3).forEach(msg => {
-        const roleClass = msg.role === 'assistant' ? 'ai-message' : 'user-message';
-        const roleLabel = msg.role === 'assistant' ?
-          game.i18n.localize('LOREMASTER.ConversationManager.AI') :
-          game.i18n.localize('LOREMASTER.ConversationManager.User');
-        const content = msg.content.substring(0, 100) + (msg.content.length > 100 ? '...' : '');
+    // Filter for AI responses only, reverse to show most recent first
+    const aiMessages = messages.filter(msg => msg.role === 'assistant');
+    const recentAiMessages = [...aiMessages].reverse().slice(0, 3);
+
+    if (recentAiMessages.length > 0) {
+      recentAiMessages.forEach(msg => {
+        const content = msg.content.substring(0, 150) + (msg.content.length > 150 ? '...' : '');
 
         messagesPreview.append(`
-          <div class="message-preview ${roleClass}">
-            <span class="message-role">${roleLabel}:</span>
+          <div class="message-preview ai-message">
             <span class="message-content">${content}</span>
           </div>
         `);
@@ -290,7 +303,7 @@ export class ConversationManager extends Application {
     if (event.type === 'dblclick') {
       conversationId = event.currentTarget.dataset.conversationId;
     } else {
-      conversationId = this.selectedConversation?.id;
+      conversationId = this._selectedConv?.id;
     }
 
     if (!conversationId || conversationId === this.activeConversationId) return;
@@ -317,9 +330,11 @@ export class ConversationManager extends Application {
   async _onRenameConversation(event) {
     event.preventDefault();
 
-    if (!this.selectedConversation) return;
+    // Use the extracted conversation object
+    const conv = this._selectedConv;
+    if (!conv) return;
 
-    const currentTitle = this.selectedConversation.title ||
+    const currentTitle = conv.title ||
       game.i18n.localize('LOREMASTER.ConversationManager.Untitled');
 
     // Show dialog for new title
@@ -341,7 +356,7 @@ export class ConversationManager extends Application {
             const newTitle = html.find('input[name="title"]').val().trim();
             if (newTitle && newTitle !== currentTitle) {
               try {
-                await this.socketClient.renameConversation(this.selectedConversation.id, newTitle);
+                await this.socketClient.renameConversation(conv.id, newTitle);
                 ui.notifications.info(game.i18n.localize('LOREMASTER.ConversationManager.RenameSuccess'));
                 await this._loadConversations();
               } catch (error) {
@@ -371,12 +386,13 @@ export class ConversationManager extends Application {
   async _onClearConversation(event) {
     event.preventDefault();
 
-    if (!this.selectedConversation) return;
+    const conv = this._selectedConv;
+    if (!conv) return;
 
     const confirmed = await Dialog.confirm({
       title: game.i18n.localize('LOREMASTER.ConversationManager.ClearTitle'),
       content: game.i18n.format('LOREMASTER.ConversationManager.ClearConfirm', {
-        name: this.selectedConversation.title || game.i18n.localize('LOREMASTER.ConversationManager.Untitled')
+        name: conv.title || game.i18n.localize('LOREMASTER.ConversationManager.Untitled')
       }),
       yes: () => true,
       no: () => false
@@ -385,7 +401,7 @@ export class ConversationManager extends Application {
     if (!confirmed) return;
 
     try {
-      await this.socketClient.clearConversation(this.selectedConversation.id);
+      await this.socketClient.clearConversation(conv.id);
       ui.notifications.info(game.i18n.localize('LOREMASTER.ConversationManager.ClearSuccess'));
       await this._loadConversations();
     } catch (error) {
@@ -405,10 +421,11 @@ export class ConversationManager extends Application {
   async _onDeleteConversation(event) {
     event.preventDefault();
 
-    if (!this.selectedConversation) return;
+    const conv = this._selectedConv;
+    if (!conv) return;
 
     // Can't delete the active conversation
-    if (this.selectedConversation.id === this.activeConversationId) {
+    if (conv.id === this.activeConversationId) {
       ui.notifications.warn(game.i18n.localize('LOREMASTER.ConversationManager.CannotDeleteActive'));
       return;
     }
@@ -416,7 +433,7 @@ export class ConversationManager extends Application {
     const confirmed = await Dialog.confirm({
       title: game.i18n.localize('LOREMASTER.ConversationManager.DeleteTitle'),
       content: game.i18n.format('LOREMASTER.ConversationManager.DeleteConfirm', {
-        name: this.selectedConversation.title || game.i18n.localize('LOREMASTER.ConversationManager.Untitled')
+        name: conv.title || game.i18n.localize('LOREMASTER.ConversationManager.Untitled')
       }),
       yes: () => true,
       no: () => false
@@ -425,9 +442,10 @@ export class ConversationManager extends Application {
     if (!confirmed) return;
 
     try {
-      await this.socketClient.deleteConversation(this.selectedConversation.id);
+      await this.socketClient.deleteConversation(conv.id);
       ui.notifications.info(game.i18n.localize('LOREMASTER.ConversationManager.DeleteSuccess'));
       this.selectedConversation = null;
+      this._selectedConv = null;
       await this._loadConversations();
     } catch (error) {
       console.error(`${MODULE_ID} | Failed to delete conversation:`, error);
@@ -435,6 +453,153 @@ export class ConversationManager extends Application {
         error: error.message
       }));
     }
+  }
+
+  /**
+   * Handle export to journal button click.
+   * Creates a journal entry with conversation messages organized by session/date.
+   *
+   * @param {Event} event - The click event.
+   * @private
+   */
+  async _onExportToJournal(event) {
+    event.preventDefault();
+
+    const conv = this._selectedConv;
+    if (!conv) return;
+
+    try {
+      ui.notifications.info('Exporting conversation to journal...');
+
+      // Fetch all messages for this conversation (increased limit)
+      const result = await this.socketClient.getConversation(conv.id, 1000);
+      const messages = result.messages || [];
+
+      if (messages.length === 0) {
+        ui.notifications.warn('No messages to export');
+        return;
+      }
+
+      // Group messages by date (session)
+      const sessionGroups = this._groupMessagesBySession(messages);
+
+      // Create journal pages for each session
+      const pages = [];
+      let pageOrder = 0;
+
+      for (const [sessionDate, sessionMessages] of Object.entries(sessionGroups)) {
+        // Format messages for this session - AI responses only
+        const aiMessages = sessionMessages.filter(m => m.role === 'assistant');
+        if (aiMessages.length === 0) continue;
+
+        const content = aiMessages.map(msg => {
+          const time = new Date(msg.created_at).toLocaleTimeString();
+          return `<div class="loremaster-journal-entry">
+            <p class="entry-time"><em>${time}</em></p>
+            <div class="entry-content">${this._formatMessageForJournal(msg.content)}</div>
+          </div>`;
+        }).join('<hr>');
+
+        pages.push({
+          name: sessionDate,
+          type: 'text',
+          text: {
+            content: `<div class="loremaster-session-log">${content}</div>`,
+            format: CONST.JOURNAL_ENTRY_PAGE_FORMATS.HTML
+          },
+          sort: pageOrder++ * 100000
+        });
+      }
+
+      if (pages.length === 0) {
+        ui.notifications.warn('No AI responses to export');
+        return;
+      }
+
+      // Create the journal entry
+      const journalTitle = conv.title || 'Loremaster Session';
+      const journal = await JournalEntry.create({
+        name: `${journalTitle} - Loremaster Log`,
+        pages: pages
+      });
+
+      ui.notifications.info(`Created journal: ${journal.name}`);
+
+      // Open the journal
+      journal.sheet.render(true);
+
+    } catch (error) {
+      console.error(`${MODULE_ID} | Failed to export to journal:`, error);
+      ui.notifications.error('Failed to export conversation to journal');
+    }
+  }
+
+  /**
+   * Group messages by session date.
+   *
+   * @param {Array} messages - Array of message objects.
+   * @returns {Object} Messages grouped by date string.
+   * @private
+   */
+  _groupMessagesBySession(messages) {
+    const groups = {};
+
+    for (const msg of messages) {
+      const date = new Date(msg.created_at);
+      const dateKey = date.toLocaleDateString(undefined, {
+        weekday: 'long',
+        year: 'numeric',
+        month: 'long',
+        day: 'numeric'
+      });
+
+      if (!groups[dateKey]) {
+        groups[dateKey] = [];
+      }
+      groups[dateKey].push(msg);
+    }
+
+    return groups;
+  }
+
+  /**
+   * Format message content for journal display.
+   * Converts markdown-style formatting to HTML.
+   *
+   * @param {string} content - Raw message content.
+   * @returns {string} HTML formatted content.
+   * @private
+   */
+  _formatMessageForJournal(content) {
+    if (!content) return '';
+
+    let html = content;
+
+    // Convert markdown headers
+    html = html.replace(/^### (.+)$/gm, '<h5>$1</h5>');
+    html = html.replace(/^## (.+)$/gm, '<h4>$1</h4>');
+    html = html.replace(/^# (.+)$/gm, '<h3>$1</h3>');
+
+    // Bold and italic
+    html = html.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
+    html = html.replace(/\*([^*]+)\*/g, '<em>$1</em>');
+
+    // Lists
+    html = html.replace(/^[\-\*] (.+)$/gm, '<li>$1</li>');
+    html = html.replace(/(<li>.*<\/li>\n?)+/g, '<ul>$&</ul>');
+
+    // Blockquotes for dialogue
+    html = html.replace(/^> (.+)$/gm, '<blockquote>$1</blockquote>');
+
+    // Paragraphs
+    html = html.replace(/\n\n+/g, '</p><p>');
+    html = html.replace(/\n/g, '<br>');
+
+    if (!html.startsWith('<')) {
+      html = `<p>${html}</p>`;
+    }
+
+    return html;
   }
 
   /**

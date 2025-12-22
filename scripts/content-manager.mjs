@@ -6,6 +6,8 @@
  * context for Loremaster AI interactions.
  */
 
+import { showCastSelectionIfNeeded } from './cast-selection-dialog.mjs';
+
 const MODULE_ID = 'loremaster';
 
 /**
@@ -77,6 +79,10 @@ export class ContentManager extends Application {
     this.activeConversation = null;
     this.compactedConversations = [];
     this.isCompacting = false;
+    // Cast management data
+    this.castScriptId = null;
+    this.castCharacters = [];
+    this.castDirty = false;
   }
 
   /**
@@ -130,7 +136,11 @@ export class ContentManager extends Application {
       // History tab data
       activeConversation: this.activeConversation,
       compactedConversations: this.compactedConversations,
-      isCompacting: this.isCompacting
+      isCompacting: this.isCompacting,
+      // Cast management data
+      castScriptId: this.castScriptId,
+      castCharacters: this.castCharacters,
+      gamePlayers: this._getGamePlayers()
     };
   }
 
@@ -203,6 +213,20 @@ export class ContentManager extends Application {
 
     // Refresh history
     html.find('.refresh-history-btn').on('click', this._onRefreshHistory.bind(this));
+
+    // ===== Cast Tab =====
+    // Extract characters from script
+    html.find('.extract-characters-btn').on('click', this._onExtractCharacters.bind(this));
+
+    // Save cast assignments
+    html.find('.save-cast-btn').on('click', this._onSaveCast.bind(this));
+
+    // Player assignment changes
+    html.find('.assign-player-select').on('change', this._onPlayerAssignmentChange.bind(this));
+
+    // GM/AI control checkboxes
+    html.find('.gm-control-checkbox').on('change', this._onControlCheckboxChange.bind(this));
+    html.find('.ai-control-checkbox').on('change', this._onControlCheckboxChange.bind(this));
   }
 
   /**
@@ -218,9 +242,10 @@ export class ContentManager extends Application {
     if (!this._loaded) {
       this._loaded = true;
       await this._loadPDFs();
-      // Load adventure data and history for GMs
+      // Load adventure data, cast, and history for GMs
       if (game.user.isGM) {
         await this._loadAdventureData();
+        await this._loadCastData();
         await this._loadHistoryData();
       }
     }
@@ -843,6 +868,21 @@ export class ContentManager extends Application {
 
       // Set the adventure with transition options
       try {
+        // Show cast selection dialog if we have a GM Prep script
+        if (gmPrepScriptId) {
+          const proceed = await showCastSelectionIfNeeded(
+            this.socketClient,
+            gmPrepScriptId,
+            adventureName
+          );
+
+          if (!proceed) {
+            // User cancelled cast selection
+            this.render(false);
+            return;
+          }
+        }
+
         await this.socketClient.setActiveAdventure(adventureType, adventureId, {
           adventureName,
           gmPrepScriptId,
@@ -856,6 +896,7 @@ export class ContentManager extends Application {
         }));
 
         await this._loadAdventureData();
+        await this._loadCastData();
       } catch (error) {
         console.error(`${MODULE_ID} | Failed to set adventure:`, error);
         ui.notifications.error(game.i18n.format('LOREMASTER.ActiveAdventure.SwitchError', {
@@ -865,6 +906,21 @@ export class ContentManager extends Application {
     } else {
       // No existing adventure, just set it
       try {
+        // Show cast selection dialog if we have a GM Prep script
+        if (gmPrepScriptId) {
+          const proceed = await showCastSelectionIfNeeded(
+            this.socketClient,
+            gmPrepScriptId,
+            adventureName
+          );
+
+          if (!proceed) {
+            // User cancelled cast selection
+            this.render(false);
+            return;
+          }
+        }
+
         await this.socketClient.setActiveAdventure(adventureType, adventureId, {
           adventureName,
           gmPrepScriptId
@@ -875,6 +931,7 @@ export class ContentManager extends Application {
         }));
 
         await this._loadAdventureData();
+        await this._loadCastData();
       } catch (error) {
         console.error(`${MODULE_ID} | Failed to set adventure:`, error);
         ui.notifications.error(game.i18n.format('LOREMASTER.ActiveAdventure.SetError', {
@@ -1206,7 +1263,8 @@ export class ContentManager extends Application {
   async _loadHistoryData() {
     try {
       // Get all conversations to separate active from compacted
-      const conversations = await this.socketClient.listConversations();
+      const result = await this.socketClient.listConversations();
+      const conversations = result.conversations || [];
 
       // Find the active conversation (status !== 'compacted')
       this.activeConversation = conversations.find(c => c.status !== 'compacted') || null;
@@ -1409,5 +1467,183 @@ export class ContentManager extends Application {
       hour: '2-digit',
       minute: '2-digit'
     });
+  }
+
+  // ===== Cast Management Methods =====
+
+  /**
+   * Get list of game players for assignment dropdown.
+   *
+   * @returns {Array} Array of player objects with id, name, isGM.
+   * @private
+   */
+  _getGamePlayers() {
+    return game.users.contents.map(user => ({
+      id: user.id,
+      name: user.name,
+      isGM: user.isGM
+    }));
+  }
+
+  /**
+   * Load cast data from the server.
+   * Uses the active adventure's GM Prep script ID if available.
+   *
+   * @private
+   */
+  async _loadCastData() {
+    try {
+      // Get script ID from active adventure
+      if (this.activeAdventure?.gm_prep_script_id) {
+        this.castScriptId = this.activeAdventure.gm_prep_script_id;
+
+        // Fetch characters for this script
+        const result = await this.socketClient.getCharacters(this.castScriptId);
+        this.castCharacters = result.characters || [];
+        this.castDirty = false;
+
+        console.log(`${MODULE_ID} | Loaded ${this.castCharacters.length} characters for script ${this.castScriptId}`);
+      } else {
+        this.castScriptId = null;
+        this.castCharacters = [];
+      }
+
+      this.render(false);
+    } catch (error) {
+      console.error(`${MODULE_ID} | Failed to load cast data:`, error);
+    }
+  }
+
+  /**
+   * Handle extract characters from script button click.
+   * Parses the GM Prep script and extracts character information.
+   *
+   * @param {Event} event - The click event.
+   * @private
+   */
+  async _onExtractCharacters(event) {
+    event.preventDefault();
+
+    if (!this.castScriptId) {
+      ui.notifications.warn(game.i18n.localize('LOREMASTER.Cast.NoActiveAdventure'));
+      return;
+    }
+
+    try {
+      ui.notifications.info(game.i18n.localize('LOREMASTER.Cast.Extracting'));
+
+      const result = await this.socketClient.extractCharactersFromScript(this.castScriptId);
+
+      if (result.success) {
+        ui.notifications.info(game.i18n.format('LOREMASTER.Cast.ExtractSuccess', {
+          count: result.characters?.length || 0
+        }));
+
+        // Reload cast data
+        await this._loadCastData();
+      }
+    } catch (error) {
+      console.error(`${MODULE_ID} | Character extraction failed:`, error);
+      ui.notifications.error(game.i18n.format('LOREMASTER.Cast.ExtractError', {
+        error: error.message
+      }));
+    }
+  }
+
+  /**
+   * Handle save cast assignments button click.
+   * Saves all character assignments to the server.
+   *
+   * @param {Event} event - The click event.
+   * @private
+   */
+  async _onSaveCast(event) {
+    event.preventDefault();
+
+    if (!this.castScriptId || this.castCharacters.length === 0) {
+      return;
+    }
+
+    try {
+      // Prepare characters with world ID
+      const charactersToSave = this.castCharacters.map(char => ({
+        ...char,
+        worldId: game.world.id
+      }));
+
+      const result = await this.socketClient.bulkUpdateCharacters(this.castScriptId, charactersToSave);
+
+      if (result.success) {
+        this.castDirty = false;
+        ui.notifications.info(game.i18n.localize('LOREMASTER.Cast.SaveSuccess'));
+      }
+    } catch (error) {
+      console.error(`${MODULE_ID} | Failed to save cast:`, error);
+      ui.notifications.error(game.i18n.format('LOREMASTER.Cast.SaveError', {
+        error: error.message
+      }));
+    }
+  }
+
+  /**
+   * Handle player assignment dropdown change.
+   *
+   * @param {Event} event - The change event.
+   * @private
+   */
+  _onPlayerAssignmentChange(event) {
+    const characterName = event.target.dataset.character;
+    const userId = event.target.value;
+
+    // Find the user name
+    const user = userId ? game.users.get(userId) : null;
+    const userName = user?.name || null;
+
+    // Update local character data
+    const character = this.castCharacters.find(c => c.characterName === characterName);
+    if (character) {
+      character.assignedToUserId = userId || null;
+      character.assignedToUserName = userName;
+      this.castDirty = true;
+    }
+  }
+
+  /**
+   * Handle GM/AI control checkbox change.
+   *
+   * @param {Event} event - The change event.
+   * @private
+   */
+  _onControlCheckboxChange(event) {
+    const characterName = event.target.dataset.character;
+    const isGMControl = event.target.classList.contains('gm-control-checkbox');
+    const isAIControl = event.target.classList.contains('ai-control-checkbox');
+    const checked = event.target.checked;
+
+    // Update local character data
+    const character = this.castCharacters.find(c => c.characterName === characterName);
+    if (character) {
+      if (isGMControl) {
+        character.isGMControlled = checked;
+        // If GM controls, uncheck AI control
+        if (checked) {
+          character.isLoremasterControlled = false;
+          // Update the UI
+          const html = this.element;
+          html.find(`.ai-control-checkbox[data-character="${characterName}"]`).prop('checked', false);
+        }
+      }
+      if (isAIControl) {
+        character.isLoremasterControlled = checked;
+        // If AI controls, uncheck GM control
+        if (checked) {
+          character.isGMControlled = false;
+          // Update the UI
+          const html = this.element;
+          html.find(`.gm-control-checkbox[data-character="${characterName}"]`).prop('checked', false);
+        }
+      }
+      this.castDirty = true;
+    }
   }
 }

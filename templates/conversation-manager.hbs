@@ -26,13 +26,13 @@
   <div class="conversation-manager-body">
     {{!-- Conversation List --}}
     <div class="conversation-list-panel">
-      {{#if conversations.length}}
+      {{#if conversations}}
         <ul class="conversation-list">
           {{#each conversations}}
-            <li class="conversation-item {{#if (isActiveConversation this.id ../activeConversationId)}}active{{/if}}"
+            <li class="conversation-item {{#if (eq this.id ../activeConversationId)}}active{{/if}}"
                 data-conversation-id="{{this.id}}">
               <div class="conversation-icon">
-                {{#if (isActiveConversation this.id ../activeConversationId)}}
+                {{#if (eq this.id ../activeConversationId)}}
                   <i class="fas fa-comment-dots"></i>
                 {{else}}
                   <i class="fas fa-comment"></i>
@@ -41,7 +41,7 @@
               <div class="conversation-info">
                 <div class="conversation-title">
                   {{#if this.title}}
-                    {{truncate this.title 30}}
+                    {{this.title}}
                   {{else}}
                     {{localize "LOREMASTER.ConversationManager.Untitled"}}
                   {{/if}}
@@ -51,6 +51,12 @@
                     <i class="fas fa-clock"></i>
                     {{formatRelativeTime this.updated_at}}
                   </span>
+                  {{#if this.stats.messageCount}}
+                    <span class="conversation-messages">
+                      <i class="fas fa-comments"></i>
+                      {{this.stats.messageCount}}
+                    </span>
+                  {{/if}}
                   {{#if this.total_tokens}}
                     <span class="conversation-tokens">
                       <i class="fas fa-database"></i>
@@ -59,7 +65,7 @@
                   {{/if}}
                 </div>
               </div>
-              {{#if (isActiveConversation this.id ../activeConversationId)}}
+              {{#if (eq this.id ../activeConversationId)}}
                 <div class="conversation-badge">
                   <span class="active-indicator" title="{{localize 'LOREMASTER.ConversationManager.ActiveConversation'}}">
                     <i class="fas fa-check-circle"></i>
@@ -130,17 +136,19 @@
       </div>
 
       <div class="details-actions">
-        <button type="button" class="switch-btn" title="{{localize 'LOREMASTER.ConversationManager.SwitchTo'}}">
+        <button type="button" class="switch-btn" data-tooltip="{{localize 'LOREMASTER.ConversationManager.SwitchTo'}}">
           <i class="fas fa-exchange-alt"></i>
-          {{localize "LOREMASTER.ConversationManager.SwitchTo"}}
         </button>
-        <button type="button" class="rename-btn" title="{{localize 'LOREMASTER.ConversationManager.Rename'}}">
+        <button type="button" class="export-journal-btn" data-tooltip="{{localize 'LOREMASTER.ConversationManager.ExportToJournal'}}">
+          <i class="fas fa-book"></i>
+        </button>
+        <button type="button" class="rename-btn" data-tooltip="{{localize 'LOREMASTER.ConversationManager.Rename'}}">
           <i class="fas fa-edit"></i>
         </button>
-        <button type="button" class="clear-btn" title="{{localize 'LOREMASTER.ConversationManager.Clear'}}">
+        <button type="button" class="clear-btn" data-tooltip="{{localize 'LOREMASTER.ConversationManager.Clear'}}">
           <i class="fas fa-eraser"></i>
         </button>
-        <button type="button" class="delete-btn" title="{{localize 'LOREMASTER.ConversationManager.Delete'}}">
+        <button type="button" class="delete-btn" data-tooltip="{{localize 'LOREMASTER.ConversationManager.Delete'}}">
           <i class="fas fa-trash"></i>
         </button>
       </div>
