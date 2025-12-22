@@ -54,6 +54,23 @@
   }
 }
 
+/* Thinking message (public chat message) */
+.loremaster-thinking-message {
+  color: #c9841a;
+  font-style: italic;
+  padding: 4px 0;
+  animation: loremaster-pulse 2s ease-in-out infinite;
+}
+
+@keyframes loremaster-pulse {
+  0%, 100% {
+    opacity: 0.6;
+  }
+  50% {
+    opacity: 1;
+  }
+}
+
 /* Tool call results */
 .loremaster-tool-result {
   margin-top: 8px;
