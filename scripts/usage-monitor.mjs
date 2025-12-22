@@ -61,6 +61,20 @@ export function registerUsageMonitorHelpers() {
   Handlebars.registerHelper('hasLimit', (limit) => {
     return typeof limit === 'number' && limit > 0;
   });
+
+  // Multiply two numbers (for cache savings calculation)
+  Handlebars.registerHelper('mult', (a, b) => {
+    if (typeof a !== 'number' || typeof b !== 'number') return 0;
+    return Math.round(a * b);
+  });
+
+  // Calculate cache hit rate as a percentage
+  Handlebars.registerHelper('cacheHitRate', (cacheRead, cacheCreation, inputTokens) => {
+    const totalCacheable = (cacheRead || 0) + (cacheCreation || 0) + (inputTokens || 0);
+    if (totalCacheable === 0) return '0%';
+    const hitRate = ((cacheRead || 0) / totalCacheable) * 100;
+    return `${hitRate.toFixed(1)}%`;
+  });
 }
 
 /**
@@ -169,8 +183,8 @@ export class UsageMonitor extends Application {
       ui.notifications.error(game.i18n.localize('LOREMASTER.UsageMonitor.LoadError'));
       // Set empty stats to prevent retry loop, but allow manual refresh
       this.stats = {
-        allTime: { inputTokens: 0, outputTokens: 0, totalTokens: 0, requestCount: 0 },
-        session: { inputTokens: 0, outputTokens: 0, totalTokens: 0, requestCount: 0, sessionStart: null },
+        allTime: { inputTokens: 0, outputTokens: 0, totalTokens: 0, requestCount: 0, cacheCreationTokens: 0, cacheReadTokens: 0 },
+        session: { inputTokens: 0, outputTokens: 0, totalTokens: 0, requestCount: 0, cacheCreationTokens: 0, cacheReadTokens: 0, sessionStart: null },
         byType: []
       };
     } finally {
