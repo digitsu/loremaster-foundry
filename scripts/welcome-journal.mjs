@@ -107,8 +107,93 @@ const JOURNAL_PAGES = [
   <li>Switch between conversations</li>
   <li>Start new conversations for different scenes or sessions</li>
   <li>Clear or delete old conversations</li>
+  <li><strong>Export to Journal</strong> - Save conversation history as a Foundry journal</li>
+</ul>
+
+<h2>API Usage Monitor</h2>
+<p>Access from scene controls (chart icon) to track:</p>
+<ul>
+  <li>Token usage (input, output, cache)</li>
+  <li>Session and all-time statistics</li>
+  <li>Estimated API costs</li>
 </ul>
 `
+    }
+  },
+  {
+    name: 'GM Prep & Cast Management',
+    type: 'text',
+    sort: 250,
+    text: {
+      format: 1,
+      content: \`
+<h1>GM Prep & Cast Management</h1>
+
+<p>Loremaster can generate comprehensive adventure scripts and help manage character assignments for your sessions.</p>
+
+<h2>GM Prep Scripts</h2>
+<p>For uploaded adventure PDFs, Loremaster can generate a <strong>GM Prep Script</strong> - a detailed guide for running the adventure.</p>
+
+<h3>Generating a GM Prep Script</h3>
+<ol>
+  <li>Upload an adventure PDF in the <strong>Content Manager</strong></li>
+  <li>Click the <strong>GM Prep</strong> button on the PDF entry</li>
+  <li>Wait for generation (may take a few minutes)</li>
+  <li>A Foundry journal entry will be created with the script</li>
+</ol>
+
+<h3>What's Included</h3>
+<ul>
+  <li><strong>Adventure Overview</strong> - Synopsis, themes, and structure</li>
+  <li><strong>Scene-by-Scene Guide</strong> - Detailed breakdown of each encounter</li>
+  <li><strong>NPC Roster</strong> - All characters with stats and personalities</li>
+  <li><strong>Quick Reference Tables</strong> - Key information at a glance</li>
+  <li><strong>GM Tips</strong> - Running advice and potential issues</li>
+</ul>
+
+<h3>Editing GM Prep Scripts</h3>
+<p>You can edit the GM Prep journal directly in Foundry. Changes are <strong>automatically synced</strong> back to the server after 30 seconds of inactivity. Look for the sync indicator in the journal header:</p>
+<ul>
+  <li><strong>Pending sync...</strong> - Changes waiting to sync</li>
+  <li><strong>Syncing...</strong> - Upload in progress</li>
+  <li><strong>Synced</strong> - Changes saved to server</li>
+</ul>
+
+<h2>Cast Management</h2>
+<p>When you activate an adventure with a GM Prep script, Loremaster helps assign characters to players.</p>
+
+<h3>Cast Selection Dialog</h3>
+<p>When activating an adventure, a dialog appears showing:</p>
+<ul>
+  <li><strong>Playable Characters</strong> - Assign to players via dropdown</li>
+  <li><strong>NPCs for AI Control</strong> - Check which NPCs Loremaster should roleplay</li>
+</ul>
+
+<h3>Cast Tab in Content Manager</h3>
+<p>For ongoing management, use the <strong>Cast</strong> tab:</p>
+<ul>
+  <li>View all extracted characters</li>
+  <li>Change player assignments</li>
+  <li>Toggle GM or Loremaster control</li>
+  <li><strong>Extract from Script</strong> - Re-parse characters if needed</li>
+</ul>
+
+<h3>How Loremaster Uses Assignments</h3>
+<p>Characters marked as <strong>Loremaster Controls</strong> will be actively roleplayed by the AI during the session. The AI knows:</p>
+<ul>
+  <li>Which characters it should voice</li>
+  <li>Which characters belong to players (won't control these)</li>
+  <li>Character personalities and motivations from the script</li>
+</ul>
+
+<h2>Best Practices</h2>
+<ul>
+  <li><strong>Generate scripts before session zero</strong> - Review and edit as needed</li>
+  <li><strong>Assign characters before play</strong> - Use Cast Selection at adventure start</li>
+  <li><strong>Mark key NPCs for AI</strong> - Let Loremaster handle recurring characters</li>
+  <li><strong>Edit freely</strong> - Your journal changes sync automatically</li>
+</ul>
+\`
     }
   },
   {
