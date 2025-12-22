@@ -126,7 +126,7 @@ const JOURNAL_PAGES = [
     sort: 250,
     text: {
       format: 1,
-      content: \`
+      content: `
 <h1>GM Prep & Cast Management</h1>
 
 <p>Loremaster can generate comprehensive adventure scripts and help manage character assignments for your sessions.</p>
@@ -193,7 +193,7 @@ const JOURNAL_PAGES = [
   <li><strong>Mark key NPCs for AI</strong> - Let Loremaster handle recurring characters</li>
   <li><strong>Edit freely</strong> - Your journal changes sync automatically</li>
 </ul>
-\`
+`
     }
   },
   {
