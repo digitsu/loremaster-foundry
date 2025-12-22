@@ -40,6 +40,14 @@
     <a class="item" data-tab="upload">
       <i class="fas fa-upload"></i> {{localize "LOREMASTER.ContentManager.Tab.Upload"}}
     </a>
+    {{#if isGM}}
+      <a class="item" data-tab="adventure">
+        <i class="fas fa-dragon"></i> {{localize "LOREMASTER.ContentManager.Tab.Adventure"}}
+      </a>
+      <a class="item" data-tab="history">
+        <i class="fas fa-history"></i> {{localize "LOREMASTER.History.TabLabel"}}
+      </a>
+    {{/if}}
   </nav>
 
   {{!-- Tab Content --}}
@@ -54,7 +62,24 @@
                 <i class="fas fa-file-pdf"></i>
               </div>
               <div class="pdf-info">
-                <div class="pdf-name">{{display_name}}</div>
+                <div class="pdf-name">
+                  {{display_name}}
+                  {{#if hasGMPrepScript}}
+                    {{#if (eq gmPrepStatus "completed")}}
+                      <span class="gm-script-tag gm-script-ready">
+                        <i class="fas fa-check"></i> {{localize "LOREMASTER.GMPrep.ScriptReady"}}
+                      </span>
+                    {{else if (eq gmPrepStatus "generating")}}
+                      <span class="gm-script-tag gm-script-generating">
+                        <i class="fas fa-spinner fa-spin"></i> {{localize "LOREMASTER.GMPrep.ScriptGenerating"}}
+                      </span>
+                    {{else if (eq gmPrepStatus "failed")}}
+                      <span class="gm-script-tag gm-script-failed">
+                        <i class="fas fa-exclamation-triangle"></i> {{localize "LOREMASTER.GMPrep.ScriptFailed"}}
+                      </span>
+                    {{/if}}
+                  {{/if}}
+                </div>
                 <div class="pdf-meta">
                   <span class="pdf-category">{{categoryLabel category}}</span>
                   <span class="pdf-size">{{formatSize original_size}}</span>
@@ -77,13 +102,20 @@
                 {{!-- GM Prep button for adventure PDFs (GM only) --}}
                 {{#if ../isGM}}
                   {{#if (eq category "adventure")}}
-                    <button type="button" class="gm-prep-btn {{#if hasGMPrepScript}}has-script{{/if}}"
-                            data-pdf-id="{{id}}"
-                            data-pdf-name="{{display_name}}"
-                            data-has-script="{{hasGMPrepScript}}"
-                            title="{{#if hasGMPrepScript}}{{localize 'LOREMASTER.GMPrep.Regenerate'}}{{else}}{{localize 'LOREMASTER.GMPrep.Generate'}}{{/if}}">
-                      <i class="fas {{#if hasGMPrepScript}}fa-sync{{else}}fa-wand-magic-sparkles{{/if}}"></i>
-                    </button>
+                    {{#if claude_file_id}}
+                      <button type="button" class="gm-prep-btn {{#if hasGMPrepScript}}has-script{{/if}}"
+                              data-pdf-id="{{id}}"
+                              data-pdf-name="{{display_name}}"
+                              data-has-script="{{hasGMPrepScript}}"
+                              title="{{#if hasGMPrepScript}}{{localize 'LOREMASTER.GMPrep.Regenerate'}}{{else}}{{localize 'LOREMASTER.GMPrep.Generate'}}{{/if}}">
+                        <i class="fas {{#if hasGMPrepScript}}fa-sync{{else}}fa-wand-magic-sparkles{{/if}}"></i>
+                      </button>
+                    {{else}}
+                      <button type="button" class="gm-prep-btn disabled" disabled
+                              title="{{localize 'LOREMASTER.GMPrep.ReuploadRequired'}}">
+                        <i class="fas fa-exclamation-triangle"></i>
+                      </button>
+                    {{/if}}
                   {{/if}}
                 {{/if}}
                 <button type="button" class="delete-pdf-btn" data-pdf-id="{{id}}" data-pdf-name="{{display_name}}"
@@ -167,6 +199,271 @@
         <div class="permission-notice">
           <i class="fas fa-lock"></i>
           <p>{{localize "LOREMASTER.ContentManager.GMOnly"}}</p>
+        </div>
+      {{/if}}
+    </div>
+
+    {{!-- Active Adventure Tab --}}
+    <div class="tab" data-tab="adventure">
+      {{#if isGM}}
+        <div class="active-adventure-panel">
+          {{!-- Current Adventure Display --}}
+          <div class="current-adventure-section">
+            <h3>{{localize "LOREMASTER.ActiveAdventure.CurrentTitle"}}</h3>
+
+            {{#if activeAdventure}}
+              <div class="current-adventure-card">
+                <div class="adventure-icon">
+                  {{#if (eq activeAdventure.adventure_type "pdf")}}
+                    <i class="fas fa-file-pdf"></i>
+                  {{else}}
+                    <i class="fas fa-cube"></i>
+                  {{/if}}
+                </div>
+                <div class="adventure-details">
+                  <div class="adventure-name">{{activeAdventure.adventure_name}}</div>
+                  <div class="adventure-type-badge">
+                    {{#if (eq activeAdventure.adventure_type "pdf")}}
+                      {{localize "LOREMASTER.ActiveAdventure.TypePDF"}}
+                    {{else}}
+                      {{localize "LOREMASTER.ActiveAdventure.TypeModule"}}
+                    {{/if}}
+                  </div>
+                  {{#if linkedGMPrepScript}}
+                    <div class="gm-prep-link">
+                      <span class="gm-prep-status gm-prep-ready">
+                        <i class="fas fa-check"></i> {{localize "LOREMASTER.GMPrep.ScriptReady"}}
+                      </span>
+                      <button type="button" class="view-gm-prep-btn" data-script-id="{{linkedGMPrepScript.id}}">
+                        <i class="fas fa-eye"></i> {{localize "LOREMASTER.ActiveAdventure.ViewScript"}}
+                      </button>
+                    </div>
+                  {{/if}}
+                </div>
+                <button type="button" class="clear-adventure-btn" title="{{localize 'LOREMASTER.ActiveAdventure.Clear'}}">
+                  <i class="fas fa-times"></i>
+                </button>
+              </div>
+
+              {{!-- Transition State --}}
+              {{#if transitionState}}
+                {{#if (ne transitionState.state "none")}}
+                  <div class="transition-status">
+                    <i class="fas fa-exchange-alt"></i>
+                    {{localize "LOREMASTER.ActiveAdventure.TransitionInProgress"}}
+                    <span class="transition-from">{{transitionState.fromName}}</span>
+                    <button type="button" class="complete-transition-btn">
+                      <i class="fas fa-check"></i> {{localize "LOREMASTER.ActiveAdventure.CompleteTransition"}}
+                    </button>
+                  </div>
+                {{/if}}
+              {{/if}}
+            {{else}}
+              <div class="no-adventure-selected">
+                <i class="fas fa-map-signs"></i>
+                <p>{{localize "LOREMASTER.ActiveAdventure.NoSelection"}}</p>
+                <p class="hint">{{localize "LOREMASTER.ActiveAdventure.NoSelectionHint"}}</p>
+              </div>
+            {{/if}}
+          </div>
+
+          {{!-- Adventure Selector --}}
+          <div class="adventure-selector-section">
+            <h3>{{localize "LOREMASTER.ActiveAdventure.SelectTitle"}}</h3>
+
+            <select class="adventure-select">
+              <option value="">{{localize "LOREMASTER.ActiveAdventure.SelectPlaceholder"}}</option>
+
+              {{#if availableAdventures.pdfAdventures.length}}
+                <optgroup label="{{localize 'LOREMASTER.ActiveAdventure.PDFAdventures'}}">
+                  {{#each availableAdventures.pdfAdventures}}
+                    <option value="pdf:{{this.id}}"
+                      {{#if (eq ../activeAdventure.adventure_type "pdf")}}
+                        {{#if (eq ../activeAdventure.pdf_id this.id)}}selected{{/if}}
+                      {{/if}}>
+                      {{this.display_name}}{{#if this.hasGMPrepScript}} [GM Script]{{/if}}
+                    </option>
+                  {{/each}}
+                </optgroup>
+              {{/if}}
+
+              {{#if availableAdventures.moduleAdventures.length}}
+                <optgroup label="{{localize 'LOREMASTER.ActiveAdventure.ModuleAdventures'}}">
+                  {{#each availableAdventures.moduleAdventures}}
+                    <option value="module:{{this.module_id}}"
+                      {{#if (eq ../activeAdventure.adventure_type "module")}}
+                        {{#if (eq ../activeAdventure.module_id this.module_id)}}selected{{/if}}
+                      {{/if}}>
+                      {{this.module_name}}
+                    </option>
+                  {{/each}}
+                </optgroup>
+              {{/if}}
+            </select>
+          </div>
+
+          {{!-- Register Foundry Module Section --}}
+          <div class="register-module-section">
+            <h3>{{localize "LOREMASTER.ActiveAdventure.RegisterModuleTitle"}}</h3>
+            <p class="hint">{{localize "LOREMASTER.ActiveAdventure.RegisterModuleHint"}}</p>
+
+            <div class="module-registration">
+              <select class="foundry-module-select">
+                <option value="">{{localize "LOREMASTER.ActiveAdventure.SelectModule"}}</option>
+              </select>
+              <button type="button" class="register-module-btn" disabled>
+                <i class="fas fa-plus"></i> {{localize "LOREMASTER.ActiveAdventure.Register"}}
+              </button>
+            </div>
+
+            {{#if availableAdventures.moduleAdventures.length}}
+              <div class="registered-modules-list">
+                <h4>{{localize "LOREMASTER.ActiveAdventure.RegisteredModules"}}</h4>
+                <ul>
+                  {{#each availableAdventures.moduleAdventures}}
+                    <li>
+                      <span class="module-name">{{this.module_name}}</span>
+                      <button type="button" class="unregister-module-btn" data-module-id="{{this.module_id}}">
+                        <i class="fas fa-trash"></i>
+                      </button>
+                    </li>
+                  {{/each}}
+                </ul>
+              </div>
+            {{/if}}
+          </div>
+        </div>
+      {{else}}
+        <div class="permission-notice">
+          <i class="fas fa-lock"></i>
+          <p>{{localize "LOREMASTER.ActiveAdventure.GMOnly"}}</p>
+        </div>
+      {{/if}}
+    </div>
+
+    {{!-- History Tab --}}
+    <div class="tab" data-tab="history">
+      {{#if isGM}}
+        <div class="history-panel">
+          {{!-- Active Conversation Section --}}
+          <div class="active-conversation-section">
+            <div class="section-header">
+              <h3>{{localize "LOREMASTER.History.ActiveConversation"}}</h3>
+              <button type="button" class="refresh-history-btn" title="Refresh">
+                <i class="fas fa-sync-alt"></i>
+              </button>
+            </div>
+
+            {{#if activeConversation}}
+              <div class="conversation-card active-conversation">
+                <div class="conversation-icon">
+                  <i class="fas fa-comments"></i>
+                </div>
+                <div class="conversation-details">
+                  <div class="conversation-title">
+                    {{#if activeConversation.title}}
+                      {{activeConversation.title}}
+                    {{else}}
+                      {{localize "LOREMASTER.ConversationManager.Untitled"}}
+                    {{/if}}
+                  </div>
+                  <div class="conversation-meta">
+                    <span class="message-count">
+                      <i class="fas fa-comment"></i>
+                      {{activeConversation.message_count}} messages
+                    </span>
+                    {{#if activeConversation.total_tokens}}
+                      <span class="token-count">
+                        <i class="fas fa-coins"></i>
+                        {{activeConversation.total_tokens}} tokens
+                      </span>
+                    {{/if}}
+                  </div>
+                </div>
+                <div class="conversation-actions">
+                  <button type="button" class="compact-conversation-btn"
+                          {{#if isCompacting}}disabled{{/if}}
+                          title="{{localize 'LOREMASTER.History.CompactBtn'}}">
+                    {{#if isCompacting}}
+                      <i class="fas fa-spinner fa-spin"></i>
+                    {{else}}
+                      <i class="fas fa-compress-alt"></i>
+                    {{/if}}
+                    {{localize "LOREMASTER.History.CompactBtn"}}
+                  </button>
+                </div>
+              </div>
+            {{else}}
+              <div class="no-conversation-state">
+                <i class="fas fa-comment-slash"></i>
+                <p>{{localize "LOREMASTER.History.NoActive"}}</p>
+                <p class="hint">{{localize "LOREMASTER.History.NoActiveHint"}}</p>
+              </div>
+            {{/if}}
+          </div>
+
+          {{!-- Archived Conversations Section --}}
+          <div class="archived-conversations-section">
+            <h3>{{localize "LOREMASTER.History.ArchivedConversations"}}</h3>
+
+            {{#if compactedConversations.length}}
+              <ul class="compacted-conversation-list">
+                {{#each compactedConversations}}
+                  <li class="conversation-card compacted-conversation">
+                    <div class="conversation-icon">
+                      <i class="fas fa-archive"></i>
+                    </div>
+                    <div class="conversation-details">
+                      <div class="conversation-title">
+                        {{#if this.title}}
+                          {{this.title}}
+                        {{else}}
+                          {{localize "LOREMASTER.ConversationManager.Untitled"}}
+                        {{/if}}
+                      </div>
+                      <div class="conversation-meta">
+                        <span class="archived-date">
+                          <i class="fas fa-calendar"></i>
+                          {{this.compacted_at}}
+                        </span>
+                        {{#if this.summary_tokens}}
+                          <span class="summary-tokens">
+                            <i class="fas fa-file-alt"></i>
+                            {{this.summary_tokens}} token summary
+                          </span>
+                        {{/if}}
+                      </div>
+                    </div>
+                    <div class="conversation-actions">
+                      <button type="button" class="view-summary-btn"
+                              data-conversation-id="{{this.id}}"
+                              data-conversation-title="{{this.title}}"
+                              title="{{localize 'LOREMASTER.History.ViewSummary'}}">
+                        <i class="fas fa-eye"></i>
+                      </button>
+                      <button type="button" class="continue-adventure-btn"
+                              data-conversation-id="{{this.id}}"
+                              data-conversation-title="{{this.title}}"
+                              title="{{localize 'LOREMASTER.History.ContinueAdventure'}}">
+                        <i class="fas fa-play"></i>
+                        {{localize "LOREMASTER.History.ContinueAdventure"}}
+                      </button>
+                    </div>
+                  </li>
+                {{/each}}
+              </ul>
+            {{else}}
+              <div class="no-archived-state">
+                <i class="fas fa-folder-open"></i>
+                <p>{{localize "LOREMASTER.History.NoCompacted"}}</p>
+              </div>
+            {{/if}}
+          </div>
+        </div>
+      {{else}}
+        <div class="permission-notice">
+          <i class="fas fa-lock"></i>
+          <p>{{localize "LOREMASTER.History.GMOnly"}}</p>
         </div>
       {{/if}}
     </div>

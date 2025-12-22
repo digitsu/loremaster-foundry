@@ -73,6 +73,10 @@ export class ContentManager extends Application {
     this.availableAdventures = { pdfAdventures: [], moduleAdventures: [] };
     this.transitionState = null;
     this.linkedGMPrepScript = null;
+    // History tab data
+    this.activeConversation = null;
+    this.compactedConversations = [];
+    this.isCompacting = false;
   }
 
   /**
@@ -122,7 +126,11 @@ export class ContentManager extends Application {
       activeAdventure: this.activeAdventure,
       availableAdventures: this.availableAdventures,
       transitionState: this.transitionState,
-      linkedGMPrepScript: this.linkedGMPrepScript
+      linkedGMPrepScript: this.linkedGMPrepScript,
+      // History tab data
+      activeConversation: this.activeConversation,
+      compactedConversations: this.compactedConversations,
+      isCompacting: this.isCompacting
     };
   }
 
@@ -182,6 +190,19 @@ export class ContentManager extends Application {
 
     // Populate Foundry modules dropdown on adventure tab
     this._populateFoundryModules(html);
+
+    // ===== History Tab =====
+    // Compact & Archive button
+    html.find('.compact-conversation-btn').on('click', this._onCompactConversation.bind(this));
+
+    // View Summary button
+    html.find('.view-summary-btn').on('click', this._onViewSummary.bind(this));
+
+    // Continue Adventure button
+    html.find('.continue-adventure-btn').on('click', this._onContinueAdventure.bind(this));
+
+    // Refresh history
+    html.find('.refresh-history-btn').on('click', this._onRefreshHistory.bind(this));
   }
 
   /**
@@ -197,9 +218,10 @@ export class ContentManager extends Application {
     if (!this._loaded) {
       this._loaded = true;
       await this._loadPDFs();
-      // Load adventure data for GMs
+      // Load adventure data and history for GMs
       if (game.user.isGM) {
         await this._loadAdventureData();
+        await this._loadHistoryData();
       }
     }
   }
@@ -1171,5 +1193,221 @@ export class ContentManager extends Application {
     for (const module of eligibleModules) {
       select.append(`<option value="${module.id}">${module.title}</option>`);
     }
+  }
+
+  // ===== History Tab Methods =====
+
+  /**
+   * Load conversation history data from the server.
+   * Fetches active conversation and compacted conversations.
+   *
+   * @private
+   */
+  async _loadHistoryData() {
+    try {
+      // Get all conversations to separate active from compacted
+      const conversations = await this.socketClient.listConversations();
+
+      // Find the active conversation (status !== 'compacted')
+      this.activeConversation = conversations.find(c => c.status !== 'compacted') || null;
+
+      // Get compacted conversations
+      this.compactedConversations = conversations.filter(c => c.status === 'compacted');
+
+      this.render(false);
+    } catch (error) {
+      console.error(`${MODULE_ID} | Failed to load history data:`, error);
+    }
+  }
+
+  /**
+   * Handle Compact & Archive button click.
+   * Shows confirmation dialog and triggers conversation compaction.
+   *
+   * @param {Event} event - The click event.
+   * @private
+   */
+  async _onCompactConversation(event) {
+    event.preventDefault();
+
+    if (!this.activeConversation || this.isCompacting) return;
+
+    const conversationId = this.activeConversation.id;
+    const conversationTitle = this.activeConversation.title || game.i18n.localize('LOREMASTER.ConversationManager.Untitled');
+
+    // Confirm compaction
+    const confirmed = await Dialog.confirm({
+      title: game.i18n.localize('LOREMASTER.History.CompactBtn'),
+      content: `<p>${game.i18n.localize('LOREMASTER.History.CompactConfirm')}</p>`,
+      yes: () => true,
+      no: () => false,
+      defaultYes: false
+    });
+
+    if (!confirmed) return;
+
+    try {
+      this.isCompacting = true;
+      this.render(false);
+
+      // Show progress notification
+      ui.notifications.info(game.i18n.localize('LOREMASTER.History.Compacting'));
+
+      // Perform compaction
+      const result = await this.socketClient.compactConversation(conversationId);
+
+      ui.notifications.info(game.i18n.localize('LOREMASTER.History.CompactSuccess'));
+
+      // Reload history data
+      await this._loadHistoryData();
+
+    } catch (error) {
+      console.error(`${MODULE_ID} | Compaction failed:`, error);
+      ui.notifications.error(game.i18n.format('LOREMASTER.History.CompactError', {
+        error: error.message
+      }));
+    } finally {
+      this.isCompacting = false;
+      this.render(false);
+    }
+  }
+
+  /**
+   * Handle View Summary button click.
+   * Shows a dialog with the conversation summary.
+   *
+   * @param {Event} event - The click event.
+   * @private
+   */
+  async _onViewSummary(event) {
+    event.preventDefault();
+
+    const conversationId = event.currentTarget.dataset.conversationId;
+    const conversationTitle = event.currentTarget.dataset.conversationTitle || game.i18n.localize('LOREMASTER.ConversationManager.Untitled');
+
+    try {
+      const result = await this.socketClient.getConversationSummary(conversationId);
+
+      if (!result.summary) {
+        ui.notifications.warn('No summary available');
+        return;
+      }
+
+      // Show summary in a dialog
+      new Dialog({
+        title: game.i18n.localize('LOREMASTER.History.SummaryDialogTitle'),
+        content: `
+          <div class="conversation-summary-dialog">
+            <h3>${conversationTitle}</h3>
+            <div class="summary-meta">
+              <span class="archived-date">
+                <i class="fas fa-archive"></i>
+                ${game.i18n.localize('LOREMASTER.History.ArchivedOn')}: ${this._formatDate(result.compactedAt)}
+              </span>
+              ${result.summaryTokens ? `<span class="token-count">${result.summaryTokens} tokens</span>` : ''}
+            </div>
+            <div class="summary-content">
+              ${this._markdownToHtml(result.summary)}
+            </div>
+          </div>
+        `,
+        buttons: {
+          continue: {
+            icon: '<i class="fas fa-play"></i>',
+            label: game.i18n.localize('LOREMASTER.History.ContinueAdventure'),
+            callback: () => this._continueFromConversation(conversationId, conversationTitle)
+          },
+          close: {
+            icon: '<i class="fas fa-times"></i>',
+            label: game.i18n.localize('Close')
+          }
+        },
+        default: 'close'
+      }, {
+        width: 600,
+        height: 500,
+        classes: ['loremaster', 'summary-dialog']
+      }).render(true);
+
+    } catch (error) {
+      console.error(`${MODULE_ID} | Failed to get summary:`, error);
+      ui.notifications.error(`Failed to load summary: ${error.message}`);
+    }
+  }
+
+  /**
+   * Handle Continue Adventure button click.
+   * Creates a new conversation from a compacted one.
+   *
+   * @param {Event} event - The click event.
+   * @private
+   */
+  async _onContinueAdventure(event) {
+    event.preventDefault();
+
+    const conversationId = event.currentTarget.dataset.conversationId;
+    const conversationTitle = event.currentTarget.dataset.conversationTitle;
+
+    await this._continueFromConversation(conversationId, conversationTitle);
+  }
+
+  /**
+   * Continue adventure from a compacted conversation.
+   * Creates a new conversation with inherited summary context.
+   *
+   * @param {string} conversationId - The compacted conversation ID.
+   * @param {string} previousTitle - The previous conversation title.
+   * @private
+   */
+  async _continueFromConversation(conversationId, previousTitle) {
+    try {
+      ui.notifications.info(game.i18n.localize('LOREMASTER.History.NewFromSummary'));
+
+      // Generate a new title based on the old one
+      const newTitle = `${previousTitle || 'Adventure'} (Continued)`;
+
+      const result = await this.socketClient.createConversationFromSummary(conversationId, newTitle);
+
+      ui.notifications.info(game.i18n.localize('LOREMASTER.History.ContinueSuccess'));
+
+      // Reload history data
+      await this._loadHistoryData();
+
+    } catch (error) {
+      console.error(`${MODULE_ID} | Failed to continue adventure:`, error);
+      ui.notifications.error(game.i18n.format('LOREMASTER.History.ContinueError', {
+        error: error.message
+      }));
+    }
+  }
+
+  /**
+   * Handle refresh history button click.
+   *
+   * @param {Event} event - The click event.
+   * @private
+   */
+  async _onRefreshHistory(event) {
+    event.preventDefault();
+    await this._loadHistoryData();
+  }
+
+  /**
+   * Format a date string for display.
+   *
+   * @param {string} dateStr - ISO date string.
+   * @returns {string} Formatted date.
+   * @private
+   */
+  _formatDate(dateStr) {
+    if (!dateStr) return '';
+    const date = new Date(dateStr);
+    return date.toLocaleDateString(undefined, {
+      year: 'numeric',
+      month: 'short',
+      day: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit'
+    });
   }
 }
