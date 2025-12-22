@@ -944,6 +944,50 @@ export class SocketClient {
     return this._sendRequest('reset-session', {});
   }
 
+  // ===== Conversation Compaction Methods =====
+
+  /**
+   * Compact a conversation and generate an AI summary.
+   * GM only. Archives the conversation and creates a summary for future reference.
+   *
+   * @param {string} conversationId - The conversation ID to compact.
+   * @returns {Promise<object>} Result with summary, token count, and validation.
+   */
+  async compactConversation(conversationId) {
+    this._requireAuth();
+    if (!this.isGM) {
+      throw new Error('Compacting conversations requires GM permissions');
+    }
+    return this._sendRequest('compact-conversation', { conversationId }, 120000);
+  }
+
+  /**
+   * Create a new conversation that inherits context from a compacted conversation.
+   * The new conversation will include the previous summary as context.
+   *
+   * @param {string} previousConversationId - The compacted conversation to inherit from.
+   * @param {string} title - Optional title for the new conversation.
+   * @returns {Promise<object>} Result with new conversation and previous conversation info.
+   */
+  async createConversationFromSummary(previousConversationId, title = null) {
+    this._requireAuth();
+    return this._sendRequest('create-conversation-from-summary', {
+      previousConversationId,
+      title
+    });
+  }
+
+  /**
+   * Get the summary and status of a conversation.
+   *
+   * @param {string} conversationId - The conversation ID.
+   * @returns {Promise<object>} Conversation summary info including status, summary text, and parent.
+   */
+  async getConversationSummary(conversationId) {
+    this._requireAuth();
+    return this._sendRequest('get-conversation-summary', { conversationId });
+  }
+
   /**
    * Register a tool handler for execution requests from the proxy.
    *

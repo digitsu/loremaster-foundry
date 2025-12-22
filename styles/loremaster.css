@@ -2467,3 +2467,330 @@
 .usage-monitor-container .no-data p {
   margin: 10px 0 20px 0;
 }
+
+/* ===== History Tab Styles ===== */
+
+.history-panel {
+  padding: 10px 0;
+}
+
+/* Section Header */
+.history-panel .section-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 12px;
+}
+
+.history-panel .section-header h3 {
+  margin: 0;
+  font-size: 1em;
+  color: #7b2c9e;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.refresh-history-btn {
+  background: transparent;
+  border: 1px solid rgba(123, 44, 158, 0.5);
+  color: #7b2c9e;
+  width: 28px;
+  height: 28px;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: all 0.2s;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.refresh-history-btn:hover {
+  background: rgba(123, 44, 158, 0.1);
+}
+
+/* Active Conversation Section */
+.active-conversation-section {
+  margin-bottom: 25px;
+}
+
+/* Archived Conversations Section */
+.archived-conversations-section {
+  margin-top: 20px;
+}
+
+.archived-conversations-section h3 {
+  margin: 0 0 12px 0;
+  font-size: 1em;
+  color: #7b2c9e;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+/* Conversation Card */
+.history-panel .conversation-card {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 15px;
+  background: rgba(0, 0, 0, 0.03);
+  border: 1px solid rgba(0, 0, 0, 0.08);
+  border-radius: 8px;
+  transition: all 0.2s;
+}
+
+.history-panel .conversation-card:hover {
+  background: rgba(0, 0, 0, 0.05);
+}
+
+.history-panel .conversation-card.active-conversation {
+  background: linear-gradient(135deg, rgba(76, 175, 80, 0.1), rgba(76, 175, 80, 0.05));
+  border-color: rgba(76, 175, 80, 0.3);
+}
+
+.history-panel .conversation-card.compacted-conversation {
+  background: linear-gradient(135deg, rgba(123, 44, 158, 0.08), rgba(123, 44, 158, 0.03));
+  border-color: rgba(123, 44, 158, 0.2);
+}
+
+.history-panel .conversation-icon {
+  font-size: 1.8em;
+  width: 45px;
+  height: 45px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 8px;
+}
+
+.history-panel .active-conversation .conversation-icon {
+  color: #4CAF50;
+  background: rgba(76, 175, 80, 0.15);
+}
+
+.history-panel .compacted-conversation .conversation-icon {
+  color: #7b2c9e;
+  background: rgba(123, 44, 158, 0.15);
+}
+
+.history-panel .conversation-details {
+  flex: 1;
+  min-width: 0;
+}
+
+.history-panel .conversation-title {
+  font-weight: bold;
+  font-size: 1.05em;
+  margin-bottom: 4px;
+  color: #333;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.history-panel .conversation-meta {
+  display: flex;
+  gap: 15px;
+  font-size: 0.85em;
+  color: #666;
+  flex-wrap: wrap;
+}
+
+.history-panel .conversation-meta span {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.history-panel .conversation-meta i {
+  font-size: 0.9em;
+  opacity: 0.7;
+}
+
+.history-panel .conversation-actions {
+  display: flex;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
+/* Compact Button */
+.compact-conversation-btn {
+  background: #ff9800;
+  color: white;
+  border: none;
+  padding: 10px 16px;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 0.9em;
+  font-weight: bold;
+  transition: all 0.2s;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.compact-conversation-btn:hover {
+  background: #f57c00;
+}
+
+.compact-conversation-btn:disabled {
+  background: #999;
+  cursor: not-allowed;
+}
+
+/* View Summary Button */
+.view-summary-btn {
+  background: transparent;
+  border: 1px solid #7b2c9e;
+  color: #7b2c9e;
+  width: 36px;
+  height: 36px;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: all 0.2s;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.view-summary-btn:hover {
+  background: #7b2c9e;
+  color: white;
+}
+
+/* Continue Adventure Button */
+.continue-adventure-btn {
+  background: #4CAF50;
+  color: white;
+  border: none;
+  padding: 10px 14px;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 0.85em;
+  font-weight: bold;
+  transition: all 0.2s;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.continue-adventure-btn:hover {
+  background: #45a049;
+}
+
+/* Compacted Conversation List */
+.compacted-conversation-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.compacted-conversation-list li {
+  margin-bottom: 10px;
+}
+
+.compacted-conversation-list li:last-child {
+  margin-bottom: 0;
+}
+
+/* No Conversation State */
+.no-conversation-state,
+.no-archived-state {
+  text-align: center;
+  padding: 30px 20px;
+  background: rgba(0, 0, 0, 0.03);
+  border-radius: 8px;
+  color: #999;
+}
+
+.no-conversation-state i,
+.no-archived-state i {
+  font-size: 2.5em;
+  margin-bottom: 10px;
+  opacity: 0.5;
+}
+
+.no-conversation-state p,
+.no-archived-state p {
+  margin: 5px 0;
+}
+
+.no-conversation-state .hint {
+  font-size: 0.9em;
+  font-style: italic;
+}
+
+/* ===== Summary Dialog Styles ===== */
+
+.conversation-summary-dialog {
+  padding: 10px;
+}
+
+.conversation-summary-dialog h3 {
+  margin: 0 0 10px 0;
+  color: #7b2c9e;
+  font-size: 1.2em;
+}
+
+.conversation-summary-dialog .summary-meta {
+  display: flex;
+  gap: 20px;
+  font-size: 0.85em;
+  color: #666;
+  margin-bottom: 15px;
+  padding-bottom: 10px;
+  border-bottom: 1px solid rgba(0, 0, 0, 0.1);
+}
+
+.conversation-summary-dialog .summary-meta span {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.conversation-summary-dialog .summary-meta i {
+  color: #7b2c9e;
+}
+
+.conversation-summary-dialog .summary-content {
+  background: rgba(0, 0, 0, 0.03);
+  border-radius: 6px;
+  padding: 15px;
+  max-height: 300px;
+  overflow-y: auto;
+  line-height: 1.6;
+}
+
+.conversation-summary-dialog .summary-content h2 {
+  color: #7b2c9e;
+  font-size: 1.1em;
+  margin: 1em 0 0.5em 0;
+  padding-bottom: 0.3em;
+  border-bottom: 1px solid rgba(123, 44, 158, 0.2);
+}
+
+.conversation-summary-dialog .summary-content h2:first-child {
+  margin-top: 0;
+}
+
+.conversation-summary-dialog .summary-content ul {
+  margin: 0.5em 0;
+  padding-left: 1.5em;
+}
+
+.conversation-summary-dialog .summary-content li {
+  margin-bottom: 0.4em;
+}
+
+.conversation-summary-dialog .summary-content strong {
+  color: #5a1f75;
+}
+
+/* Summary Dialog Application */
+.app.loremaster.summary-dialog .window-content {
+  padding: 10px;
+}
+
+.app.loremaster.summary-dialog .dialog-buttons {
+  padding-top: 15px;
+  border-top: 1px solid rgba(0, 0, 0, 0.1);
+}

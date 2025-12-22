@@ -358,8 +358,33 @@
         "chat": "Chat Messages",
         "chat-batch": "Batched Messages",
         "veto": "Veto/Corrections",
-        "gm-prep": "GM Prep Scripts"
+        "gm-prep": "GM Prep Scripts",
+        "compaction": "Conversation Compaction"
       }
+    },
+    "History": {
+      "Title": "Conversation History",
+      "TabLabel": "History",
+      "ActiveConversation": "Active Conversation",
+      "ArchivedConversations": "Archived Sessions",
+      "CompactBtn": "Compact & Archive",
+      "CompactConfirm": "This will archive the current conversation and generate an adventure summary. The conversation will become read-only. Continue?",
+      "Compacting": "Generating adventure summary...",
+      "CompactSuccess": "Conversation archived with summary",
+      "CompactError": "Failed to compact: {error}",
+      "ViewSummary": "View Summary",
+      "ContinueAdventure": "Continue Adventure",
+      "NewFromSummary": "Starting new conversation with adventure context...",
+      "SummaryDialogTitle": "Adventure Summary",
+      "NoCompacted": "No archived conversations yet",
+      "NoActive": "No active conversation",
+      "NoActiveHint": "Start a conversation with Loremaster to see it here",
+      "MessageCount": "{count} messages",
+      "TokenCount": "{count} tokens",
+      "ArchivedOn": "Archived",
+      "ContinueSuccess": "New conversation created with adventure context",
+      "ContinueError": "Failed to continue adventure: {error}",
+      "GMOnly": "Only the GM can manage conversation history"
     }
   }
 }
