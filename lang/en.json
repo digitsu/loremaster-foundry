@@ -354,6 +354,11 @@
       "NoData": "No usage data available yet",
       "LoadError": "Failed to load usage statistics",
       "NoLimitConfigured": "No token limit configured - set in module settings",
+      "CacheTitle": "Prompt Caching",
+      "CacheRead": "Cache Hits",
+      "CacheCreation": "Cache Writes",
+      "CacheSavings": "Est. Savings",
+      "CacheHitRate": "Cache Hit Rate",
       "RequestTypes": {
         "chat": "Chat Messages",
         "chat-batch": "Batched Messages",

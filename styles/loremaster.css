@@ -2468,6 +2468,94 @@
   margin: 10px 0 20px 0;
 }
 
+/* Cache Section Styles */
+.cache-section {
+  background: rgba(34, 139, 34, 0.05);
+  border: 1px solid rgba(34, 139, 34, 0.2);
+}
+
+.cache-section .section-header {
+  color: #228b22;
+}
+
+.cache-summary {
+  display: flex;
+  gap: 20px;
+  margin-bottom: 15px;
+}
+
+.cache-stat {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 12px;
+  background: rgba(255, 255, 255, 0.7);
+  border-radius: 8px;
+}
+
+.cache-stat i {
+  font-size: 1.5em;
+  margin-bottom: 6px;
+}
+
+.cache-stat.cache-read i {
+  color: #228b22;
+}
+
+.cache-stat.cache-creation i {
+  color: #4169e1;
+}
+
+.cache-label {
+  font-size: 0.85em;
+  color: #666;
+  margin-bottom: 4px;
+}
+
+.cache-value {
+  font-family: monospace;
+  font-size: 1.2em;
+  font-weight: bold;
+  color: #333;
+}
+
+.cache-savings {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 12px;
+  background: rgba(34, 139, 34, 0.1);
+  border-radius: 6px;
+  margin-bottom: 12px;
+  color: #228b22;
+  font-size: 0.9em;
+}
+
+.cache-savings i {
+  font-size: 1.2em;
+}
+
+.cache-efficiency {
+  display: flex;
+  justify-content: space-between;
+  padding: 10px 12px;
+  background: rgba(255, 255, 255, 0.7);
+  border-radius: 6px;
+}
+
+.efficiency-label {
+  font-weight: 500;
+  color: #333;
+}
+
+.efficiency-value {
+  font-family: monospace;
+  font-weight: bold;
+  color: #228b22;
+  font-size: 1.1em;
+}
+
 /* ===== History Tab Styles ===== */
 
 .history-panel {
