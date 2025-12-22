@@ -1292,21 +1292,29 @@
 }
 
 .details-actions {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 6px;
+  margin-top: 10px;
+}
+
+.details-actions button {
   display: flex;
-  gap: 8px;
-  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  height: 32px;
+  padding: 0;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: all 0.2s;
+  font-size: 14px;
 }
 
 .details-actions .switch-btn {
-  flex: 1;
   background: #4CAF50;
   color: white;
   border: none;
-  padding: 10px 15px;
-  border-radius: 4px;
-  cursor: pointer;
-  font-weight: bold;
-  transition: background 0.2s;
 }
 
 .details-actions .switch-btn:hover {
@@ -1317,34 +1325,44 @@
   display: none;
 }
 
-.details-actions .rename-btn,
-.details-actions .clear-btn,
-.details-actions .delete-btn {
+.details-actions .export-journal-btn {
+  background: #673AB7;
+  color: white;
+  border: none;
+}
+
+.details-actions .export-journal-btn:hover {
+  background: #5E35B1;
+}
+
+.details-actions .rename-btn {
   background: transparent;
-  border: 1px solid #ccc;
-  color: #666;
-  padding: 10px 12px;
-  border-radius: 4px;
-  cursor: pointer;
-  transition: all 0.2s;
+  border: 1px solid #2196F3;
+  color: #2196F3;
 }
 
 .details-actions .rename-btn:hover {
-  border-color: #2196F3;
-  color: #2196F3;
-  background: rgba(33, 150, 243, 0.1);
+  background: rgba(33, 150, 243, 0.15);
+}
+
+.details-actions .clear-btn {
+  background: transparent;
+  border: 1px solid #ff9800;
+  color: #ff9800;
 }
 
 .details-actions .clear-btn:hover {
-  border-color: #ff9800;
-  color: #ff9800;
-  background: rgba(255, 152, 0, 0.1);
+  background: rgba(255, 152, 0, 0.15);
+}
+
+.details-actions .delete-btn {
+  background: transparent;
+  border: 1px solid #f44336;
+  color: #f44336;
 }
 
 .details-actions .delete-btn:hover {
-  border-color: #f44336;
-  color: #f44336;
-  background: rgba(244, 67, 54, 0.1);
+  background: rgba(244, 67, 54, 0.15);
 }
 
 /* Conversation Manager Empty State */
@@ -2881,4 +2899,550 @@
 .app.loremaster.summary-dialog .dialog-buttons {
   padding-top: 15px;
   border-top: 1px solid rgba(0, 0, 0, 0.1);
+}
+
+/* ===== Journal Export Styles ===== */
+
+.loremaster-session-log {
+  font-family: inherit;
+}
+
+.loremaster-journal-entry {
+  margin-bottom: 1.5em;
+}
+
+.loremaster-journal-entry .entry-time {
+  color: #666;
+  font-size: 0.85em;
+  margin-bottom: 0.5em;
+}
+
+.loremaster-journal-entry .entry-content {
+  line-height: 1.6;
+}
+
+.loremaster-journal-entry .entry-content blockquote {
+  border-left: 3px solid #7b2c9e;
+  padding-left: 1em;
+  margin: 0.5em 0;
+  font-style: italic;
+  color: #444;
+}
+
+.loremaster-journal-entry .entry-content h3,
+.loremaster-journal-entry .entry-content h4,
+.loremaster-journal-entry .entry-content h5 {
+  color: #7b2c9e;
+  margin: 1em 0 0.5em 0;
+}
+
+.loremaster-journal-entry .entry-content ul {
+  margin: 0.5em 0;
+  padding-left: 1.5em;
+}
+
+.loremaster-session-log hr {
+  border: none;
+  border-top: 1px dashed rgba(123, 44, 158, 0.3);
+  margin: 1.5em 0;
+}
+
+/* ==========================================
+   Cast Management Styles
+   ========================================== */
+
+.cast-panel {
+  padding: 10px;
+}
+
+.cast-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 15px;
+  padding-bottom: 10px;
+  border-bottom: 1px solid rgba(0, 0, 0, 0.1);
+}
+
+.cast-header h3 {
+  margin: 0;
+  color: #7b2c9e;
+}
+
+.cast-actions-header {
+  display: flex;
+  gap: 8px;
+}
+
+.cast-actions-header button {
+  padding: 6px 12px;
+  font-size: 0.9em;
+  background: #7b2c9e;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+
+.cast-actions-header button:hover {
+  background: #5a1f75;
+}
+
+.cast-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  max-height: 400px;
+  overflow-y: auto;
+}
+
+.cast-character {
+  display: flex;
+  gap: 15px;
+  padding: 12px;
+  background: rgba(0, 0, 0, 0.03);
+  border-radius: 8px;
+  border-left: 4px solid #7b2c9e;
+}
+
+.cast-character.pc {
+  border-left-color: #2c9e7b;
+}
+
+.cast-character.antagonist {
+  border-left-color: #9e2c2c;
+}
+
+.cast-character.major_npc {
+  border-left-color: #2c549e;
+}
+
+.cast-character.minor_npc {
+  border-left-color: #888;
+}
+
+.character-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.character-name {
+  font-weight: bold;
+  color: #333;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.playable-badge {
+  color: #2c9e7b;
+  font-size: 0.85em;
+}
+
+.character-role {
+  font-size: 0.85em;
+  color: #666;
+  text-transform: capitalize;
+  margin-top: 2px;
+}
+
+.character-personality {
+  font-size: 0.85em;
+  color: #555;
+  margin-top: 6px;
+  font-style: italic;
+  line-height: 1.4;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.character-assignment {
+  width: 200px;
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.assignment-row {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.assignment-row label {
+  font-size: 0.8em;
+  color: #666;
+}
+
+.assign-player-select {
+  padding: 4px 8px;
+  border-radius: 4px;
+  border: 1px solid rgba(0, 0, 0, 0.2);
+  font-size: 0.9em;
+}
+
+.control-row {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.control-checkbox {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.85em;
+  cursor: pointer;
+}
+
+.control-checkbox input[type="checkbox"] {
+  margin: 0;
+}
+
+.control-checkbox span {
+  color: #555;
+}
+
+/* Empty/No states for Cast */
+.empty-cast-state,
+.no-cast-state {
+  text-align: center;
+  padding: 40px 20px;
+  color: #666;
+}
+
+.empty-cast-state i,
+.no-cast-state i {
+  font-size: 3em;
+  color: rgba(123, 44, 158, 0.3);
+  margin-bottom: 15px;
+}
+
+.empty-cast-state p,
+.no-cast-state p {
+  margin: 5px 0;
+}
+
+.empty-cast-state .hint,
+.no-cast-state .hint {
+  font-size: 0.9em;
+  color: #888;
+}
+
+.empty-cast-state button {
+  margin-top: 15px;
+  padding: 8px 16px;
+  background: #7b2c9e;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+
+.empty-cast-state button:hover {
+  background: #5a1f75;
+}
+
+/* ==========================================
+   GM Prep Journal Sync Indicator
+   ========================================== */
+
+.gm-prep-sync-indicator {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 2px 10px;
+  margin-right: 10px;
+  font-size: 0.85em;
+  border-radius: 4px;
+  white-space: nowrap;
+}
+
+.gm-prep-sync-indicator.sync-pending {
+  background: rgba(255, 193, 7, 0.2);
+  color: #856404;
+}
+
+.gm-prep-sync-indicator.sync-syncing {
+  background: rgba(0, 123, 255, 0.2);
+  color: #004085;
+}
+
+.gm-prep-sync-indicator.sync-synced {
+  background: rgba(40, 167, 69, 0.2);
+  color: #155724;
+}
+
+.gm-prep-sync-indicator.sync-error {
+  background: rgba(220, 53, 69, 0.2);
+  color: #721c24;
+}
+
+.gm-prep-sync-indicator i {
+  font-size: 0.9em;
+}
+
+.gm-prep-sync-indicator span {
+  font-size: 0.85em;
+}
+
+/* ==========================================
+   Cast Selection Dialog Styles
+   ========================================== */
+
+.cast-selection-dialog {
+  min-width: 600px;
+}
+
+.cast-selection-container {
+  padding: 10px;
+  max-height: 500px;
+  overflow-y: auto;
+}
+
+.cast-selection-header {
+  margin-bottom: 15px;
+  padding-bottom: 10px;
+  border-bottom: 1px solid rgba(123, 44, 158, 0.2);
+}
+
+.cast-selection-header p {
+  margin: 0;
+  font-size: 0.95em;
+  color: #555;
+  line-height: 1.5;
+}
+
+/* Cast Sections */
+.cast-section {
+  margin-bottom: 20px;
+}
+
+.cast-section h3 {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0 0 12px 0;
+  color: #7b2c9e;
+  font-size: 1.1em;
+  padding-bottom: 6px;
+  border-bottom: 1px solid rgba(123, 44, 158, 0.3);
+}
+
+.cast-section h3 i {
+  font-size: 1em;
+}
+
+.cast-section .hint {
+  font-size: 0.85em;
+  color: #888;
+  margin-bottom: 10px;
+  font-style: italic;
+}
+
+/* Character Grid for Playable Characters */
+.character-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 12px;
+}
+
+/* Character Card */
+.character-card {
+  background: rgba(0, 0, 0, 0.03);
+  border: 1px solid rgba(0, 0, 0, 0.1);
+  border-radius: 8px;
+  padding: 12px;
+  transition: all 0.2s;
+  border-left: 4px solid #7b2c9e;
+}
+
+.character-card:hover {
+  background: rgba(0, 0, 0, 0.05);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+.character-card.claimed {
+  background: rgba(76, 175, 80, 0.1);
+  border-color: rgba(76, 175, 80, 0.4);
+  border-left-color: #4CAF50;
+}
+
+.character-card.pc {
+  border-left-color: #2c9e7b;
+}
+
+.character-card.antagonist {
+  border-left-color: #9e2c2c;
+}
+
+.character-card.major_npc {
+  border-left-color: #2c549e;
+}
+
+.character-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 8px;
+}
+
+.character-card .character-name {
+  font-weight: bold;
+  color: #333;
+  font-size: 1.05em;
+}
+
+.character-card .character-role {
+  font-size: 0.8em;
+  padding: 2px 8px;
+  background: rgba(123, 44, 158, 0.15);
+  color: #7b2c9e;
+  border-radius: 10px;
+  text-transform: capitalize;
+}
+
+.character-card .character-description {
+  font-size: 0.85em;
+  color: #666;
+  line-height: 1.4;
+  margin-bottom: 10px;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.character-card .character-controls {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.character-card .character-controls label {
+  font-size: 0.85em;
+  color: #666;
+  white-space: nowrap;
+}
+
+.character-card .claim-select {
+  flex: 1;
+  padding: 6px 10px;
+  border: 1px solid rgba(0, 0, 0, 0.2);
+  border-radius: 4px;
+  font-size: 0.9em;
+  background: white;
+}
+
+.character-card .claim-select:focus {
+  border-color: #7b2c9e;
+  outline: none;
+  box-shadow: 0 0 0 2px rgba(123, 44, 158, 0.2);
+}
+
+/* NPC List for AI Control */
+.npc-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.npc-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 10px 12px;
+  background: rgba(0, 0, 0, 0.03);
+  border-radius: 6px;
+  border-left: 3px solid #888;
+}
+
+.npc-row.antagonist {
+  border-left-color: #9e2c2c;
+}
+
+.npc-row.major_npc {
+  border-left-color: #2c549e;
+}
+
+.npc-row.minor_npc {
+  border-left-color: #888;
+}
+
+.npc-info {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.npc-info .npc-name {
+  font-weight: 500;
+  color: #333;
+}
+
+.npc-info .npc-role {
+  font-size: 0.8em;
+  padding: 2px 8px;
+  background: rgba(0, 0, 0, 0.08);
+  color: #666;
+  border-radius: 10px;
+  text-transform: capitalize;
+}
+
+.npc-controls {
+  display: flex;
+  align-items: center;
+}
+
+.npc-controls .control-checkbox {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  cursor: pointer;
+  font-size: 0.9em;
+  padding: 4px 10px;
+  border-radius: 4px;
+  transition: background 0.2s;
+}
+
+.npc-controls .control-checkbox:hover {
+  background: rgba(123, 44, 158, 0.1);
+}
+
+.npc-controls .control-checkbox input[type="checkbox"] {
+  margin: 0;
+  width: 16px;
+  height: 16px;
+  cursor: pointer;
+}
+
+.npc-controls .control-checkbox input[type="checkbox"]:checked {
+  accent-color: #7b2c9e;
+}
+
+.npc-controls .control-checkbox span {
+  color: #555;
+}
+
+/* No Characters State */
+.no-characters {
+  text-align: center;
+  padding: 40px 20px;
+  color: #999;
+}
+
+.no-characters i {
+  font-size: 3em;
+  margin-bottom: 15px;
+  opacity: 0.5;
+}
+
+.no-characters p {
+  margin: 0;
+  font-style: italic;
 }

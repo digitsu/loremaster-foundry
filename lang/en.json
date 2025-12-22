@@ -201,7 +201,10 @@
       "Create": "Create",
       "CreateSuccess": "New conversation created",
       "CreateError": "Failed to create: {error}",
-      "LoadError": "Failed to load conversations"
+      "LoadError": "Failed to load conversations",
+      "ExportToJournal": "Export to Journal",
+      "ExportSuccess": "Exported to journal: {name}",
+      "ExportError": "Failed to export: {error}"
     },
     "Guide": {
       "Title": "Loremaster Guide",
@@ -282,7 +285,8 @@
       "ScriptReady": "GM Script Ready",
       "ScriptGenerating": "Generating...",
       "ScriptFailed": "Generation Failed",
-      "ReuploadRequired": "Re-upload required: Delete this PDF and upload it again to enable GM Prep"
+      "ReuploadRequired": "Re-upload required: Delete this PDF and upload it again to enable GM Prep",
+      "SyncError": "Failed to sync GM Prep script: {error}"
     },
     "ActiveAdventure": {
       "CurrentTitle": "Current Adventure",
@@ -390,6 +394,39 @@
       "ContinueSuccess": "New conversation created with adventure context",
       "ContinueError": "Failed to continue adventure: {error}",
       "GMOnly": "Only the GM can manage conversation history"
+    },
+    "Cast": {
+      "TabLabel": "Cast",
+      "Title": "Character Roster",
+      "ExtractFromScript": "Extract from Script",
+      "SaveAssignments": "Save Assignments",
+      "Playable": "Playable Character",
+      "AssignTo": "Assign to",
+      "Unassigned": "-- Unassigned --",
+      "GMControls": "GM Controls",
+      "AIControls": "Loremaster Controls",
+      "NoCharacters": "No characters extracted yet",
+      "NoCharactersHint": "Click 'Extract from Script' to parse characters from the GM Prep script",
+      "NoActiveAdventure": "No Active Adventure",
+      "NoActiveAdventureHint": "Select an active adventure with a GM Prep script to manage character assignments",
+      "Extracting": "Extracting characters from script...",
+      "ExtractSuccess": "Extracted {count} characters",
+      "ExtractError": "Failed to extract characters: {error}",
+      "SaveSuccess": "Character assignments saved",
+      "SaveError": "Failed to save assignments: {error}",
+      "GMOnly": "Only the GM can manage character assignments"
+    },
+    "CastSelection": {
+      "Title": "Cast Selection - {name}",
+      "Instructions": "Assign players to characters before starting the adventure. Unassigned playable characters can be claimed by players. Mark which NPCs Loremaster should roleplay.",
+      "PlayableCharacters": "Playable Characters",
+      "NPCsForAI": "NPCs for AI Control",
+      "NPCsHint": "Check the characters you want Loremaster to actively roleplay during the adventure.",
+      "ClaimAs": "Assign to",
+      "Unclaimed": "-- Available --",
+      "LoremasterRoleplays": "Loremaster Roleplays",
+      "StartAdventure": "Start Adventure",
+      "NoCharacters": "No characters found in this adventure. Characters will be extracted when you start."
     }
   }
 }
