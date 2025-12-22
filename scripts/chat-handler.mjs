@@ -13,6 +13,38 @@ import { PlayerContext } from './player-context.mjs';
 const MODULE_ID = 'loremaster';
 
 /**
+ * Random thinking phrases displayed while waiting for Loremaster response.
+ * Shown as a public chat message to all players.
+ */
+const THINKING_PHRASES = [
+  'Loremaster is thinking...',
+  'The Loremaster rubs its digital chin...',
+  'Loremaster gazes into a crystal ball...',
+  'Loremaster ponders a moment...',
+  'Loremaster consults ancient tomes...',
+  'The Loremaster strokes its beard thoughtfully...',
+  'Loremaster shuffles through scattered notes...',
+  'The Loremaster mutters an incantation...',
+  'Loremaster peers through the mists of fate...',
+  'The Loremaster weighs the threads of destiny...',
+  'Loremaster communes with the narrative spirits...',
+  'The Loremaster scribbles furiously on parchment...',
+  'Loremaster rolls some dice behind the screen...',
+  'The Loremaster flips through a dusty grimoire...',
+  'Loremaster adjusts its spectacles pensively...',
+  'The Loremaster hums an ancient tune...',
+  'Loremaster contemplates the cosmic dice...',
+  'The Loremaster steeples its fingers mysteriously...',
+  'Loremaster consults the Oracle of Plot Hooks...',
+  'The Loremaster sketches a quick map...',
+  'Loremaster whispers to unseen advisors...',
+  'The Loremaster traces runes in the air...',
+  'Loremaster checks the alignment of the stars...',
+  'The Loremaster brews a pot of inspiration...',
+  'Loremaster polishes its storytelling crystal...'
+];
+
+/**
  * ChatHandler class manages the chat message pipeline.
  */
 export class ChatHandler {
@@ -30,6 +62,7 @@ export class ChatHandler {
     this.lastBatchId = null;
     this.lastBatch = null;
     this.pendingPrivateResponses = new Map(); // messageId -> response data
+    this.thinkingMessageId = null; // ID of the current thinking message
   }
 
   /**
@@ -325,7 +358,10 @@ export class ChatHandler {
     const messageData = this.messageQueue.shift();
 
     try {
-      // Show typing indicator
+      // Show public thinking message to all players
+      await this._showThinkingMessage();
+
+      // Show local typing indicator
       this._showTypingIndicator();
 
       // Build context for AI
@@ -334,6 +370,9 @@ export class ChatHandler {
       // Send to AI via proxy server and get response
       const response = await this.socketClient.sendMessage(messageData.content, context);
 
+      // Hide thinking message before showing response
+      await this._hideThinkingMessage();
+
       // Create response chat message
       await this._createResponseMessage(response, messageData);
 
@@ -341,7 +380,8 @@ export class ChatHandler {
       console.error(`${MODULE_ID} | Error processing message:`, error);
       ui.notifications.error('Failed to get Loremaster response. Check console for details.');
     } finally {
-      // Hide typing indicator
+      // Hide thinking message and typing indicator
+      await this._hideThinkingMessage();
       this._hideTypingIndicator();
 
       // Continue processing queue
@@ -477,6 +517,59 @@ export class ChatHandler {
     console.log(`${MODULE_ID} | AI finished thinking`);
   }
 
+  /**
+   * Show a public thinking message in chat.
+   * Displays a random thinking phrase from Loremaster to all players.
+   *
+   * @private
+   */
+  async _showThinkingMessage() {
+    // Remove any existing thinking message first
+    await this._hideThinkingMessage();
+
+    // Select a random thinking phrase
+    const phrase = THINKING_PHRASES[Math.floor(Math.random() * THINKING_PHRASES.length)];
+
+    // Create public chat message
+    const messageData = {
+      content: `<div class="loremaster-thinking-message"><em>${phrase}</em></div>`,
+      speaker: ChatMessage.getSpeaker({ alias: 'Loremaster' }),
+      flags: {
+        [MODULE_ID]: {
+          isThinkingMessage: true
+        }
+      }
+    };
+
+    try {
+      const message = await ChatMessage.create(messageData);
+      this.thinkingMessageId = message.id;
+      console.log(`${MODULE_ID} | Showing thinking message: "${phrase}"`);
+    } catch (error) {
+      console.error(`${MODULE_ID} | Failed to create thinking message:`, error);
+    }
+  }
+
+  /**
+   * Hide the thinking message from chat.
+   * Deletes the temporary thinking message when response arrives.
+   *
+   * @private
+   */
+  async _hideThinkingMessage() {
+    if (this.thinkingMessageId) {
+      try {
+        const message = game.messages.get(this.thinkingMessageId);
+        if (message) {
+          await message.delete();
+        }
+      } catch (error) {
+        console.error(`${MODULE_ID} | Failed to delete thinking message:`, error);
+      }
+      this.thinkingMessageId = null;
+    }
+  }
+
   // ===== Batch Processing Methods =====
 
   /**
@@ -496,7 +589,10 @@ export class ChatHandler {
     this.lastBatch = batch;
 
     try {
-      // Show typing indicator
+      // Show public thinking message to all players
+      await this._showThinkingMessage();
+
+      // Show local typing indicator
       this._showTypingIndicator();
 
       // Build context for AI
@@ -506,6 +602,9 @@ export class ChatHandler {
       // The formattedPrompt contains all player actions in structured format
       const response = await this.socketClient.sendBatchedMessage(batch, context);
 
+      // Hide thinking message before showing response
+      await this._hideThinkingMessage();
+
       // Create response chat message
       await this._createBatchResponseMessage(response, batch);
 
@@ -514,6 +613,7 @@ export class ChatHandler {
       ui.notifications.error('Failed to get Loremaster response. Check console for details.');
       throw error;
     } finally {
+      await this._hideThinkingMessage();
       this._hideTypingIndicator();
     }
   }
