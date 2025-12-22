@@ -18,6 +18,7 @@ import { ConversationManager, registerConversationManagerHelpers } from './conve
 import { UsageMonitor, registerUsageMonitorHelpers } from './usage-monitor.mjs';
 import { registerWelcomeSettings, checkAndShowWelcome, openWelcomeJournal } from './welcome-journal.mjs';
 import { createHouseRulesJournal } from './house-rules-journal.mjs';
+import { GMPrepJournalSync } from './gm-prep-journal.mjs';
 
 // Module constants
 const MODULE_ID = 'loremaster';
@@ -136,6 +137,10 @@ async function initializeLoremaster() {
     // Create usage monitor for API usage tracking
     const usageMonitor = new UsageMonitor(socketClient);
 
+    // Create and initialize GM Prep Journal sync (for GM only)
+    const gmPrepJournalSync = new GMPrepJournalSync(socketClient);
+    gmPrepJournalSync.initialize();
+
     // Store references on the game object for debugging/access
     game.loremaster = {
       socketClient,
@@ -147,6 +152,7 @@ async function initializeLoremaster() {
       conversationManager,
       houseRulesJournal,
       usageMonitor,
+      gmPrepJournalSync,
       MODULE_ID,
       MODULE_NAME,
       // Convenience methods
@@ -163,12 +169,17 @@ async function initializeLoremaster() {
     Hooks.on('renderChatMessage', (message, html, data) => {
       if (message.flags?.[MODULE_ID]?.isAIResponse) {
         const messageId = message.flags[MODULE_ID].batchId || message.id;
-        addVetoControls(
-          html[0],
-          messageId,
-          (id, correction) => chatHandler.vetoResponse(id, correction),
-          (id) => chatHandler.regenerateResponse(id)
-        );
+
+        // Get the element safely (html can be jQuery or HTMLElement depending on Foundry version)
+        const element = html instanceof HTMLElement ? html : html?.[0];
+        if (element instanceof HTMLElement) {
+          addVetoControls(
+            element,
+            messageId,
+            (id, correction) => chatHandler.vetoResponse(id, correction),
+            (id) => chatHandler.regenerateResponse(id)
+          );
+        }
       }
     });
 

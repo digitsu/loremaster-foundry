@@ -91,6 +91,7 @@ export class SocketClient {
     }
 
     const apiKey = getSetting('apiKey');
+    const licenseKey = getSetting('licenseKey');
     const worldId = game.world.id;
     const worldName = game.world.title;
 
@@ -99,7 +100,7 @@ export class SocketClient {
     const userName = game.user.name;
     const isGM = game.user.isGM;
 
-    // Only send API key if it's been set (non-empty)
+    // Build auth payload
     const payload = {
       worldId,
       worldName,
@@ -108,8 +109,14 @@ export class SocketClient {
       isGM
     };
 
+    // Only send API key if it's been set (non-empty)
     if (apiKey) {
       payload.apiKey = apiKey;
+    }
+
+    // Send license key if configured (for production proxy servers)
+    if (licenseKey) {
+      payload.licenseKey = licenseKey;
     }
 
     const result = await this._sendRequest('auth', payload);
@@ -988,6 +995,100 @@ export class SocketClient {
     return this._sendRequest('get-conversation-summary', { conversationId });
   }
 
+  // ===== Character Assignment Methods =====
+
+  /**
+   * Get all character assignments for a GM Prep script.
+   *
+   * @param {number} scriptId - The GM Prep script ID.
+   * @returns {Promise<object>} Object with characters array.
+   */
+  async getCharacters(scriptId) {
+    this._requireAuth();
+    return this._sendRequest('get-characters', { scriptId });
+  }
+
+  /**
+   * Update a single character's assignment.
+   * GM only.
+   *
+   * @param {number} scriptId - The GM Prep script ID.
+   * @param {string} characterName - The character name.
+   * @param {object} assignment - Assignment updates.
+   * @param {string} assignment.assignedToUserId - User ID to assign.
+   * @param {string} assignment.assignedToUserName - User display name.
+   * @param {boolean} assignment.isGMControlled - Whether GM controls character.
+   * @param {boolean} assignment.isLoremasterControlled - Whether AI controls character.
+   * @param {string} assignment.notes - GM notes about character.
+   * @returns {Promise<object>} Update result.
+   */
+  async updateCharacterAssignment(scriptId, characterName, assignment) {
+    this._requireAuth();
+    if (!this.isGM) {
+      throw new Error('Updating character assignments requires GM permissions');
+    }
+    return this._sendRequest('update-character-assignment', {
+      scriptId,
+      characterName,
+      assignment
+    });
+  }
+
+  /**
+   * Bulk update multiple character assignments.
+   * GM only.
+   *
+   * @param {number} scriptId - The GM Prep script ID.
+   * @param {Array} characters - Array of character objects with updates.
+   * @returns {Promise<object>} Result with updated and created counts.
+   */
+  async bulkUpdateCharacters(scriptId, characters) {
+    this._requireAuth();
+    if (!this.isGM) {
+      throw new Error('Bulk updating characters requires GM permissions');
+    }
+    return this._sendRequest('bulk-update-characters', {
+      scriptId,
+      characters
+    });
+  }
+
+  /**
+   * Extract characters from a GM Prep script.
+   * GM only. Parses the script content and saves characters to database.
+   *
+   * @param {number} scriptId - The GM Prep script ID.
+   * @returns {Promise<object>} Result with extracted characters array.
+   */
+  async extractCharactersFromScript(scriptId) {
+    this._requireAuth();
+    if (!this.isGM) {
+      throw new Error('Extracting characters requires GM permissions');
+    }
+    return this._sendRequest('extract-characters-from-script', { scriptId });
+  }
+
+  // ===== Journal Sync Methods =====
+
+  /**
+   * Sync GM Prep script content back to the server.
+   * GM only. Called after journal edits to update server and re-upload to Claude.
+   *
+   * @param {number} scriptId - The GM Prep script ID.
+   * @param {string} content - The updated script content (markdown).
+   * @returns {Promise<object>} Sync result with new Claude file ID.
+   */
+  async syncGMPrepScript(scriptId, content) {
+    this._requireAuth();
+    if (!this.isGM) {
+      throw new Error('Syncing GM Prep scripts requires GM permissions');
+    }
+    return this._sendRequest('sync-gm-prep-script', {
+      scriptId,
+      content
+    });
+  }
+
   /**
    * Register a tool handler for execution requests from the proxy.
    *
@@ -1061,6 +1162,28 @@ export class SocketClient {
   _handleMessage(data) {
     try {
       const message = JSON.parse(data);
+
+      // Handle license-related errors specially
+      if (message.type === 'error' && message.error?.toLowerCase().includes('license')) {
+        console.error(`${MODULE_ID} | License error: ${message.error}`);
+        ui.notifications.error(`Loremaster: ${message.error}`, { permanent: true });
+
+        // Prompt GM to configure license
+        if (game.user.isGM) {
+          new Dialog({
+            title: 'Loremaster License Required',
+            content: `<p>${message.error}</p><p>Please configure a valid license key in Module Settings.</p>`,
+            buttons: {
+              settings: {
+                label: 'Open Settings',
+                callback: () => game.settings.sheet.render(true)
+              },
+              close: { label: 'Close' }
+            }
+          }).render(true);
+        }
+        return;
+      }
 
       // Handle tool execution requests from proxy
       if (message.type === 'tool-execute') {

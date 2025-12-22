@@ -220,10 +220,7 @@ export class ChatHandler {
 
     const messageData = {
       content: messageContent,
-      speaker: {
-        alias: 'Loremaster (Private)'
-      },
-      style: CONST.CHAT_MESSAGE_STYLES.OTHER,
+      speaker: ChatMessage.getSpeaker({ alias: 'Loremaster (Private)' }),
       whisper: game.users.filter(u => u.isGM).map(u => u.id), // GM only
       flags: {
         [MODULE_ID]: {
@@ -272,10 +269,7 @@ export class ChatHandler {
 
     const messageData = {
       content: messageContent,
-      speaker: {
-        alias: speaker
-      },
-      style: CONST.CHAT_MESSAGE_STYLES.OOC,
+      speaker: ChatMessage.getSpeaker({ alias: speaker }),
       flags: {
         [MODULE_ID]: {
           isPlayerMessage: true,
@@ -419,10 +413,7 @@ export class ChatHandler {
 
     const messageData = {
       content: formattedContent,
-      speaker: {
-        alias: 'Loremaster'
-      },
-      style: CONST.CHAT_MESSAGE_STYLES.OTHER,
+      speaker: ChatMessage.getSpeaker({ alias: 'Loremaster' }),
       flags: {
         [MODULE_ID]: {
           isAIResponse: true,
@@ -537,18 +528,26 @@ export class ChatHandler {
   async _createBatchResponseMessage(response, batch) {
     const visibility = getSetting('responseVisibility');
 
+    // Check for empty response
+    if (!response || response.length === 0) {
+      console.error(`${MODULE_ID} | ERROR: Empty response received from server`);
+      ui.notifications.error('Received empty response from Loremaster');
+      return;
+    }
+
+    // Ensure response is a string
+    const responseText = typeof response === 'string' ? response : String(response);
+
     // Format the response with markdown conversion and styling
-    const formattedContent = formatResponse(response);
+    // (formatResponse auto-detects if already HTML-formatted)
+    const formattedContent = formatResponse(responseText);
 
     // Collect all user IDs from the batch for whisper targeting
     const batchUserIds = [...new Set(batch.messages.map(m => m.userId))];
 
     const messageData = {
       content: formattedContent,
-      speaker: {
-        alias: 'Loremaster'
-      },
-      style: CONST.CHAT_MESSAGE_STYLES.OTHER,
+      speaker: ChatMessage.getSpeaker({ alias: 'Loremaster' }),
       flags: {
         [MODULE_ID]: {
           isAIResponse: true,
@@ -567,7 +566,12 @@ export class ChatHandler {
       messageData.whisper = game.users.filter(u => u.isGM).map(u => u.id);
     }
 
-    await ChatMessage.create(messageData);
+    try {
+      await ChatMessage.create(messageData);
+    } catch (err) {
+      console.error(`${MODULE_ID} | ChatMessage.create failed:`, err);
+      throw err;
+    }
   }
 
   /**
@@ -702,10 +706,7 @@ export class ChatHandler {
 
       const messageData = {
         content: formattedContent,
-        speaker: {
-          alias: 'Loremaster'
-        },
-        style: CONST.CHAT_MESSAGE_STYLES.OTHER,
+        speaker: ChatMessage.getSpeaker({ alias: 'Loremaster' }),
         flags: {
           [MODULE_ID]: {
             isAIResponse: true,

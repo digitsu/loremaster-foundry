@@ -68,7 +68,7 @@ async function handleRollDice({ formula, label }) {
 
     // Create chat message for the roll
     await roll.toMessage({
-      speaker: { alias: 'Loremaster' },
+      speaker: ChatMessage.getSpeaker({ alias: 'Loremaster' }),
       flavor: label || 'Loremaster Roll'
     });
 
@@ -338,12 +338,11 @@ async function handleSpeakAs({ actor: actorName, message }) {
 
   const speaker = actor
     ? ChatMessage.getSpeaker({ actor })
-    : { alias: actorName };
+    : ChatMessage.getSpeaker({ alias: actorName });
 
   await ChatMessage.create({
     content: message,
     speaker,
-    type: CONST.CHAT_MESSAGE_TYPES.IC,
     flags: {
       [MODULE_ID]: {
         isAISpeech: true
@@ -899,7 +898,7 @@ async function handleYZEOpposedRoll({
   // Post combined result to chat
   const rollLabel = label || 'Opposed Roll';
   await ChatMessage.create({
-    speaker: { alias: 'Loremaster' },
+    speaker: ChatMessage.getSpeaker({ alias: 'Loremaster' }),
     content: `<strong>${rollLabel}</strong><br/>
       ${actor.name} (${actorAttribute}+${actorSkill}): ${actorEval.successes} successes<br/>
       ${opponent.name} (${opponentAttribute}+${opponentSkill}): ${oppEval.successes} successes<br/>
@@ -992,7 +991,7 @@ async function handleApplyDamage({ actorName, amount, damageType = 'physical', i
 
   // Post to chat
   await ChatMessage.create({
-    speaker: { alias: 'Loremaster' },
+    speaker: ChatMessage.getSpeaker({ alias: 'Loremaster' }),
     content: `<strong>${actor.name}</strong> takes <strong>${actualDamage}</strong> ${damageType} damage.${armorReduction > 0 ? ` (${armorReduction} absorbed by armor)` : ''}<br/>HP: ${currentHP} → ${newHP}`,
     flags: { [MODULE_ID]: { isAISpeech: true } }
   });
@@ -1031,7 +1030,7 @@ async function handleModifyResource({ actorName, resource, amount, reason }) {
       await game.settings.set('yzecoriolis', 'darknessPoints', newValue);
 
       await ChatMessage.create({
-        speaker: { alias: 'Loremaster' },
+        speaker: ChatMessage.getSpeaker({ alias: 'Loremaster' }),
         content: `<strong>Darkness Points:</strong> ${currentValue} → ${newValue}${reason ? ` (${reason})` : ''}`,
         whisper: ChatMessage.getWhisperRecipients('GM'),
         flags: { [MODULE_ID]: { isAISpeech: true } }

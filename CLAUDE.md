@@ -49,7 +49,37 @@ Loremaster is an AI-powered Game Master assistant module that consists of:
 - **PDF Support**: Upload adventure PDFs for AI context
 - **Tool Use**: Claude can roll dice, query actors, etc.
 
-## Foundry V13 Considerations
+## Foundry V12+ API Changes
+
+### Chat Messages
+
+**IMPORTANT**: ChatMessage API changed significantly in Foundry V12+.
+
+**DO NOT USE** (deprecated/broken):
+```javascript
+// Old pattern - causes errors in V12+
+speaker: { alias: 'Loremaster' }
+style: CONST.CHAT_MESSAGE_STYLES.OTHER
+type: CONST.CHAT_MESSAGE_TYPES.IC
+```
+
+**USE INSTEAD**:
+```javascript
+// Correct V12+ pattern
+speaker: ChatMessage.getSpeaker({ alias: 'Loremaster' })
+// or with actor
+speaker: ChatMessage.getSpeaker({ actor: someActor })
+
+// Omit 'style' and 'type' properties entirely - they cause notification errors
+```
+
+Key points:
+- Always use `ChatMessage.getSpeaker()` for speaker data
+- Remove `style` property completely (causes `element.addEventListener is not a function` error)
+- Remove `type` property completely (deprecated in favor of `style`, which itself causes issues)
+- `CONST.CHAT_MESSAGE_TYPES` is deprecated, use `CONST.CHAT_MESSAGE_STYLES` (but better to omit entirely)
+
+### Scene Controls
 
 - Scene controls use `getSceneControlButtons` hook
 - Control groups: tokens, measure, tiles, drawings, walls, lighting, sounds, notes

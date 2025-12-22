@@ -9,12 +9,32 @@ const MODULE_ID = 'loremaster';
 
 /**
  * Format an AI response for display in Foundry chat.
+ * Detects if response is already HTML-formatted and skips processing if so.
  *
  * @param {string} text - Raw text from Claude API.
  * @returns {string} Formatted HTML for chat display.
  */
 export function formatResponse(text) {
   if (!text) return '';
+
+  // Check if the response is already HTML-formatted (Claude sometimes mimics
+  // the format from conversation history)
+  const trimmed = text.trim();
+  if (trimmed.startsWith('<div class="loremaster-response">') ||
+      trimmed.startsWith('<div class=\'loremaster-response\'>')) {
+    // Already formatted - return as-is
+    console.log('loremaster | Response already HTML-formatted, skipping formatResponse');
+    return trimmed;
+  }
+
+  // Also check for partial HTML formatting (has HTML tags but no wrapper)
+  if (trimmed.startsWith('<h3 class="loremaster-header">') ||
+      trimmed.startsWith('<h4 class="loremaster-header">') ||
+      trimmed.startsWith('<p class="loremaster-paragraph">')) {
+    // Has our formatting classes - just wrap it
+    console.log('loremaster | Response has HTML formatting, wrapping only');
+    return `<div class="loremaster-response">${trimmed}</div>`;
+  }
 
   let formatted = text;
 

@@ -42,6 +42,16 @@ export function registerSettings() {
     default: ''
   });
 
+  // License Key setting (for self-hosted proxy servers)
+  game.settings.register(MODULE_ID, 'licenseKey', {
+    name: 'License Key',
+    hint: 'Loremaster proxy license key (format: LM-XXXX-XXXX-XXXX-XXXX). Required for production servers.',
+    scope: 'world',
+    config: true,
+    type: String,
+    default: ''
+  });
+
   // Chat trigger prefix
   game.settings.register(MODULE_ID, 'triggerPrefix', {
     name: 'Chat Trigger Prefix',

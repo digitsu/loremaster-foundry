@@ -44,6 +44,9 @@
       <a class="item" data-tab="adventure">
         <i class="fas fa-dragon"></i> {{localize "LOREMASTER.ContentManager.Tab.Adventure"}}
       </a>
+      <a class="item" data-tab="cast">
+        <i class="fas fa-users"></i> {{localize "LOREMASTER.Cast.TabLabel"}}
+      </a>
       <a class="item" data-tab="history">
         <i class="fas fa-history"></i> {{localize "LOREMASTER.History.TabLabel"}}
       </a>
@@ -337,6 +340,100 @@
         <div class="permission-notice">
           <i class="fas fa-lock"></i>
           <p>{{localize "LOREMASTER.ActiveAdventure.GMOnly"}}</p>
+        </div>
+      {{/if}}
+    </div>
+
+    {{!-- Cast Management Tab --}}
+    <div class="tab" data-tab="cast">
+      {{#if isGM}}
+        <div class="cast-panel">
+          {{#if castScriptId}}
+            {{!-- Character List --}}
+            <div class="cast-header">
+              <h3>{{localize "LOREMASTER.Cast.Title"}}</h3>
+              <div class="cast-actions-header">
+                <button type="button" class="extract-characters-btn" title="{{localize 'LOREMASTER.Cast.ExtractFromScript'}}">
+                  <i class="fas fa-sync"></i> {{localize "LOREMASTER.Cast.ExtractFromScript"}}
+                </button>
+                <button type="button" class="save-cast-btn" title="{{localize 'LOREMASTER.Cast.SaveAssignments'}}">
+                  <i class="fas fa-save"></i> {{localize "LOREMASTER.Cast.SaveAssignments"}}
+                </button>
+              </div>
+            </div>
+
+            {{#if castCharacters.length}}
+              <div class="cast-list">
+                {{#each castCharacters}}
+                  <div class="cast-character {{this.characterRole}}" data-character-name="{{this.characterName}}">
+                    <div class="character-info">
+                      <div class="character-name">
+                        {{this.characterName}}
+                        {{#if this.isPlayable}}
+                          <span class="playable-badge" title="{{localize 'LOREMASTER.Cast.Playable'}}">
+                            <i class="fas fa-user"></i>
+                          </span>
+                        {{/if}}
+                      </div>
+                      <div class="character-role">{{this.characterRole}}</div>
+                      {{#if this.personalitySummary}}
+                        <div class="character-personality">{{this.personalitySummary}}</div>
+                      {{/if}}
+                    </div>
+                    <div class="character-assignment">
+                      <div class="assignment-row">
+                        <label>{{localize "LOREMASTER.Cast.AssignTo"}}</label>
+                        <select class="assign-player-select" data-character="{{this.characterName}}">
+                          <option value="">{{localize "LOREMASTER.Cast.Unassigned"}}</option>
+                          {{#each ../gamePlayers}}
+                            <option value="{{this.id}}"
+                              {{#if (eq this.id ../this.assignedToUserId)}}selected{{/if}}>
+                              {{this.name}}{{#if this.isGM}} (GM){{/if}}
+                            </option>
+                          {{/each}}
+                        </select>
+                      </div>
+                      <div class="control-row">
+                        <label class="control-checkbox">
+                          <input type="checkbox" class="gm-control-checkbox"
+                                 data-character="{{this.characterName}}"
+                                 {{#if this.isGMControlled}}checked{{/if}}>
+                          <span>{{localize "LOREMASTER.Cast.GMControls"}}</span>
+                        </label>
+                        <label class="control-checkbox">
+                          <input type="checkbox" class="ai-control-checkbox"
+                                 data-character="{{this.characterName}}"
+                                 {{#if this.isLoremasterControlled}}checked{{/if}}>
+                          <span>{{localize "LOREMASTER.Cast.AIControls"}}</span>
+                        </label>
+                      </div>
+                    </div>
+                  </div>
+                {{/each}}
+              </div>
+            {{else}}
+              <div class="empty-cast-state">
+                <i class="fas fa-users-slash"></i>
+                <p>{{localize "LOREMASTER.Cast.NoCharacters"}}</p>
+                <p class="hint">{{localize "LOREMASTER.Cast.NoCharactersHint"}}</p>
+                <button type="button" class="extract-characters-btn">
+                  <i class="fas fa-wand-magic-sparkles"></i> {{localize "LOREMASTER.Cast.ExtractFromScript"}}
+                </button>
+              </div>
+            {{/if}}
+          {{else}}
+            {{!-- No active adventure with GM Prep script --}}
+            <div class="no-cast-state">
+              <i class="fas fa-map-signs"></i>
+              <p>{{localize "LOREMASTER.Cast.NoActiveAdventure"}}</p>
+              <p class="hint">{{localize "LOREMASTER.Cast.NoActiveAdventureHint"}}</p>
+            </div>
+          {{/if}}
+        </div>
+      {{else}}
+        <div class="permission-notice">
+          <i class="fas fa-lock"></i>
+          <p>{{localize "LOREMASTER.Cast.GMOnly"}}</p>
         </div>
       {{/if}}
     </div>
