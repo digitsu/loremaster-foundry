@@ -1,16 +1,15 @@
 {
   "id": "loremaster",
   "title": "Loremaster",
-  "description": "AI-powered Loremaster integration for Foundry VTT, allowing players to interact with Loremaster through the chat system.",
+  "description": "AI-powered Game Master assistant for Foundry VTT. Uses Claude AI to provide dynamic narration, NPC interactions, rules assistance, dice rolling, and more during your tabletop RPG sessions.",
   "authors": [
     {
-      "name": "the burninator",
-      "discord": "the burninator"
+      "name": "Jerry Chan"
     }
   ],
   "version": "0.1.0",
   "compatibility": {
-    "minimum": "13",
+    "minimum": "12",
     "verified": "13"
   },
   "esmodules": [
@@ -28,7 +27,8 @@
   ],
   "socket": true,
   "url": "",
-  "readme": "",
+  "readme": "README.md",
+  "license": "LICENSE.md",
   "bugs": "",
   "changelog": ""
 }
