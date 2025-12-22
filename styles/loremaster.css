@@ -2909,12 +2909,32 @@
 
 .loremaster-journal-entry {
   margin-bottom: 1.5em;
+  padding: 10px;
+  border-radius: 6px;
 }
 
-.loremaster-journal-entry .entry-time {
+.loremaster-journal-entry.player-message {
+  background: rgba(44, 100, 158, 0.08);
+  border-left: 3px solid #2c649e;
+}
+
+.loremaster-journal-entry.ai-message {
+  background: rgba(123, 44, 158, 0.08);
+  border-left: 3px solid #7b2c9e;
+}
+
+.loremaster-journal-entry .entry-header {
   color: #666;
   font-size: 0.85em;
   margin-bottom: 0.5em;
+}
+
+.loremaster-journal-entry.player-message .entry-header strong {
+  color: #2c649e;
+}
+
+.loremaster-journal-entry.ai-message .entry-header strong {
+  color: #7b2c9e;
 }
 
 .loremaster-journal-entry .entry-content {

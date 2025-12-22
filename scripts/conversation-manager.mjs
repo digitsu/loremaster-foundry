@@ -488,14 +488,17 @@ export class ConversationManager extends Application {
       let pageOrder = 0;
 
       for (const [sessionDate, sessionMessages] of Object.entries(sessionGroups)) {
-        // Format messages for this session - AI responses only
-        const aiMessages = sessionMessages.filter(m => m.role === 'assistant');
-        if (aiMessages.length === 0) continue;
+        // Format all messages for this session in chronological order
+        if (sessionMessages.length === 0) continue;
 
-        const content = aiMessages.map(msg => {
+        const content = sessionMessages.map(msg => {
           const time = new Date(msg.created_at).toLocaleTimeString();
-          return `<div class="loremaster-journal-entry">
-            <p class="entry-time"><em>${time}</em></p>
+          const isPlayer = msg.role === 'user';
+          const roleClass = isPlayer ? 'player-message' : 'ai-message';
+          const roleLabel = isPlayer ? 'Player' : 'Loremaster';
+
+          return `<div class="loremaster-journal-entry ${roleClass}">
+            <p class="entry-header"><strong>${roleLabel}</strong> <em>${time}</em></p>
             <div class="entry-content">${this._formatMessageForJournal(msg.content)}</div>
           </div>`;
         }).join('<hr>');
@@ -512,7 +515,7 @@ export class ConversationManager extends Application {
       }
 
       if (pages.length === 0) {
-        ui.notifications.warn('No AI responses to export');
+        ui.notifications.warn('No messages to export');
         return;
       }
 
