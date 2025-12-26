@@ -151,6 +151,7 @@ export class ContentManager extends Application {
    */
   activateListeners(html) {
     super.activateListeners(html);
+    html = $(html); // Convert to jQuery for Foundry v12 compatibility
 
     // Upload zone events
     const dropZone = html.find('.upload-zone')[0];
@@ -364,7 +365,7 @@ export class ContentManager extends Application {
 
     // Update UI with selected file
     this._selectedFile = file;
-    const html = this.element;
+    const html = $(this.element);
     html.find('.selected-file-name').text(file.name);
     html.find('.selected-file-size').text(this._formatFileSize(file.size));
     html.find('.selected-file-info').removeClass('hidden');
@@ -382,7 +383,7 @@ export class ContentManager extends Application {
 
     if (!this._selectedFile || this.isUploading) return;
 
-    const html = this.element;
+    const html = $(this.element);
     const category = html.find('.category-select').val();
     const displayName = html.find('.display-name-input').val().trim() || this._selectedFile.name;
 
@@ -509,7 +510,7 @@ export class ContentManager extends Application {
    * @private
    */
   _updateUploadUI(uploading) {
-    const html = this.element;
+    const html = $(this.element);
     html.find('.upload-btn').prop('disabled', uploading);
     html.find('.upload-progress').toggleClass('hidden', !uploading);
     html.find('.file-input').prop('disabled', uploading);
@@ -525,7 +526,7 @@ export class ContentManager extends Application {
    * @private
    */
   _updateProgressUI(stage, progress, message) {
-    const html = this.element;
+    const html = $(this.element);
     html.find('.progress-bar-fill').css('width', `${progress}%`);
     html.find('.progress-message').text(message);
     html.find('.progress-percent').text(`${progress}%`);
@@ -538,7 +539,7 @@ export class ContentManager extends Application {
    */
   _resetUploadForm() {
     this._selectedFile = null;
-    const html = this.element;
+    const html = $(this.element);
     html.find('.file-input').val('');
     html.find('.display-name-input').val('');
     html.find('.category-select').val('adventure');
@@ -1116,7 +1117,7 @@ export class ContentManager extends Application {
    */
   _onFoundryModuleSelect(event) {
     const value = event.target.value;
-    const html = this.element;
+    const html = $(this.element);
     html.find('.register-module-btn').prop('disabled', !value);
   }
 
@@ -1129,7 +1130,7 @@ export class ContentManager extends Application {
   async _onRegisterModule(event) {
     event.preventDefault();
 
-    const html = this.element;
+    const html = $(this.element);
     const moduleSelect = html.find('.foundry-module-select');
     const moduleId = moduleSelect.val();
 
@@ -1629,7 +1630,7 @@ export class ContentManager extends Application {
         if (checked) {
           character.isLoremasterControlled = false;
           // Update the UI
-          const html = this.element;
+          const html = $(this.element);
           html.find(`.ai-control-checkbox[data-character="${characterName}"]`).prop('checked', false);
         }
       }
@@ -1639,7 +1640,7 @@ export class ContentManager extends Application {
         if (checked) {
           character.isGMControlled = false;
           // Update the UI
-          const html = this.element;
+          const html = $(this.element);
           html.find(`.gm-control-checkbox[data-character="${characterName}"]`).prop('checked', false);
         }
       }

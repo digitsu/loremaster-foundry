@@ -119,6 +119,7 @@ export class ConversationManager extends Application {
    */
   activateListeners(html) {
     super.activateListeners(html);
+    html = $(html); // Convert to jQuery for Foundry v12 compatibility
 
     // Conversation list item clicks
     html.find('.conversation-item').on('click', this._onConversationClick.bind(this));
@@ -214,7 +215,7 @@ export class ConversationManager extends Application {
     const conversationId = event.currentTarget.dataset.conversationId;
 
     // Update selected state
-    this.element.find('.conversation-item').removeClass('selected');
+    $(this.element).find('.conversation-item').removeClass('selected');
     event.currentTarget.classList.add('selected');
 
     // Load conversation details
@@ -233,7 +234,7 @@ export class ConversationManager extends Application {
    * @private
    */
   _updateDetailsPanel() {
-    const html = this.element;
+    const html = $(this.element);
     const panel = html.find('.conversation-details');
 
     if (!this.selectedConversation) {
