@@ -88,6 +88,8 @@ export class ChatHandler {
    * @private
    */
   _onRenderChatMessage(message, html, data) {
+    html = $(html); // Ensure jQuery for Foundry v12 compatibility
+
     // Check if this is a private Loremaster response
     if (!message.flags?.[MODULE_ID]?.isPrivateResponse) {
       return;
@@ -880,6 +882,7 @@ export class ChatHandler {
           icon: '<i class="fas fa-sync"></i>',
           label: game.i18n?.localize('LOREMASTER.Private.IterateSubmit') || 'Refine',
           callback: async (html) => {
+            html = $(html); // Ensure jQuery for Foundry v12 compatibility
             const refinement = html.find('textarea[name="refinement"]').val().trim();
             if (!refinement) {
               ui.notifications.warn('Please provide refinement instructions.');

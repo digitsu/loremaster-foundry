@@ -146,6 +146,7 @@ export class UsageMonitor extends Application {
    */
   activateListeners(html) {
     super.activateListeners(html);
+    html = $(html); // Convert to jQuery for Foundry v12 compatibility
 
     // Refresh button
     html.find('.refresh-btn').on('click', this._onRefresh.bind(this));

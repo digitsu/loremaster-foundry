@@ -190,7 +190,7 @@ export class GMPrepJournalSync {
     const journal = game.journal.get(journalId);
     if (!journal?.sheet?.rendered) return;
 
-    const header = journal.sheet.element.find('.window-header');
+    const header = $(journal.sheet.element).find('.window-header');
     if (!header.length) return;
 
     // Remove existing indicator
