@@ -375,6 +375,7 @@ export async function showVetoDialog(options = {}) {
           icon: '<i class="fas fa-check"></i>',
           label: submitText,
           callback: (html) => {
+            html = $(html); // Ensure jQuery for Foundry v12 compatibility
             const correction = html.find('#veto-correction').val()?.trim();
             if (correction) {
               options.onSubmit?.(correction);

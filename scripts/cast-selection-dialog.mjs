@@ -304,6 +304,7 @@ export class CastSelectionDialog extends Dialog {
    */
   activateListeners(html) {
     super.activateListeners(html);
+    html = $(html); // Convert to jQuery for Foundry v12 compatibility
 
     // Highlight cards when a player claims them
     html.find('.claim-select').on('change', (event) => {

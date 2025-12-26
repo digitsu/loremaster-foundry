@@ -438,6 +438,7 @@ export class DataExtractor {
             icon: '<i class="fas fa-sync"></i>',
             label: 'Sync',
             callback: async (html) => {
+              html = $(html); // Ensure jQuery for Foundry v12 compatibility
               const options = {
                 rules: html.find('[name="rules"]').prop('checked'),
                 actors: html.find('[name="actors"]').prop('checked'),
