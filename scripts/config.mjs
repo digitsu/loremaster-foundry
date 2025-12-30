@@ -77,6 +77,16 @@ export function registerSettings() {
     default: 'public'
   });
 
+  // GM Mode - all responses to GM only
+  game.settings.register(MODULE_ID, 'gmMode', {
+    name: 'GM Mode',
+    hint: 'When enabled, all Loremaster responses are sent only to the GM. The GM reads dialogue and events aloud to players.',
+    scope: 'world',
+    config: true,
+    type: Boolean,
+    default: false
+  });
+
   // Include game context in prompts
   game.settings.register(MODULE_ID, 'includeGameContext', {
     name: 'Include Game Context',
