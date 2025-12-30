@@ -3483,3 +3483,126 @@
   margin: 0;
   font-style: italic;
 }
+
+/* ========================================
+   Structured Data Display (Arrays/Objects)
+   ======================================== */
+
+/* Structured list for array responses */
+.loremaster-structured-list {
+  list-style: none;
+  padding: 0;
+  margin: 8px 0;
+}
+
+.loremaster-list-item {
+  border: 1px solid rgba(0, 0, 0, 0.1);
+  border-radius: 4px;
+  margin-bottom: 4px;
+  background: rgba(255, 255, 255, 0.5);
+}
+
+/* Collapsible details element */
+.loremaster-details {
+  width: 100%;
+}
+
+.loremaster-summary {
+  padding: 8px 12px;
+  cursor: pointer;
+  font-weight: 500;
+  color: #333;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  user-select: none;
+}
+
+.loremaster-summary:hover {
+  background: rgba(201, 132, 26, 0.1);
+}
+
+.loremaster-summary::before {
+  content: '▶';
+  font-size: 0.7em;
+  transition: transform 0.2s;
+  color: #666;
+}
+
+.loremaster-details[open] .loremaster-summary::before {
+  transform: rotate(90deg);
+}
+
+.loremaster-detail-content {
+  padding: 8px 12px 12px;
+  border-top: 1px solid rgba(0, 0, 0, 0.1);
+  background: rgba(0, 0, 0, 0.02);
+  font-size: 0.9em;
+  overflow-x: auto;
+}
+
+/* Object table display */
+.loremaster-object-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.9em;
+}
+
+.loremaster-object-table td {
+  padding: 4px 8px;
+  vertical-align: top;
+  border-bottom: 1px solid rgba(0, 0, 0, 0.05);
+}
+
+.loremaster-key {
+  font-weight: 600;
+  color: #5c3d00;
+  white-space: nowrap;
+  width: 1%;
+}
+
+.loremaster-value {
+  color: #333;
+  word-break: break-word;
+}
+
+/* Nested lists */
+.loremaster-nested-list {
+  list-style: disc;
+  padding-left: 20px;
+  margin: 4px 0;
+}
+
+.loremaster-nested-list li {
+  padding: 2px 0;
+}
+
+/* Type-specific styling */
+.loremaster-string {
+  color: #0a5;
+}
+
+.loremaster-number {
+  color: #07a;
+}
+
+.loremaster-boolean {
+  color: #a50;
+  font-weight: 600;
+}
+
+.loremaster-null,
+.loremaster-undefined {
+  color: #999;
+  font-style: italic;
+}
+
+.loremaster-empty {
+  color: #999;
+}
+
+.loremaster-truncated {
+  color: #666;
+  font-style: italic;
+  font-size: 0.9em;
+}
