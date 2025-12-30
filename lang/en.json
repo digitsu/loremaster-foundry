@@ -23,6 +23,10 @@
           "Whisper": "Whisper to Requester"
         }
       },
+      "GMMode": {
+        "Name": "GM Mode",
+        "Hint": "When enabled, all Loremaster responses are sent only to the GM. The GM reads dialogue and events aloud to players."
+      },
       "IncludeGameContext": {
         "Name": "Include Game Context",
         "Hint": "Include current scene, actors, and combat state in AI prompts."
@@ -75,7 +79,8 @@
       "NoApiKey": "Please configure your Claude API key in module settings",
       "EmptyMessage": "Please provide a message for Loremaster",
       "Error": "Failed to get Loremaster response. Check console for details.",
-      "Thinking": "Loremaster is thinking..."
+      "Thinking": "Loremaster is thinking...",
+      "GMModeNoGM": "GM Mode is enabled but no GM is logged in. Response will not be visible."
     },
     "Batch": {
       "Title": "Collecting Messages",
