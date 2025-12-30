@@ -10,12 +10,30 @@ const MODULE_ID = 'loremaster';
 /**
  * Format an AI response for display in Foundry chat.
  * Detects if response is already HTML-formatted and skips processing if so.
+ * Handles arrays and objects by rendering them as structured HTML.
  *
- * @param {string} text - Raw text from Claude API.
+ * @param {string|Array|Object} text - Raw response from Claude API.
  * @returns {string} Formatted HTML for chat display.
  */
 export function formatResponse(text) {
   if (!text) return '';
+
+  // Handle arrays - render as collapsible list
+  if (Array.isArray(text)) {
+    console.log('loremaster | Response is array, formatting as list');
+    return formatArrayResponse(text);
+  }
+
+  // Handle objects (but not strings) - render as structured view
+  if (typeof text === 'object' && text !== null) {
+    console.log('loremaster | Response is object, formatting as structured view');
+    return formatObjectResponse(text);
+  }
+
+  // Ensure we have a string
+  if (typeof text !== 'string') {
+    text = String(text);
+  }
 
   // Check if the response is already HTML-formatted (Claude sometimes mimics
   // the format from conversation history)
@@ -208,4 +226,147 @@ function formatActorResult(result) {
       <strong>${result.name}</strong> (${result.type})
     </div>
   `;
+}
+
+/**
+ * Format an array response as a collapsible list.
+ * Each item shows a summary line, expandable for full details.
+ *
+ * @param {Array} arr - Array to format.
+ * @returns {string} Formatted HTML.
+ */
+function formatArrayResponse(arr) {
+  if (arr.length === 0) {
+    return '<div class="loremaster-response"><p class="loremaster-paragraph"><em>Empty list</em></p></div>';
+  }
+
+  const items = arr.map((item, index) => {
+    const summary = getItemSummary(item, index);
+    const details = formatValue(item, 1);
+    const hasDetails = typeof item === 'object' && item !== null;
+
+    if (hasDetails) {
+      return `
+        <li class="loremaster-list-item">
+          <details class="loremaster-details">
+            <summary class="loremaster-summary">${escapeHtml(summary)}</summary>
+            <div class="loremaster-detail-content">${details}</div>
+          </details>
+        </li>`;
+    } else {
+      return `<li class="loremaster-list-item">${escapeHtml(summary)}</li>`;
+    }
+  }).join('');
+
+  return `
+    <div class="loremaster-response">
+      <p class="loremaster-paragraph"><strong>${arr.length} item${arr.length !== 1 ? 's' : ''}</strong></p>
+      <ul class="loremaster-structured-list">${items}</ul>
+    </div>`;
+}
+
+/**
+ * Format an object response as a structured view.
+ *
+ * @param {Object} obj - Object to format.
+ * @returns {string} Formatted HTML.
+ */
+function formatObjectResponse(obj) {
+  const content = formatValue(obj, 0);
+  return `<div class="loremaster-response">${content}</div>`;
+}
+
+/**
+ * Get a one-line summary of an item for display.
+ *
+ * @param {*} item - Item to summarize.
+ * @param {number} index - Index in array.
+ * @returns {string} Summary string.
+ */
+function getItemSummary(item, index) {
+  if (item === null) return 'null';
+  if (item === undefined) return 'undefined';
+
+  if (typeof item === 'string') {
+    return item.length > 60 ? item.substring(0, 60) + '...' : item;
+  }
+
+  if (typeof item === 'number' || typeof item === 'boolean') {
+    return String(item);
+  }
+
+  if (Array.isArray(item)) {
+    return `Array (${item.length} items)`;
+  }
+
+  if (typeof item === 'object') {
+    // Try to find a good display field
+    const displayFields = ['title', 'name', 'id', 'label', 'summary', 'description'];
+    for (const field of displayFields) {
+      if (item[field] && typeof item[field] === 'string') {
+        const value = item[field];
+        return value.length > 50 ? value.substring(0, 50) + '...' : value;
+      }
+    }
+
+    // Fall back to showing keys
+    const keys = Object.keys(item);
+    if (keys.length === 0) return 'Empty object';
+    if (keys.length <= 3) return keys.join(', ');
+    return `Object (${keys.length} properties)`;
+  }
+
+  return `Item ${index + 1}`;
+}
+
+/**
+ * Format a value for display, with indentation support.
+ *
+ * @param {*} value - Value to format.
+ * @param {number} depth - Current nesting depth.
+ * @returns {string} Formatted HTML.
+ */
+function formatValue(value, depth) {
+  if (value === null) return '<span class="loremaster-null">null</span>';
+  if (value === undefined) return '<span class="loremaster-undefined">undefined</span>';
+
+  if (typeof value === 'string') {
+    const escaped = escapeHtml(value);
+    // Format long strings with line breaks
+    if (value.length > 100) {
+      return `<span class="loremaster-string">${escaped}</span>`;
+    }
+    return `<span class="loremaster-string">"${escaped}"</span>`;
+  }
+
+  if (typeof value === 'number') {
+    return `<span class="loremaster-number">${value}</span>`;
+  }
+
+  if (typeof value === 'boolean') {
+    return `<span class="loremaster-boolean">${value}</span>`;
+  }
+
+  if (Array.isArray(value)) {
+    if (value.length === 0) return '<span class="loremaster-empty">[]</span>';
+    if (depth > 2) return `<span class="loremaster-truncated">[${value.length} items...]</span>`;
+
+    const items = value.map(item => `<li>${formatValue(item, depth + 1)}</li>`).join('');
+    return `<ul class="loremaster-nested-list">${items}</ul>`;
+  }
+
+  if (typeof value === 'object') {
+    const keys = Object.keys(value);
+    if (keys.length === 0) return '<span class="loremaster-empty">{}</span>';
+    if (depth > 2) return `<span class="loremaster-truncated">{${keys.length} properties...}</span>`;
+
+    const rows = keys.map(key => {
+      const val = formatValue(value[key], depth + 1);
+      return `<tr><td class="loremaster-key">${escapeHtml(key)}</td><td class="loremaster-value">${val}</td></tr>`;
+    }).join('');
+
+    return `<table class="loremaster-object-table"><tbody>${rows}</tbody></table>`;
+  }
+
+  return escapeHtml(String(value));
 }
