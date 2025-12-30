@@ -449,6 +449,7 @@ export class ChatHandler {
    */
   async _createResponseMessage(response, originalMessage) {
     const visibility = getSetting('responseVisibility');
+    const gmMode = getSetting('gmMode');
 
     // Format the response with markdown conversion and styling
     const formattedContent = formatResponse(response);
@@ -464,8 +465,14 @@ export class ChatHandler {
       }
     };
 
-    // Handle visibility settings
-    if (visibility === 'whisper') {
+    // GM Mode takes precedence - all responses to GM only
+    if (gmMode) {
+      const gmUsers = game.users.filter(u => u.isGM).map(u => u.id);
+      if (gmUsers.length === 0) {
+        ui.notifications.warn(game.i18n.localize('LOREMASTER.Messages.GMModeNoGM'));
+      }
+      messageData.whisper = gmUsers;
+    } else if (visibility === 'whisper') {
       messageData.whisper = [originalMessage.user.id];
     } else if (visibility === 'gm') {
       messageData.whisper = game.users.filter(u => u.isGM).map(u => u.id);
@@ -629,6 +636,7 @@ export class ChatHandler {
    */
   async _createBatchResponseMessage(response, batch) {
     const visibility = getSetting('responseVisibility');
+    const gmMode = getSetting('gmMode');
 
     // Check for empty response
     if (!response || response.length === 0) {
@@ -660,8 +668,14 @@ export class ChatHandler {
       }
     };
 
-    // Handle visibility settings
-    if (visibility === 'whisper') {
+    // GM Mode takes precedence - all responses to GM only
+    if (gmMode) {
+      const gmUsers = game.users.filter(u => u.isGM).map(u => u.id);
+      if (gmUsers.length === 0) {
+        ui.notifications.warn(game.i18n.localize('LOREMASTER.Messages.GMModeNoGM'));
+      }
+      messageData.whisper = gmUsers;
+    } else if (visibility === 'whisper') {
       // Whisper to all participants
       messageData.whisper = batchUserIds;
     } else if (visibility === 'gm') {
