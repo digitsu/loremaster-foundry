@@ -343,6 +343,7 @@ async function handleSpeakAs({ actor: actorName, message }) {
   await ChatMessage.create({
     content: message,
     speaker,
+    user: game.user.id,  // Explicit user for compatibility with older system hooks
     flags: {
       [MODULE_ID]: {
         isAISpeech: true
@@ -899,6 +900,7 @@ async function handleYZEOpposedRoll({
   const rollLabel = label || 'Opposed Roll';
   await ChatMessage.create({
     speaker: ChatMessage.getSpeaker({ alias: 'Loremaster' }),
+    user: game.user.id,  // Explicit user for compatibility with older system hooks
     content: `<strong>${rollLabel}</strong><br/>
       ${actor.name} (${actorAttribute}+${actorSkill}): ${actorEval.successes} successes<br/>
       ${opponent.name} (${opponentAttribute}+${opponentSkill}): ${oppEval.successes} successes<br/>
@@ -992,6 +994,7 @@ async function handleApplyDamage({ actorName, amount, damageType = 'physical', i
   // Post to chat
   await ChatMessage.create({
     speaker: ChatMessage.getSpeaker({ alias: 'Loremaster' }),
+    user: game.user.id,  // Explicit user for compatibility with older system hooks
     content: `<strong>${actor.name}</strong> takes <strong>${actualDamage}</strong> ${damageType} damage.${armorReduction > 0 ? ` (${armorReduction} absorbed by armor)` : ''}<br/>HP: ${currentHP} → ${newHP}`,
     flags: { [MODULE_ID]: { isAISpeech: true } }
   });
@@ -1031,6 +1034,7 @@ async function handleModifyResource({ actorName, resource, amount, reason }) {
 
       await ChatMessage.create({
         speaker: ChatMessage.getSpeaker({ alias: 'Loremaster' }),
+        user: game.user.id,  // Explicit user for compatibility with older system hooks
         content: `<strong>Darkness Points:</strong> ${currentValue} → ${newValue}${reason ? ` (${reason})` : ''}`,
         whisper: ChatMessage.getWhisperRecipients('GM'),
         flags: { [MODULE_ID]: { isAISpeech: true } }
@@ -1089,6 +1093,7 @@ async function handleModifyResource({ actorName, resource, amount, reason }) {
   const changeText = amount >= 0 ? `+${amount}` : `${amount}`;
   await ChatMessage.create({
     speaker: ChatMessage.getSpeaker({ actor }),
+    user: game.user.id,  // Explicit user for compatibility with older system hooks
     content: `<strong>${actor.name}</strong> ${resource}: ${currentValue} → ${newValue} (${changeText})${reason ? ` - ${reason}` : ''}`,
     flags: { [MODULE_ID]: { isAISpeech: true } }
   });

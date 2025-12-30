@@ -256,6 +256,7 @@ export class ChatHandler {
     const messageData = {
       content: messageContent,
       speaker: ChatMessage.getSpeaker({ alias: 'Loremaster (Private)' }),
+      user: game.user.id,  // Explicit user for compatibility with older system hooks
       whisper: game.users.filter(u => u.isGM).map(u => u.id), // GM only
       flags: {
         [MODULE_ID]: {
@@ -305,6 +306,7 @@ export class ChatHandler {
     const messageData = {
       content: messageContent,
       speaker: ChatMessage.getSpeaker({ alias: speaker }),
+      user: game.user.id,  // Explicit user for compatibility with older system hooks
       flags: {
         [MODULE_ID]: {
           isPlayerMessage: true,
@@ -457,6 +459,7 @@ export class ChatHandler {
     const messageData = {
       content: formattedContent,
       speaker: ChatMessage.getSpeaker({ alias: 'Loremaster' }),
+      user: game.user.id,  // Explicit user for compatibility with older system hooks
       flags: {
         [MODULE_ID]: {
           isAIResponse: true,
@@ -543,6 +546,7 @@ export class ChatHandler {
     const messageData = {
       content: `<div class="loremaster-thinking-message"><em>${phrase}</em></div>`,
       speaker: ChatMessage.getSpeaker({ alias: 'Loremaster' }),
+      user: game.user.id,  // Explicit user for compatibility with older system hooks
       flags: {
         [MODULE_ID]: {
           isThinkingMessage: true
@@ -658,6 +662,7 @@ export class ChatHandler {
     const messageData = {
       content: formattedContent,
       speaker: ChatMessage.getSpeaker({ alias: 'Loremaster' }),
+      user: game.user.id,  // Explicit user for compatibility with older system hooks
       flags: {
         [MODULE_ID]: {
           isAIResponse: true,
@@ -823,6 +828,7 @@ export class ChatHandler {
       const messageData = {
         content: formattedContent,
         speaker: ChatMessage.getSpeaker({ alias: 'Loremaster' }),
+        user: game.user.id,  // Explicit user for compatibility with older system hooks
         flags: {
           [MODULE_ID]: {
             isAIResponse: true,
