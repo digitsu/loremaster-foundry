@@ -118,6 +118,10 @@ async function initializeLoremaster() {
       }
     });
 
+    // Initialize socket for multi-client batch synchronization
+    // GM becomes the authority, players sync through sockets
+    messageBatcher.initializeSocket();
+
     // Create and initialize chat handler with batcher
     const chatHandler = new ChatHandler(socketClient, messageBatcher);
     chatHandler.initialize();
