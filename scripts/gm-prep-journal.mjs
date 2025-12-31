@@ -284,11 +284,32 @@ export class GMPrepJournalSync {
     text = text.replace(/<ul[^>]*>/gi, '');
     text = text.replace(/<\/ul>/gi, '\n');
 
-    // Convert table rows back (simplified)
+    // Convert table rows back (handle thead/tbody structure)
+    // Add separator after thead
+    text = text.replace(/<\/thead>/gi, (match) => {
+      // Count the columns from the previous header row
+      return '</thead>|SEPARATOR|';
+    });
+    // First convert header cells
+    text = text.replace(/<th>(.*?)<\/th>/gi, '<td>$1</td>');
+    // Remove thead/tbody wrappers
+    text = text.replace(/<\/?thead>/gi, '');
+    text = text.replace(/<\/?tbody>/gi, '');
+    // Convert table rows
     text = text.replace(/<tr>(.*?)<\/tr>/gi, (match, content) => {
       const cells = content.match(/<td>(.*?)<\/td>/gi) || [];
       const cellValues = cells.map(cell => cell.replace(/<\/?td>/gi, '').trim());
       return '| ' + cellValues.join(' | ') + ' |\n';
+    });
+    // Convert separator placeholders to proper markdown separators
+    text = text.replace(/\|SEPARATOR\|/g, (match, offset, str) => {
+      // Find the previous row to count columns
+      const prevMatch = str.substring(0, offset).match(/\| [^|]+ \|[^\n]*\n$/);
+      if (prevMatch) {
+        const cols = (prevMatch[0].match(/\|/g) || []).length - 1;
+        return '|' + ' --- |'.repeat(cols) + '\n';
+      }
+      return '| --- | --- | --- |\n'; // Fallback
     });
     text = text.replace(/<table[^>]*>/gi, '');
     text = text.replace(/<\/table>/gi, '');

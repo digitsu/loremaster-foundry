@@ -30,8 +30,11 @@ Loremaster is an AI-powered Game Master assistant module that consists of:
 - `chat-handler.mjs` - Chat message processing, private GM chat, publish/iterate/discard
 - `socket-client.mjs` - WebSocket communication with proxy server
 - `message-batcher.mjs` - Multi-player message batching
-- `content-manager.mjs` - PDF upload and management UI
-- `conversation-manager.mjs` - Conversation history management UI
+- `content-manager.mjs` - PDF upload, adventure management, Cast tab UI
+- `conversation-manager.mjs` - Conversation history management UI with export
+- `cast-selection-dialog.mjs` - Character assignment dialog for adventure activation
+- `gm-prep-journal.mjs` - Debounced sync of GM Prep journal edits to server
+- `usage-monitor.mjs` - API usage tracking and cost estimation UI
 - `welcome-journal.mjs` - First-run documentation journal
 
 ### Server-Side (Proxy Server)
@@ -43,11 +46,37 @@ Loremaster is an AI-powered Game Master assistant module that consists of:
 
 ## Features
 
+### Core Features
 - **Chat Integration**: `@lm` prefix for public messages, `@lm!` for private GM chat
 - **Message Batching**: Collects multiple player actions before sending to AI
 - **Canon System**: Published responses become official campaign history
 - **PDF Support**: Upload adventure PDFs for AI context
 - **Tool Use**: Claude can roll dice, query actors, etc.
+
+### GM Prep System
+- **GM Prep Script Generation**: AI generates comprehensive adventure scripts from uploaded PDFs
+- **Character Extraction**: Parses GM Prep scripts to extract NPCs and playable characters
+- **Journal Sync**: GM Prep journals auto-sync back to server with 30-second debounce
+- **Sync Indicators**: Visual feedback in journal header showing sync status (pending, syncing, synced, error)
+
+### Cast Management
+- **Cast Selection Dialog**: Shown when activating an adventure with a GM Prep script
+- **Character Assignments**: Assign players to playable characters via dropdown
+- **Loremaster Control**: Mark NPCs for AI roleplay with checkboxes
+- **Cast Tab**: Persistent character management in Content Manager
+- **Role Detection**: Characters categorized as PC, major NPC, minor NPC, antagonist
+
+### Conversation Management
+- **Conversation History**: View, switch, rename, and delete conversations
+- **Compaction & Archive**: Summarize long conversations and archive them
+- **Continue from Summary**: Start new conversations with inherited context
+- **Export to Journal**: Export conversation history to Foundry journal with player/AI styling
+
+### API Usage Monitoring
+- **Usage Monitor**: Track API token usage (input, output, cache reads/writes)
+- **Session Stats**: View current session usage
+- **All-Time Stats**: Track cumulative usage across all sessions
+- **Cost Estimation**: Approximate API cost calculation
 
 ## Foundry V12+ API Changes
 

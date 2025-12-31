@@ -27,9 +27,16 @@
         {{/if}}
       {{/if}}
     </div>
-    <button type="button" class="refresh-btn" title="{{localize 'LOREMASTER.ContentManager.Refresh'}}">
-      <i class="fas fa-sync-alt"></i>
-    </button>
+    <div class="header-actions">
+      {{#if isGM}}
+        <button type="button" class="generate-embeddings-btn" title="{{localize 'LOREMASTER.ContentManager.GenerateEmbeddings'}}">
+          <i class="fas fa-brain"></i>
+        </button>
+      {{/if}}
+      <button type="button" class="refresh-btn" title="{{localize 'LOREMASTER.ContentManager.Refresh'}}">
+        <i class="fas fa-sync-alt"></i>
+      </button>
+    </div>
   </header>
 
   {{!-- Tab Navigation --}}
@@ -414,8 +421,13 @@
             {{else}}
               <div class="empty-cast-state">
                 <i class="fas fa-users-slash"></i>
-                <p>{{localize "LOREMASTER.Cast.NoCharacters"}}</p>
-                <p class="hint">{{localize "LOREMASTER.Cast.NoCharactersHint"}}</p>
+                {{#if hasNonPlayableOnly}}
+                  <p>{{localize "LOREMASTER.Cast.NoPlayableCharacters"}}</p>
+                  <p class="hint">{{localize "LOREMASTER.Cast.NoPlayableCharactersHint"}}</p>
+                {{else}}
+                  <p>{{localize "LOREMASTER.Cast.NoCharacters"}}</p>
+                  <p class="hint">{{localize "LOREMASTER.Cast.NoCharactersHint"}}</p>
+                {{/if}}
                 <button type="button" class="extract-characters-btn">
                   <i class="fas fa-wand-magic-sparkles"></i> {{localize "LOREMASTER.Cast.ExtractFromScript"}}
                 </button>

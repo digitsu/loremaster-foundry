@@ -78,11 +78,13 @@ export class CastSelectionDialog extends Dialog {
         }
       }
 
-      // Filter to playable characters for main selection
-      const playableCharacters = characters.filter(c => c.isPlayable);
-      const npcCharacters = characters.filter(c => !c.isPlayable);
+      // Filter to playable characters available at the start of the adventure
+      // Characters appearing later (Act 2+, later scenes) are not shown in initial selection
+      const playableCharacters = characters.filter(c =>
+        c.isPlayable && CastSelectionDialog._isAvailableAtStart(c.firstAppearance)
+      );
 
-      const content = CastSelectionDialog._buildContent(playableCharacters, npcCharacters);
+      const content = CastSelectionDialog._buildContent(playableCharacters);
 
       const dialog = new CastSelectionDialog(socketClient, scriptId, adventureName, {
         title: game.i18n.format('LOREMASTER.CastSelection.Title', { name: adventureName }),
@@ -115,13 +117,13 @@ export class CastSelectionDialog extends Dialog {
 
   /**
    * Build the dialog content HTML.
+   * Only displays playable characters (PCs) - NPCs are not shown in cast selection.
    *
    * @param {Array} playableCharacters - Characters that can be claimed by players.
-   * @param {Array} npcCharacters - NPC characters for AI control assignment.
    * @returns {string} HTML content.
    * @private
    */
-  static _buildContent(playableCharacters, npcCharacters) {
+  static _buildContent(playableCharacters) {
     const players = game.users.contents.map(u => ({
       id: u.id,
       name: u.name,
@@ -152,28 +154,12 @@ export class CastSelectionDialog extends Dialog {
       html += `</div></div>`;
     }
 
-    // NPC Characters Section (for AI control)
-    if (npcCharacters.length > 0) {
-      html += `
-        <div class="cast-section npc-characters">
-          <h3><i class="fas fa-robot"></i> ${game.i18n.localize('LOREMASTER.CastSelection.NPCsForAI')}</h3>
-          <p class="hint">${game.i18n.localize('LOREMASTER.CastSelection.NPCsHint')}</p>
-          <div class="npc-list">
-      `;
-
-      for (const char of npcCharacters) {
-        html += CastSelectionDialog._buildNPCRow(char);
-      }
-
-      html += `</div></div>`;
-    }
-
-    // No characters message
-    if (playableCharacters.length === 0 && npcCharacters.length === 0) {
+    // No playable characters message
+    if (playableCharacters.length === 0) {
       html += `
         <div class="no-characters">
           <i class="fas fa-users-slash"></i>
-          <p>${game.i18n.localize('LOREMASTER.CastSelection.NoCharacters')}</p>
+          <p>${game.i18n.localize('LOREMASTER.CastSelection.NoPlayableCharacters')}</p>
         </div>
       `;
     }
@@ -181,6 +167,39 @@ export class CastSelectionDialog extends Dialog {
     html += `</div>`;
 
     return html;
+  }
+
+  /**
+   * Check if a character is available at the start of the adventure.
+   * Only characters explicitly in Act 1, Prologue, or Pre-made PC are available.
+   * All other first appearances are filtered out for initial assignment.
+   *
+   * @param {string} firstAppearance - The first appearance text from the character roster.
+   * @returns {boolean} True if character is available at start.
+   * @private
+   */
+  static _isAvailableAtStart(firstAppearance) {
+    // If no first appearance specified, assume NOT available (conservative)
+    if (!firstAppearance) return false;
+
+    const lower = firstAppearance.toLowerCase().trim();
+
+    // Only these patterns are available at start
+    const availablePatterns = [
+      /act\s*1\b/,            // Act 1, Act 1: Scene 2, etc.
+      /act\s*i\b/,            // Act I (roman numerals)
+      /prologue/,             // Prologue
+      /pre-?made/,            // Pre-made PC, Premade character
+      /pre-?gen/,             // Pre-gen, Pre-generated
+      /starting/,             // Starting character
+    ];
+
+    for (const pattern of availablePatterns) {
+      if (pattern.test(lower)) return true;
+    }
+
+    // Everything else is not available at start
+    return false;
   }
 
   /**
@@ -249,6 +268,7 @@ export class CastSelectionDialog extends Dialog {
 
   /**
    * Collect assignments from the dialog HTML.
+   * Only collects playable character assignments.
    *
    * @param {jQuery} html - The dialog HTML.
    * @param {Array} allCharacters - All character data.
@@ -272,25 +292,6 @@ export class CastSelectionDialog extends Dialog {
           assignedToUserName: userName,
           worldId: game.world.id
         });
-      }
-    });
-
-    // Collect AI control for NPCs
-    html.find('.ai-control-checkbox').each((i, checkbox) => {
-      const characterName = checkbox.dataset.character;
-      const isLoremasterControlled = checkbox.checked;
-
-      // Check if this character isn't already in assignments
-      const existing = assignments.find(a => a.characterName === characterName);
-      if (!existing) {
-        const character = allCharacters.find(c => c.characterName === characterName);
-        if (character) {
-          assignments.push({
-            ...character,
-            isLoremasterControlled,
-            worldId: game.world.id
-          });
-        }
       }
     });
 

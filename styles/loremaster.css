@@ -604,6 +604,12 @@
   border-bottom: 1px solid rgba(201, 132, 26, 0.3);
 }
 
+.content-manager-header .header-actions {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
 .stats-summary {
   display: flex;
   gap: 15px;
@@ -651,6 +657,27 @@
 }
 
 .refresh-btn:hover {
+  background: rgba(201, 132, 26, 0.1);
+}
+
+.generate-embeddings-btn {
+  background: transparent;
+  border: 1px solid rgba(201, 132, 26, 0.5);
+  color: #c9841a;
+  padding: 4px 8px;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: all 0.2s;
+  font-size: 0.85em;
+  line-height: 1;
+  width: 56px;
+  height: 28px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.generate-embeddings-btn:hover {
   background: rgba(201, 132, 26, 0.1);
 }
 
@@ -1782,10 +1809,15 @@
   font-size: 0.9em;
 }
 
+.gm-prep-script table.gm-prep-table th,
+.gm-prep-script table.gm-prep-table thead td,
 .gm-prep-script table.gm-prep-table tr:first-child td {
-  background: rgba(201, 132, 26, 0.1);
+  background: rgba(201, 132, 26, 0.15);
   font-weight: bold;
   color: #a36a15;
+  border: 1px solid rgba(0, 0, 0, 0.15);
+  padding: 8px 12px;
+  text-align: left;
 }
 
 .gm-prep-script table.gm-prep-table td {
@@ -1794,8 +1826,12 @@
   vertical-align: top;
 }
 
-.gm-prep-script table.gm-prep-table tr:nth-child(even) {
+.gm-prep-script table.gm-prep-table tbody tr:nth-child(even) {
   background: rgba(0, 0, 0, 0.02);
+}
+
+.gm-prep-script table.gm-prep-table tbody tr:hover {
+  background: rgba(201, 132, 26, 0.05);
 }
 
 /* Code/inline code styling */
@@ -3605,4 +3641,124 @@
   color: #666;
   font-style: italic;
   font-size: 0.9em;
+}
+
+/* ===== Progress Bar ===== */
+.loremaster-progress-container {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 10000;
+  background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+  border-bottom: 2px solid #c9841a;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.5);
+  transform: translateY(-100%);
+  transition: transform 0.3s ease-out;
+}
+
+.loremaster-progress-container.visible {
+  transform: translateY(0);
+}
+
+.loremaster-progress-container.hidden {
+  transform: translateY(-100%);
+}
+
+.loremaster-progress-container.success {
+  border-bottom-color: #4caf50;
+}
+
+.loremaster-progress-container.success .loremaster-progress-fill {
+  background: linear-gradient(90deg, #4caf50, #81c784);
+}
+
+.loremaster-progress-container.success .loremaster-progress-icon i {
+  color: #4caf50;
+}
+
+.loremaster-progress-container.error {
+  border-bottom-color: #f44336;
+}
+
+.loremaster-progress-container.error .loremaster-progress-fill {
+  background: linear-gradient(90deg, #f44336, #e57373);
+}
+
+.loremaster-progress-container.error .loremaster-progress-icon i {
+  color: #f44336;
+}
+
+.loremaster-progress-content {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 8px 16px;
+  max-width: 600px;
+  margin: 0 auto;
+}
+
+.loremaster-progress-icon {
+  flex-shrink: 0;
+}
+
+.loremaster-progress-icon i {
+  font-size: 20px;
+  color: #c9841a;
+  animation: loremaster-pulse 2s ease-in-out infinite;
+}
+
+@keyframes loremaster-pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.5; }
+}
+
+.loremaster-progress-container.success .loremaster-progress-icon i,
+.loremaster-progress-container.error .loremaster-progress-icon i {
+  animation: none;
+}
+
+.loremaster-progress-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.loremaster-progress-label {
+  font-size: 12px;
+  color: #fff;
+  margin-bottom: 4px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.loremaster-progress-track {
+  height: 6px;
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 3px;
+  overflow: hidden;
+}
+
+.loremaster-progress-fill {
+  height: 100%;
+  background: linear-gradient(90deg, #c9841a, #e6a833);
+  border-radius: 3px;
+  width: 0%;
+  transition: width 0.3s ease-out;
+}
+
+.loremaster-progress-percent {
+  font-size: 12px;
+  color: #c9841a;
+  font-weight: 600;
+  min-width: 36px;
+  text-align: right;
+}
+
+.loremaster-progress-container.success .loremaster-progress-percent {
+  color: #4caf50;
+}
+
+.loremaster-progress-container.error .loremaster-progress-percent {
+  color: #f44336;
 }

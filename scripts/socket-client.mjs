@@ -1089,6 +1089,63 @@ export class SocketClient {
     });
   }
 
+  // ===== Embedding Methods =====
+
+  /**
+   * Generate embeddings for existing content.
+   * Rechunks PDFs that don't have chunks and generates embeddings via Voyage API.
+   * GM only operation.
+   *
+   * @param {Function} onProgress - Progress callback: (stage, progress, message) => void.
+   * @returns {Promise<object>} Result with processing stats.
+   */
+  async generateEmbeddings(onProgress = null) {
+    this._requireAuth();
+
+    if (!this.isGM) {
+      throw new Error('Generating embeddings requires GM permissions');
+    }
+
+    const requestId = `req_${++this.requestIdCounter}`;
+
+    // Store progress callback if provided
+    if (onProgress) {
+      this.progressCallbacks.set(requestId, onProgress);
+    }
+
+    return new Promise((resolve, reject) => {
+      // Set up timeout (5 minutes for embedding generation)
+      const timeout = 300000;
+      const timeoutId = setTimeout(() => {
+        this.pendingRequests.delete(requestId);
+        this.progressCallbacks.delete(requestId);
+        reject(new Error('Embedding generation timeout'));
+      }, timeout);
+
+      // Store pending request
+      this.pendingRequests.set(requestId, {
+        resolve: (data) => {
+          clearTimeout(timeoutId);
+          this.pendingRequests.delete(requestId);
+          this.progressCallbacks.delete(requestId);
+          resolve(data);
+        },
+        reject: (error) => {
+          clearTimeout(timeoutId);
+          this.pendingRequests.delete(requestId);
+          this.progressCallbacks.delete(requestId);
+          reject(error);
+        }
+      });
+
+      // Send request
+      this.ws.send(JSON.stringify({
+        type: 'generate-embeddings',
+        requestId
+      }));
+    });
+  }
+
   /**
    * Register a tool handler for execution requests from the proxy.
    *
@@ -1203,6 +1260,12 @@ export class SocketClient {
         return;
       }
 
+      // Handle embedding progress updates
+      if (message.type === 'embedding-progress') {
+        this._handleEmbeddingProgress(message);
+        return;
+      }
+
       // Handle response to pending request
       const { requestId, success, data: responseData, error } = message;
 
@@ -1259,6 +1322,38 @@ export class SocketClient {
           console.error(`${MODULE_ID} | Error in GM Prep progress callback:`, error);
         }
         break; // Only call the most recent one
+      }
+    }
+  }
+
+  /**
+   * Handle embedding progress message.
+   *
+   * @param {object} message - Progress message with requestId, stage, progress, message.
+   * @private
+   */
+  _handleEmbeddingProgress(message) {
+    const { requestId, stage, progress, message: progressMessage } = message;
+
+    // Use requestId if available, otherwise find the most recent callback
+    if (requestId && this.progressCallbacks.has(requestId)) {
+      const callback = this.progressCallbacks.get(requestId);
+      try {
+        callback(stage, progress, progressMessage);
+      } catch (error) {
+        console.error(`${MODULE_ID} | Error in embedding progress callback:`, error);
+      }
+    } else {
+      // Fallback: find any pending callback
+      for (const [reqId, callback] of this.progressCallbacks) {
+        if (reqId.startsWith('req_')) {
+          try {
+            callback(stage, progress, progressMessage);
+          } catch (error) {
+            console.error(`${MODULE_ID} | Error in embedding progress callback:`, error);
+          }
+          break;
+        }
       }
     }
   }

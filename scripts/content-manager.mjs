@@ -7,6 +7,7 @@
  */
 
 import { showCastSelectionIfNeeded } from './cast-selection-dialog.mjs';
+import { progressBar } from './progress-bar.mjs';
 
 const MODULE_ID = 'loremaster';
 
@@ -137,9 +138,10 @@ export class ContentManager extends Application {
       activeConversation: this.activeConversation,
       compactedConversations: this.compactedConversations,
       isCompacting: this.isCompacting,
-      // Cast management data
+      // Cast management data - only show playable characters in the UI
       castScriptId: this.castScriptId,
-      castCharacters: this.castCharacters,
+      castCharacters: this.castCharacters.filter(c => c.isPlayable),
+      hasNonPlayableOnly: this.castCharacters.length > 0 && this.castCharacters.filter(c => c.isPlayable).length === 0,
       gamePlayers: this._getGamePlayers()
     };
   }
@@ -176,6 +178,9 @@ export class ContentManager extends Application {
 
     // Refresh button
     html.find('.refresh-btn').on('click', this._onRefresh.bind(this));
+
+    // Generate Embeddings button
+    html.find('.generate-embeddings-btn').on('click', this._onGenerateEmbeddings.bind(this));
 
     // ===== Active Adventure Tab =====
     // Adventure selector
@@ -471,6 +476,64 @@ export class ContentManager extends Application {
   }
 
   /**
+   * Handle Generate Embeddings button click.
+   * Rechunks PDFs and generates embeddings for all content.
+   *
+   * @param {Event} event - The click event.
+   * @private
+   */
+  async _onGenerateEmbeddings(event) {
+    event.preventDefault();
+
+    // Disable button during operation
+    const html = $(this.element);
+    const btn = html.find('.generate-embeddings-btn');
+    btn.prop('disabled', true);
+    btn.find('i').removeClass('fa-brain').addClass('fa-spinner fa-spin');
+
+    try {
+      // Show progress bar
+      progressBar.show('embeddings', 'Generating embeddings...', 'fa-brain');
+
+      const result = await this.socketClient.generateEmbeddings((stage, progress, message) => {
+        progressBar.update('embeddings', progress, message);
+      });
+
+      // Build success message
+      if (result.totalProcessed > 0) {
+        progressBar.complete('embeddings', `Generated ${result.totalProcessed} embeddings`);
+        ui.notifications.info(game.i18n.format('LOREMASTER.ContentManager.EmbeddingsSuccess', {
+          count: result.totalProcessed
+        }));
+      } else {
+        progressBar.complete('embeddings', 'All content already embedded');
+        ui.notifications.info(game.i18n.localize('LOREMASTER.ContentManager.EmbeddingsNothingToDo'));
+      }
+
+      // Show warning if some PDFs need re-upload
+      if (result.needsReupload?.length > 0) {
+        ui.notifications.warn(game.i18n.format('LOREMASTER.ContentManager.EmbeddingsNeedsReupload', {
+          count: result.needsReupload.length
+        }));
+      }
+
+      // Refresh PDF list
+      await this._loadPDFs();
+
+    } catch (error) {
+      console.error(`${MODULE_ID} | Generate embeddings failed:`, error);
+      progressBar.error('embeddings', 'Embedding generation failed');
+      ui.notifications.error(game.i18n.format('LOREMASTER.ContentManager.EmbeddingsError', {
+        error: error.message
+      }));
+    } finally {
+      // Re-enable button
+      btn.prop('disabled', false);
+      btn.find('i').removeClass('fa-spinner fa-spin').addClass('fa-brain');
+    }
+  }
+
+  /**
    * Convert a File to base64 string.
    *
    * @param {File} file - The file to convert.
@@ -601,8 +664,8 @@ export class ContentManager extends Application {
     if (!confirmed) return;
 
     try {
-      // Show notification that generation is starting
-      ui.notifications.info(game.i18n.localize('LOREMASTER.GMPrep.Generating'));
+      // Show progress bar
+      progressBar.show('gm-prep', `Generating GM Prep: ${pdfName}`, 'fa-scroll');
 
       // Generate script with progress callback
       const result = await this.socketClient.generateGMPrep(
@@ -610,13 +673,15 @@ export class ContentManager extends Application {
         pdfName,
         hasExisting, // overwrite if existing
         (stage, progress, message) => {
-          // Could update a progress UI here if desired
-          console.log(`${MODULE_ID} | GM Prep progress: ${stage} - ${progress}% - ${message}`);
+          progressBar.update('gm-prep', progress, message);
         }
       );
 
       // Create/update journal entry with the script
       await this._createGMPrepJournal(result.adventureName, result.scriptContent, result.scriptId);
+
+      // Complete the progress bar
+      progressBar.complete('gm-prep', 'GM Prep script created!');
 
       ui.notifications.info(game.i18n.format('LOREMASTER.GMPrep.Success', { name: pdfName }));
 
@@ -625,6 +690,7 @@ export class ContentManager extends Application {
 
     } catch (error) {
       console.error(`${MODULE_ID} | GM Prep generation failed:`, error);
+      progressBar.error('gm-prep', 'GM Prep generation failed');
       ui.notifications.error(game.i18n.format('LOREMASTER.GMPrep.Error', { error: error.message }));
     }
   }
@@ -736,11 +802,16 @@ export class ContentManager extends Application {
    * @private
    */
   _markdownToHtml(markdown) {
+    // First, escape HTML special chars in the raw markdown (before any conversion)
     let html = markdown
-      // Escape HTML special chars first
       .replace(/&/g, '&amp;')
       .replace(/</g, '&lt;')
-      .replace(/>/g, '&gt;')
+      .replace(/>/g, '&gt;');
+
+    // Handle tables - must be done before line break conversion
+    html = this._convertMarkdownTables(html);
+
+    html = html
       // Headers (must be before other replacements)
       .replace(/^#### (.*$)/gim, '<h4>$1</h4>')
       .replace(/^### (.*$)/gim, '<h3>$1</h3>')
@@ -762,7 +833,7 @@ export class ContentManager extends Application {
       .replace(/^\* (.*$)/gim, '<li>$1</li>')
       // Ordered list items
       .replace(/^\d+\. (.*$)/gim, '<li>$1</li>')
-      // Line breaks
+      // Line breaks (but not inside tables)
       .replace(/\n\n/g, '</p><p>')
       .replace(/\n/g, '<br>');
 
@@ -775,20 +846,106 @@ export class ContentManager extends Application {
       return `<ul>${match}</ul>`;
     });
 
-    // Handle tables (basic support)
-    html = html.replace(/\|(.+)\|/g, (match, content) => {
-      const cells = content.split('|').map(cell => cell.trim());
-      if (cells.every(cell => cell.match(/^-+$/))) {
-        return ''; // Skip separator rows
-      }
-      const cellHtml = cells.map(cell => `<td>${cell}</td>`).join('');
-      return `<tr>${cellHtml}</tr>`;
-    });
-    html = html.replace(/(<tr>.*?<\/tr>)+/g, (match) => {
-      return `<table class="gm-prep-table">${match}</table>`;
-    });
-
     return `<div class="gm-prep-script">${html}</div>`;
+  }
+
+  /**
+   * Convert markdown tables to HTML tables.
+   * Must be called before line breaks are converted.
+   *
+   * @param {string} markdown - The markdown content.
+   * @returns {string} Content with tables converted to HTML.
+   * @private
+   */
+  _convertMarkdownTables(markdown) {
+    const lines = markdown.split('\n');
+    const result = [];
+    let inTable = false;
+    let tableRows = [];
+    let headerRow = null;
+
+    for (let i = 0; i < lines.length; i++) {
+      const line = lines[i].trim();
+
+      // Check if this line is a table row (starts and ends with |)
+      if (line.startsWith('|') && line.endsWith('|')) {
+        // Extract cells
+        const cells = line.slice(1, -1).split('|').map(cell => cell.trim());
+
+        // Check if this is a separator row (all cells are dashes)
+        const isSeparator = cells.every(cell => /^[-:]+$/.test(cell));
+
+        if (isSeparator) {
+          // This is the separator row, mark that header is complete
+          if (!inTable && tableRows.length > 0) {
+            headerRow = tableRows.pop();
+            inTable = true;
+          }
+          continue; // Skip separator row
+        }
+
+        if (!inTable) {
+          // This might be a header row
+          tableRows.push(cells);
+        } else {
+          // This is a data row
+          tableRows.push(cells);
+        }
+      } else {
+        // Not a table row - flush any pending table
+        if (tableRows.length > 0 || headerRow) {
+          result.push(this._buildHtmlTable(headerRow, tableRows));
+          tableRows = [];
+          headerRow = null;
+          inTable = false;
+        }
+        result.push(line);
+      }
+    }
+
+    // Flush any remaining table
+    if (tableRows.length > 0 || headerRow) {
+      result.push(this._buildHtmlTable(headerRow, tableRows));
+    }
+
+    return result.join('\n');
+  }
+
+  /**
+   * Build an HTML table from parsed rows.
+   *
+   * @param {Array|null} headerRow - The header row cells.
+   * @param {Array} dataRows - Array of data row cell arrays.
+   * @returns {string} HTML table string.
+   * @private
+   */
+  _buildHtmlTable(headerRow, dataRows) {
+    let html = '<table class="gm-prep-table">';
+
+    // Add header if present
+    if (headerRow && headerRow.length > 0) {
+      html += '<thead><tr>';
+      for (const cell of headerRow) {
+        html += `<th>${cell}</th>`;
+      }
+      html += '</tr></thead>';
+    }
+
+    // Add body rows
+    if (dataRows.length > 0) {
+      html += '<tbody>';
+      for (const row of dataRows) {
+        html += '<tr>';
+        for (const cell of row) {
+          html += `<td>${cell}</td>`;
+        }
+        html += '</tr>';
+      }
+      html += '</tbody>';
+    }
+
+    html += '</table>';
+    return html;
   }
 
   // ===== Active Adventure Methods =====
@@ -842,13 +999,57 @@ export class ContentManager extends Application {
     const adventureType = type;
     const adventureId = type === 'pdf' ? parseInt(id, 10) : id;
 
-    // Find the adventure name
+    // Find the adventure name and GM script info
     let adventureName = '';
     let gmPrepScriptId = null;
+    let pdfId = null;
     if (adventureType === 'pdf') {
       const pdf = this.availableAdventures.pdfAdventures.find(p => p.id === adventureId);
       adventureName = pdf?.display_name || 'Unknown Adventure';
       gmPrepScriptId = pdf?.gmPrepScriptId || null;
+      pdfId = pdf?.id;
+
+      // If no GM script exists for this PDF adventure, prompt to generate one
+      if (!gmPrepScriptId && pdfId) {
+        const generateScript = await this._promptGenerateGMScript(adventureName);
+        if (generateScript === 'generate') {
+          // Generate the script first
+          try {
+            progressBar.show('gm-prep', `Generating GM Prep: ${adventureName}`, 'fa-scroll');
+
+            const result = await this.socketClient.generateGMPrep(
+              pdfId,
+              adventureName,
+              false, // not overwriting
+              (stage, progress, message) => {
+                progressBar.update('gm-prep', progress, message);
+              }
+            );
+
+            // Create journal entry
+            await this._createGMPrepJournal(result.adventureName, result.scriptContent, result.scriptId);
+
+            progressBar.complete('gm-prep', 'GM Prep script created!');
+
+            // Update the script ID
+            gmPrepScriptId = result.scriptId;
+
+            // Reload PDFs to update list
+            await this._loadPDFs();
+          } catch (error) {
+            console.error(`${MODULE_ID} | GM Prep generation failed:`, error);
+            progressBar.error('gm-prep', 'GM Prep generation failed');
+            ui.notifications.error(game.i18n.format('LOREMASTER.GMPrep.Error', { error: error.message }));
+            this.render(false);
+            return;
+          }
+        } else if (generateScript === 'cancel') {
+          // User cancelled, reset selector
+          this.render(false);
+          return;
+        }
+        // If 'skip', continue without a script
+      }
     } else {
       const module = this.availableAdventures.moduleAdventures.find(m => m.module_id === adventureId);
       adventureName = module?.module_name || adventureId;
@@ -940,6 +1141,46 @@ export class ContentManager extends Application {
         }));
       }
     }
+  }
+
+  /**
+   * Prompt user to generate a GM script for an adventure without one.
+   *
+   * @param {string} adventureName - The adventure name.
+   * @returns {Promise<string>} 'generate', 'skip', or 'cancel'.
+   * @private
+   */
+  async _promptGenerateGMScript(adventureName) {
+    return new Promise((resolve) => {
+      new Dialog({
+        title: game.i18n.localize('LOREMASTER.ActiveAdventure.NoScriptTitle'),
+        content: `
+          <div class="no-script-dialog">
+            <p>${game.i18n.format('LOREMASTER.ActiveAdventure.NoScriptMessage', { name: adventureName })}</p>
+            <p class="hint">${game.i18n.localize('LOREMASTER.ActiveAdventure.NoScriptHint')}</p>
+          </div>
+        `,
+        buttons: {
+          generate: {
+            icon: '<i class="fas fa-scroll"></i>',
+            label: game.i18n.localize('LOREMASTER.ActiveAdventure.GenerateScript'),
+            callback: () => resolve('generate')
+          },
+          skip: {
+            icon: '<i class="fas fa-forward"></i>',
+            label: game.i18n.localize('LOREMASTER.ActiveAdventure.SkipScript'),
+            callback: () => resolve('skip')
+          },
+          cancel: {
+            icon: '<i class="fas fa-times"></i>',
+            label: game.i18n.localize('LOREMASTER.Private.Cancel'),
+            callback: () => resolve('cancel')
+          }
+        },
+        default: 'generate',
+        close: () => resolve('cancel')
+      }).render(true);
+    });
   }
 
   /**
@@ -1629,9 +1870,11 @@ export class ContentManager extends Application {
         // If GM controls, uncheck AI control
         if (checked) {
           character.isLoremasterControlled = false;
-          // Update the UI
+          // Update the UI - use filter() to handle special characters in names
           const html = $(this.element);
-          html.find(`.ai-control-checkbox[data-character="${characterName}"]`).prop('checked', false);
+          html.find('.ai-control-checkbox').filter(function() {
+            return this.dataset.character === characterName;
+          }).prop('checked', false);
         }
       }
       if (isAIControl) {
@@ -1639,9 +1882,11 @@ export class ContentManager extends Application {
         // If AI controls, uncheck GM control
         if (checked) {
           character.isGMControlled = false;
-          // Update the UI
+          // Update the UI - use filter() to handle special characters in names
           const html = $(this.element);
-          html.find(`.gm-control-checkbox[data-character="${characterName}"]`).prop('checked', false);
+          html.find('.gm-control-checkbox').filter(function() {
+            return this.dataset.character === characterName;
+          }).prop('checked', false);
         }
       }
       this.castDirty = true;

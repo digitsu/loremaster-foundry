@@ -156,7 +156,13 @@
       "DeleteSuccess": "Deleted \"{name}\"",
       "DeleteError": "Delete failed: {error}",
       "InvalidFileType": "Please select a PDF file",
-      "FileTooLarge": "File is too large (max {max})"
+      "FileTooLarge": "File is too large (max {max})",
+      "GenerateEmbeddings": "Generate semantic embeddings for existing content",
+      "EmbeddingsStarting": "Generating embeddings for content. This may take a few minutes...",
+      "EmbeddingsSuccess": "Generated {count} new embeddings",
+      "EmbeddingsNothingToDo": "All content already has embeddings",
+      "EmbeddingsNeedsReupload": "{count} PDF(s) need to be re-uploaded to generate embeddings (uploaded before this feature was added)",
+      "EmbeddingsError": "Failed to generate embeddings: {error}"
     },
     "ConversationManager": {
       "Title": "Loremaster Conversations",
@@ -339,7 +345,12 @@
       "UnregisterSuccess": "Unregistered \"{name}\"",
       "UnregisterError": "Failed to unregister module: {error}",
       "ModuleNotFound": "Module not found",
-      "GMOnly": "Only the GM can manage active adventures"
+      "GMOnly": "Only the GM can manage active adventures",
+      "NoScriptTitle": "No GM Prep Script",
+      "NoScriptMessage": "The adventure \"{name}\" doesn't have a GM Prep script yet. Would you like to generate one?",
+      "NoScriptHint": "A GM Prep script provides character information and story structure for Loremaster.",
+      "GenerateScript": "Generate Script",
+      "SkipScript": "Skip for Now"
     },
     "UsageMonitor": {
       "Title": "API Usage Monitor",
@@ -412,6 +423,8 @@
       "AIControls": "Loremaster Controls",
       "NoCharacters": "No characters extracted yet",
       "NoCharactersHint": "Click 'Extract from Script' to parse characters from the GM Prep script",
+      "NoPlayableCharacters": "No playable characters found",
+      "NoPlayableCharactersHint": "Characters were extracted but none are marked as playable. Check the 'Playable' column in the GM Prep script's Character Roster Table.",
       "NoActiveAdventure": "No Active Adventure",
       "NoActiveAdventureHint": "Select an active adventure with a GM Prep script to manage character assignments",
       "Extracting": "Extracting characters from script...",
@@ -423,7 +436,7 @@
     },
     "CastSelection": {
       "Title": "Cast Selection - {name}",
-      "Instructions": "Assign players to characters before starting the adventure. Unassigned playable characters can be claimed by players. Mark which NPCs Loremaster should roleplay.",
+      "Instructions": "Assign players to playable characters before starting the adventure. Unassigned characters can be claimed by players during play.",
       "PlayableCharacters": "Playable Characters",
       "NPCsForAI": "NPCs for AI Control",
       "NPCsHint": "Check the characters you want Loremaster to actively roleplay during the adventure.",
@@ -431,7 +444,8 @@
       "Unclaimed": "-- Available --",
       "LoremasterRoleplays": "Loremaster Roleplays",
       "StartAdventure": "Start Adventure",
-      "NoCharacters": "No characters found in this adventure. Characters will be extracted when you start."
+      "NoCharacters": "No characters found in this adventure. Characters will be extracted when you start.",
+      "NoPlayableCharacters": "No playable characters found. Check the GM Prep script's Character Roster Table and ensure the 'Playable' column is set to 'Yes' for player characters."
     }
   }
 }
