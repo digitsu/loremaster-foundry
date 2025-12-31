@@ -3762,3 +3762,316 @@
 .loremaster-progress-container.error .loremaster-progress-percent {
   color: #f44336;
 }
+
+/* ===== License Status Styles ===== */
+
+.license-status {
+  font-weight: 600;
+  text-transform: capitalize;
+}
+
+.license-status.license-valid {
+  color: #4caf50;
+}
+
+.license-status.license-valid i {
+  color: #4caf50;
+}
+
+.license-status.license-invalid {
+  color: #f44336;
+}
+
+.license-status.license-invalid i {
+  color: #f44336;
+}
+
+/* ==========================================
+   Foundry Module Import Styles
+   ========================================== */
+
+.foundry-module-import-section {
+  margin-top: 25px;
+  padding-top: 20px;
+}
+
+.foundry-module-import-section .section-divider {
+  border: none;
+  border-top: 1px solid rgba(201, 132, 26, 0.3);
+  margin-bottom: 15px;
+}
+
+.foundry-module-import-section h3 {
+  margin: 0 0 8px 0;
+  color: #c9841a;
+  font-size: 1.1em;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.foundry-module-import-section > .hint {
+  font-size: 0.9em;
+  color: #666;
+  margin-bottom: 15px;
+  font-style: italic;
+}
+
+/* Module List */
+.foundry-module-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  max-height: 300px;
+  overflow-y: auto;
+  margin-bottom: 15px;
+}
+
+.foundry-module-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px;
+  background: rgba(0, 0, 0, 0.03);
+  border: 1px solid rgba(0, 0, 0, 0.08);
+  border-radius: 8px;
+  transition: all 0.2s;
+}
+
+.foundry-module-item:hover {
+  background: rgba(0, 0, 0, 0.05);
+}
+
+.foundry-module-item.completed {
+  background: linear-gradient(135deg, rgba(76, 175, 80, 0.08), rgba(76, 175, 80, 0.03));
+  border-color: rgba(76, 175, 80, 0.3);
+  border-left: 4px solid #4caf50;
+}
+
+.foundry-module-item.importing {
+  background: linear-gradient(135deg, rgba(201, 132, 26, 0.1), rgba(201, 132, 26, 0.05));
+  border-color: rgba(201, 132, 26, 0.3);
+  border-left: 4px solid #c9841a;
+}
+
+.foundry-module-item.failed {
+  background: linear-gradient(135deg, rgba(244, 67, 54, 0.08), rgba(244, 67, 54, 0.03));
+  border-color: rgba(244, 67, 54, 0.3);
+  border-left: 4px solid #f44336;
+}
+
+.foundry-module-item .module-icon {
+  font-size: 1.5em;
+  width: 40px;
+  height: 40px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #c9841a;
+  background: rgba(201, 132, 26, 0.1);
+  border-radius: 6px;
+}
+
+.foundry-module-item.completed .module-icon {
+  color: #4caf50;
+  background: rgba(76, 175, 80, 0.15);
+}
+
+.foundry-module-item .module-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.foundry-module-item .module-name {
+  font-weight: bold;
+  color: #333;
+  font-size: 1em;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.foundry-module-item .module-meta {
+  display: flex;
+  gap: 10px;
+  font-size: 0.8em;
+  color: #666;
+  margin-top: 2px;
+  flex-wrap: wrap;
+}
+
+.foundry-module-item .module-id {
+  color: #888;
+  font-family: monospace;
+}
+
+.foundry-module-item .module-version {
+  color: #c9841a;
+}
+
+.foundry-module-item .module-chunks {
+  color: #4caf50;
+}
+
+.foundry-module-item .module-status {
+  margin-top: 4px;
+}
+
+.import-status-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 0.8em;
+  padding: 2px 8px;
+  border-radius: 10px;
+}
+
+.import-status-badge.completed {
+  background: rgba(76, 175, 80, 0.15);
+  color: #2e7d32;
+}
+
+.import-status-badge.importing {
+  background: rgba(201, 132, 26, 0.15);
+  color: #c9841a;
+}
+
+.import-status-badge.failed {
+  background: rgba(244, 67, 54, 0.15);
+  color: #c62828;
+}
+
+.import-status-badge:not(.completed):not(.importing):not(.failed) {
+  background: rgba(0, 0, 0, 0.08);
+  color: #666;
+}
+
+/* Module Actions */
+.foundry-module-item .module-actions {
+  display: flex;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
+.import-module-btn {
+  background: #c9841a;
+  color: white;
+  border: none;
+  padding: 8px 14px;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 0.9em;
+  font-weight: 500;
+  transition: all 0.2s;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.import-module-btn:hover:not(:disabled) {
+  background: #a36a15;
+}
+
+.import-module-btn:disabled {
+  background: #999;
+  cursor: not-allowed;
+}
+
+.delete-module-btn {
+  background: transparent;
+  border: 1px solid #f44336;
+  color: #f44336;
+  width: 36px;
+  height: 36px;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: all 0.2s;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.delete-module-btn:hover {
+  background: #f44336;
+  color: white;
+}
+
+/* Module Import Progress */
+.module-import-progress {
+  background: rgba(0, 0, 0, 0.03);
+  border-radius: 8px;
+  padding: 15px;
+  margin-bottom: 15px;
+}
+
+.module-import-progress .progress-bar {
+  height: 8px;
+  background: rgba(0, 0, 0, 0.1);
+  border-radius: 4px;
+  overflow: hidden;
+  margin-bottom: 8px;
+}
+
+.module-import-progress .progress-bar-fill {
+  height: 100%;
+  background: linear-gradient(90deg, #c9841a, #e6a833);
+  border-radius: 4px;
+  transition: width 0.3s ease-out;
+}
+
+.module-import-progress .progress-info {
+  display: flex;
+  justify-content: space-between;
+  font-size: 0.85em;
+  color: #666;
+}
+
+.module-import-progress .progress-percent {
+  color: #c9841a;
+  font-weight: bold;
+}
+
+/* No Modules State */
+.no-modules-state {
+  text-align: center;
+  padding: 30px 20px;
+  background: rgba(0, 0, 0, 0.03);
+  border-radius: 8px;
+  color: #999;
+  margin-bottom: 15px;
+}
+
+.no-modules-state i {
+  font-size: 2.5em;
+  margin-bottom: 10px;
+  opacity: 0.5;
+}
+
+.no-modules-state p {
+  margin: 5px 0;
+}
+
+.no-modules-state .hint {
+  font-size: 0.9em;
+  font-style: italic;
+}
+
+/* Refresh Modules Button */
+.refresh-modules-btn {
+  background: transparent;
+  border: 1px solid rgba(201, 132, 26, 0.5);
+  color: #c9841a;
+  padding: 8px 16px;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 0.9em;
+  transition: all 0.2s;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.refresh-modules-btn:hover {
+  background: rgba(201, 132, 26, 0.1);
+  border-color: #c9841a;
+}
