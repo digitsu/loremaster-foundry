@@ -19,6 +19,7 @@ import { UsageMonitor, registerUsageMonitorHelpers } from './usage-monitor.mjs';
 import { registerWelcomeSettings, checkAndShowWelcome, openWelcomeJournal } from './welcome-journal.mjs';
 import { createHouseRulesJournal } from './house-rules-journal.mjs';
 import { GMPrepJournalSync } from './gm-prep-journal.mjs';
+import { progressBar } from './progress-bar.mjs';
 
 // Module constants
 const MODULE_ID = 'loremaster';
@@ -53,6 +54,9 @@ Hooks.once('init', () => {
  */
 Hooks.once('ready', async () => {
   console.log(`${MODULE_NAME} | Module ready`);
+
+  // Initialize the progress bar UI
+  progressBar.initialize();
 
   // Initialize the chat handler
   if (game.settings.get(MODULE_ID, 'enabled')) {
