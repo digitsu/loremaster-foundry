@@ -21,6 +21,7 @@ export class SocketClient {
     this.isConnected = false;
     this.isAuthenticated = false;
     this.isGM = false;
+    this.licenseStatus = null;
     this.pendingRequests = new Map();
     this.progressCallbacks = new Map();
     this.requestIdCounter = 0;
@@ -122,12 +123,25 @@ export class SocketClient {
     const result = await this._sendRequest('auth', payload);
     this.isAuthenticated = result.success;
     this.isGM = result.isGM || false;
+    this.licenseStatus = result.license || null;
 
     if (result.success) {
       console.log(`${MODULE_ID} | Authenticated with proxy server (GM: ${this.isGM})`);
+      if (this.licenseStatus) {
+        console.log(`${MODULE_ID} | License: ${this.licenseStatus.isValid ? 'Valid' : 'Invalid'} (${this.licenseStatus.tier})`);
+      }
     }
 
     return result;
+  }
+
+  /**
+   * Get the current license status from the proxy server.
+   *
+   * @returns {Object|null} License status object or null if not authenticated.
+   */
+  getLicenseStatus() {
+    return this.licenseStatus;
   }
 
   /**
@@ -1089,6 +1103,102 @@ export class SocketClient {
     });
   }
 
+  // ===== Foundry Module Import Methods =====
+
+  /**
+   * Discover available Foundry modules that can be imported for RAG.
+   * Returns modules with their import status.
+   *
+   * @returns {Promise<object>} Object with available, enabled, and modules arrays.
+   */
+  async discoverFoundryModules() {
+    this._requireAuth();
+    return this._sendRequest('discover-foundry-modules', {});
+  }
+
+  /**
+   * Get the import status of all Foundry modules.
+   *
+   * @returns {Promise<object>} Object with modules array and their import status.
+   */
+  async getModuleImportStatus() {
+    this._requireAuth();
+    return this._sendRequest('get-module-import-status', {});
+  }
+
+  /**
+   * Import a Foundry module's content for RAG retrieval.
+   * GM only. Chunks content and generates embeddings.
+   *
+   * @param {string} moduleId - The Foundry module ID to import.
+   * @param {Function} onProgress - Progress callback: (stage, progress, message) => void.
+   * @returns {Promise<object>} Import result with chunk count and token count.
+   */
+  async importFoundryModule(moduleId, onProgress = null) {
+    this._requireAuth();
+
+    if (!this.isGM) {
+      throw new Error('Importing modules requires GM permissions');
+    }
+
+    const requestId = `req_${++this.requestIdCounter}`;
+
+    // Store progress callback if provided
+    if (onProgress) {
+      this.progressCallbacks.set(requestId, onProgress);
+    }
+
+    return new Promise((resolve, reject) => {
+      // Set up timeout (5 minutes for module import)
+      const timeout = 300000;
+      const timeoutId = setTimeout(() => {
+        this.pendingRequests.delete(requestId);
+        this.progressCallbacks.delete(requestId);
+        reject(new Error('Module import timeout'));
+      }, timeout);
+
+      // Store pending request
+      this.pendingRequests.set(requestId, {
+        resolve: (data) => {
+          clearTimeout(timeoutId);
+          this.pendingRequests.delete(requestId);
+          this.progressCallbacks.delete(requestId);
+          resolve(data);
+        },
+        reject: (error) => {
+          clearTimeout(timeoutId);
+          this.pendingRequests.delete(requestId);
+          this.progressCallbacks.delete(requestId);
+          reject(error);
+        }
+      });
+
+      // Send request
+      this.ws.send(JSON.stringify({
+        type: 'import-foundry-module',
+        requestId,
+        moduleId
+      }));
+    });
+  }
+
+  /**
+   * Delete imported content for a Foundry module.
+   * GM only. Removes chunks and embeddings.
+   *
+   * @param {string} moduleId - The Foundry module ID.
+   * @returns {Promise<object>} Delete result.
+   */
+  async deleteModuleContent(moduleId) {
+    this._requireAuth();
+
+    if (!this.isGM) {
+      throw new Error('Deleting module content requires GM permissions');
+    }
+
+    return this._sendRequest('delete-module-content', { moduleId });
+  }
+
   // ===== Embedding Methods =====
 
   /**
@@ -1266,6 +1376,12 @@ export class SocketClient {
         return;
       }
 
+      // Handle module import progress updates
+      if (message.type === 'module-import-progress') {
+        this._handleModuleImportProgress(message);
+        return;
+      }
+
       // Handle response to pending request
       const { requestId, success, data: responseData, error } = message;
 
@@ -1351,6 +1467,38 @@ export class SocketClient {
             callback(stage, progress, progressMessage);
           } catch (error) {
             console.error(`${MODULE_ID} | Error in embedding progress callback:`, error);
+          }
+          break;
+        }
+      }
+    }
+  }
+
+  /**
+   * Handle module import progress message.
+   *
+   * @param {object} message - Progress message with requestId, stage, progress, message.
+   * @private
+   */
+  _handleModuleImportProgress(message) {
+    const { requestId, stage, progress, message: progressMessage } = message;
+
+    // Use requestId if available
+    if (requestId && this.progressCallbacks.has(requestId)) {
+      const callback = this.progressCallbacks.get(requestId);
+      try {
+        callback(stage, progress, progressMessage);
+      } catch (error) {
+        console.error(`${MODULE_ID} | Error in module import progress callback:`, error);
+      }
+    } else {
+      // Fallback: find any pending callback
+      for (const [reqId, callback] of this.progressCallbacks) {
+        if (reqId.startsWith('req_')) {
+          try {
+            callback(stage, progress, progressMessage);
+          } catch (error) {
+            console.error(`${MODULE_ID} | Error in module import progress callback:`, error);
           }
           break;
         }

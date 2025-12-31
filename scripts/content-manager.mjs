@@ -84,6 +84,11 @@ export class ContentManager extends Application {
     this.castScriptId = null;
     this.castCharacters = [];
     this.castDirty = false;
+    // Foundry module import data
+    this.foundryModules = [];
+    this.foundryModulesAvailable = false;
+    this.isImportingModule = false;
+    this.moduleImportProgress = { progress: 0, message: '' };
   }
 
   /**
@@ -142,7 +147,14 @@ export class ContentManager extends Application {
       castScriptId: this.castScriptId,
       castCharacters: this.castCharacters.filter(c => c.isPlayable),
       hasNonPlayableOnly: this.castCharacters.length > 0 && this.castCharacters.filter(c => c.isPlayable).length === 0,
-      gamePlayers: this._getGamePlayers()
+      gamePlayers: this._getGamePlayers(),
+      // License status from proxy server
+      license: this.socketClient.getLicenseStatus(),
+      // Foundry module import data
+      foundryModules: this.foundryModules,
+      foundryModulesAvailable: this.foundryModulesAvailable,
+      isImportingModule: this.isImportingModule,
+      moduleImportProgress: this.moduleImportProgress
     };
   }
 
@@ -233,6 +245,16 @@ export class ContentManager extends Application {
     // GM/AI control checkboxes
     html.find('.gm-control-checkbox').on('change', this._onControlCheckboxChange.bind(this));
     html.find('.ai-control-checkbox').on('change', this._onControlCheckboxChange.bind(this));
+
+    // ===== Foundry Module Import Tab =====
+    // Import module button
+    html.find('.import-module-btn').on('click', this._onImportModule.bind(this));
+
+    // Delete imported module button
+    html.find('.delete-module-btn').on('click', this._onDeleteModule.bind(this));
+
+    // Refresh modules list
+    html.find('.refresh-modules-btn').on('click', this._onRefreshModules.bind(this));
   }
 
   /**
@@ -248,11 +270,12 @@ export class ContentManager extends Application {
     if (!this._loaded) {
       this._loaded = true;
       await this._loadPDFs();
-      // Load adventure data, cast, and history for GMs
+      // Load adventure data, cast, history, and Foundry modules for GMs
       if (game.user.isGM) {
         await this._loadAdventureData();
         await this._loadCastData();
         await this._loadHistoryData();
+        await this._loadFoundryModules();
       }
     }
   }
@@ -1891,5 +1914,145 @@ export class ContentManager extends Application {
       }
       this.castDirty = true;
     }
+  }
+
+  // ===== Foundry Module Import Methods =====
+
+  /**
+   * Load available Foundry modules from the server.
+   * Fetches modules discovered by the server and their import status.
+   *
+   * @private
+   */
+  async _loadFoundryModules() {
+    try {
+      const result = await this.socketClient.discoverFoundryModules();
+
+      if (result.available) {
+        this.foundryModulesAvailable = true;
+        this.foundryModules = result.modules || [];
+      } else {
+        this.foundryModulesAvailable = false;
+        this.foundryModules = [];
+      }
+
+      this.render(false);
+    } catch (error) {
+      console.error(`${MODULE_ID} | Failed to load Foundry modules:`, error);
+      this.foundryModulesAvailable = false;
+      this.foundryModules = [];
+    }
+  }
+
+  /**
+   * Handle import module button click.
+   * Imports a Foundry module's content for RAG retrieval.
+   *
+   * @param {Event} event - The click event.
+   * @private
+   */
+  async _onImportModule(event) {
+    event.preventDefault();
+
+    const moduleId = event.currentTarget.dataset.moduleId;
+    const moduleName = event.currentTarget.dataset.moduleName;
+
+    if (!moduleId || this.isImportingModule) return;
+
+    try {
+      this.isImportingModule = true;
+      this._updateModuleImportUI(true);
+
+      // Show progress bar
+      progressBar.show('module-import', `Importing ${moduleName}...`, 'fa-cube');
+
+      // Import module with progress callback
+      const result = await this.socketClient.importFoundryModule(
+        moduleId,
+        (stage, progress, message) => {
+          this.moduleImportProgress = { progress, message };
+          progressBar.update('module-import', progress, message);
+        }
+      );
+
+      // Complete progress bar
+      progressBar.complete('module-import', `Imported ${result.chunkCount} chunks`);
+
+      ui.notifications.info(game.i18n.format('LOREMASTER.ModuleImport.Success', {
+        name: moduleName,
+        chunks: result.chunkCount
+      }));
+
+      // Reload modules list
+      await this._loadFoundryModules();
+
+    } catch (error) {
+      console.error(`${MODULE_ID} | Module import failed:`, error);
+      progressBar.error('module-import', 'Import failed');
+      ui.notifications.error(game.i18n.format('LOREMASTER.ModuleImport.Error', {
+        error: error.message
+      }));
+    } finally {
+      this.isImportingModule = false;
+      this._updateModuleImportUI(false);
+    }
+  }
+
+  /**
+   * Handle delete module button click.
+   * Removes imported content for a module.
+   *
+   * @param {Event} event - The click event.
+   * @private
+   */
+  async _onDeleteModule(event) {
+    event.preventDefault();
+
+    const moduleId = event.currentTarget.dataset.moduleId;
+    const moduleName = event.currentTarget.dataset.moduleName;
+
+    // Confirm deletion
+    const confirmed = await Dialog.confirm({
+      title: game.i18n.localize('LOREMASTER.ModuleImport.DeleteTitle'),
+      content: game.i18n.format('LOREMASTER.ModuleImport.DeleteConfirm', { name: moduleName }),
+      yes: () => true,
+      no: () => false
+    });
+
+    if (!confirmed) return;
+
+    try {
+      await this.socketClient.deleteModuleContent(moduleId);
+      ui.notifications.info(game.i18n.format('LOREMASTER.ModuleImport.DeleteSuccess', { name: moduleName }));
+      await this._loadFoundryModules();
+    } catch (error) {
+      console.error(`${MODULE_ID} | Delete module content failed:`, error);
+      ui.notifications.error(game.i18n.format('LOREMASTER.ModuleImport.DeleteError', {
+        error: error.message
+      }));
+    }
+  }
+
+  /**
+   * Handle refresh modules button click.
+   *
+   * @param {Event} event - The click event.
+   * @private
+   */
+  async _onRefreshModules(event) {
+    event.preventDefault();
+    await this._loadFoundryModules();
+  }
+
+  /**
+   * Update module import UI state.
+   *
+   * @param {boolean} importing - Whether import is in progress.
+   * @private
+   */
+  _updateModuleImportUI(importing) {
+    const html = $(this.element);
+    html.find('.import-module-btn').prop('disabled', importing);
+    html.find('.module-import-progress').toggleClass('hidden', !importing);
   }
 }
