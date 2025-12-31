@@ -13,6 +13,25 @@ import { PlayerContext } from './player-context.mjs';
 const MODULE_ID = 'loremaster';
 
 /**
+ * Valid campaign stages for stage commands.
+ */
+const VALID_STAGES = ['prologue', 'act_1', 'act_2', 'act_3', 'act_4', 'act_5', 'epilogue', 'appendix'];
+
+/**
+ * Stage display names for user-friendly output.
+ */
+const STAGE_NAMES = {
+  prologue: 'Prologue',
+  act_1: 'Act 1',
+  act_2: 'Act 2',
+  act_3: 'Act 3',
+  act_4: 'Act 4',
+  act_5: 'Act 5',
+  epilogue: 'Epilogue',
+  appendix: 'Appendix'
+};
+
+/**
  * Random thinking phrases displayed while waiting for Loremaster response.
  * Shown as a public chat message to all players.
  */
@@ -118,6 +137,7 @@ export class ChatHandler {
    * Handle incoming chat messages.
    * Filters for Loremaster triggers and routes to batcher or direct processing.
    * Supports private GM chat mode with @lm! prefix.
+   * Supports GM commands with /lm prefix.
    *
    * @param {ChatLog} chatLog - The chat log instance.
    * @param {string} message - The raw message content.
@@ -128,6 +148,17 @@ export class ChatHandler {
   _onChatMessage(chatLog, message, chatData) {
     const triggerPrefix = getSetting('triggerPrefix');
     const privateTriggerPrefix = triggerPrefix + '!'; // e.g., @lm! for private
+    const commandPrefix = '/lm '; // Slash command prefix
+
+    // Check for /lm commands first (GM only)
+    if (message.toLowerCase().startsWith(commandPrefix)) {
+      if (!game.user?.isGM) {
+        ui.notifications.warn('Loremaster commands are GM only.');
+        return false;
+      }
+      this._handleCommand(message.slice(commandPrefix.length).trim());
+      return false;
+    }
 
     // Check if message is intended for Loremaster
     const isPrivate = message.startsWith(privateTriggerPrefix);
@@ -179,6 +210,273 @@ export class ChatHandler {
 
     // Prevent default chat message creation
     return false;
+  }
+
+  /**
+   * Handle /lm commands for GM operations.
+   * Supports: stage, advance, back, status, help
+   *
+   * @param {string} commandStr - The command string after /lm prefix.
+   * @private
+   */
+  async _handleCommand(commandStr) {
+    const parts = commandStr.split(/\s+/);
+    const command = parts[0]?.toLowerCase();
+    const args = parts.slice(1);
+
+    console.log(`${MODULE_ID} | Handling command: ${command}`, args);
+
+    try {
+      switch (command) {
+        case 'stage':
+          await this._handleStageCommand(args);
+          break;
+
+        case 'advance':
+        case 'next':
+          await this._handleAdvanceCommand(args);
+          break;
+
+        case 'back':
+        case 'previous':
+        case 'prev':
+          await this._handleBackCommand(args);
+          break;
+
+        case 'status':
+        case 'progress':
+          await this._handleStatusCommand(args);
+          break;
+
+        case 'help':
+        case '?':
+          this._showCommandHelp();
+          break;
+
+        default:
+          ui.notifications.warn(`Unknown command: ${command}. Use /lm help for available commands.`);
+      }
+    } catch (error) {
+      console.error(`${MODULE_ID} | Command error:`, error);
+      ui.notifications.error(`Command failed: ${error.message}`);
+    }
+  }
+
+  /**
+   * Handle /lm stage <stage> [moduleId] command.
+   * Sets the campaign stage for a module.
+   *
+   * @param {Array} args - Command arguments [stage, moduleId?].
+   * @private
+   */
+  async _handleStageCommand(args) {
+    if (args.length === 0) {
+      ui.notifications.warn('Usage: /lm stage <stage> [moduleId]');
+      ui.notifications.info(`Valid stages: ${VALID_STAGES.join(', ')}`);
+      return;
+    }
+
+    const stage = args[0].toLowerCase();
+    const moduleId = args[1] || null;
+
+    // Validate stage
+    if (!VALID_STAGES.includes(stage)) {
+      ui.notifications.error(`Invalid stage: ${stage}`);
+      ui.notifications.info(`Valid stages: ${VALID_STAGES.join(', ')}`);
+      return;
+    }
+
+    // If no moduleId, try to get active adventure module
+    let targetModuleId = moduleId;
+    if (!targetModuleId) {
+      const activeAdventure = await this.socketClient.getActiveAdventure();
+      if (activeAdventure?.activeAdventure?.adventureType === 'module') {
+        targetModuleId = activeAdventure.activeAdventure.adventureId;
+      } else {
+        ui.notifications.warn('No module specified and no active adventure module set. Use: /lm stage <stage> <moduleId>');
+        return;
+      }
+    }
+
+    const result = await this.socketClient.setCampaignProgress(targetModuleId, stage);
+
+    if (result.success) {
+      const stageName = STAGE_NAMES[stage] || stage;
+      this._showSystemMessage(`Campaign stage set to **${stageName}** for module: ${targetModuleId}`);
+      ui.notifications.info(`Campaign stage set to ${stageName}`);
+    }
+  }
+
+  /**
+   * Handle /lm advance [moduleId] command.
+   * Advances to the next campaign stage.
+   *
+   * @param {Array} args - Command arguments [moduleId?].
+   * @private
+   */
+  async _handleAdvanceCommand(args) {
+    const moduleId = args[0] || null;
+
+    // If no moduleId, try to get active adventure module
+    let targetModuleId = moduleId;
+    if (!targetModuleId) {
+      const activeAdventure = await this.socketClient.getActiveAdventure();
+      if (activeAdventure?.activeAdventure?.adventureType === 'module') {
+        targetModuleId = activeAdventure.activeAdventure.adventureId;
+      } else {
+        ui.notifications.warn('No module specified and no active adventure module set.');
+        return;
+      }
+    }
+
+    const result = await this.socketClient.advanceCampaignStage(targetModuleId);
+
+    if (result.success) {
+      const newStage = result.progress?.currentStage;
+      const stageName = STAGE_NAMES[newStage] || newStage;
+      this._showSystemMessage(`Campaign advanced to **${stageName}**`);
+      ui.notifications.info(`Campaign advanced to ${stageName}`);
+    }
+  }
+
+  /**
+   * Handle /lm back [moduleId] command.
+   * Regresses to the previous campaign stage.
+   *
+   * @param {Array} args - Command arguments [moduleId?].
+   * @private
+   */
+  async _handleBackCommand(args) {
+    const moduleId = args[0] || null;
+
+    // If no moduleId, try to get active adventure module
+    let targetModuleId = moduleId;
+    if (!targetModuleId) {
+      const activeAdventure = await this.socketClient.getActiveAdventure();
+      if (activeAdventure?.activeAdventure?.adventureType === 'module') {
+        targetModuleId = activeAdventure.activeAdventure.adventureId;
+      } else {
+        ui.notifications.warn('No module specified and no active adventure module set.');
+        return;
+      }
+    }
+
+    const result = await this.socketClient.regressCampaignStage(targetModuleId);
+
+    if (result.success) {
+      const newStage = result.progress?.currentStage;
+      const stageName = STAGE_NAMES[newStage] || newStage;
+      this._showSystemMessage(`Campaign regressed to **${stageName}**`);
+      ui.notifications.info(`Campaign regressed to ${stageName}`);
+    }
+  }
+
+  /**
+   * Handle /lm status [moduleId] command.
+   * Shows current campaign progress and stage statistics.
+   *
+   * @param {Array} args - Command arguments [moduleId?].
+   * @private
+   */
+  async _handleStatusCommand(args) {
+    const moduleId = args[0] || null;
+
+    // If no moduleId, try to get active adventure module or show all progress
+    let targetModuleId = moduleId;
+    if (!targetModuleId) {
+      const activeAdventure = await this.socketClient.getActiveAdventure();
+      if (activeAdventure?.activeAdventure?.adventureType === 'module') {
+        targetModuleId = activeAdventure.activeAdventure.adventureId;
+      }
+    }
+
+    if (targetModuleId) {
+      // Show stats for specific module
+      const stats = await this.socketClient.getModuleStageStats(targetModuleId);
+      const currentStage = stats.currentStage || 'Not set';
+      const stageName = STAGE_NAMES[currentStage] || currentStage;
+
+      let statusMsg = `**Campaign Progress: ${stats.moduleName || targetModuleId}**\n`;
+      statusMsg += `Current Stage: **${stageName}**\n\n`;
+      statusMsg += `**Stage Content:**\n`;
+
+      for (const [stage, data] of Object.entries(stats.stages || {})) {
+        const name = STAGE_NAMES[stage] || stage;
+        const marker = stage === currentStage ? ' ← Current' : '';
+        statusMsg += `- ${name}: ${data.chunkCount} chunks (~${data.totalTokens?.toLocaleString()} tokens)${marker}\n`;
+      }
+
+      this._showSystemMessage(statusMsg);
+    } else {
+      // Show all progress
+      const result = await this.socketClient.getCampaignProgress();
+      const progressList = result.progress || [];
+
+      if (progressList.length === 0) {
+        this._showSystemMessage('No campaign progress tracked. Use `/lm stage <stage> <moduleId>` to set progress.');
+        return;
+      }
+
+      let statusMsg = '**All Campaign Progress:**\n\n';
+      for (const p of progressList) {
+        const stageName = STAGE_NAMES[p.currentStage] || p.currentStage;
+        statusMsg += `- **${p.moduleId}**: ${stageName}\n`;
+      }
+
+      this._showSystemMessage(statusMsg);
+    }
+  }
+
+  /**
+   * Show command help.
+   *
+   * @private
+   */
+  _showCommandHelp() {
+    const helpMsg = `**Loremaster Commands:**
+
+**/lm stage <stage> [moduleId]** - Set campaign stage
+  Stages: ${VALID_STAGES.join(', ')}
+  Example: \`/lm stage act_1\`
+
+**/lm advance [moduleId]** - Advance to next stage
+  Example: \`/lm advance\`
+
+**/lm back [moduleId]** - Go back to previous stage
+  Example: \`/lm back\`
+
+**/lm status [moduleId]** - Show campaign progress
+  Example: \`/lm status\`
+
+**/lm help** - Show this help message
+
+*Note: If moduleId is omitted, uses the active adventure module.*`;
+
+    this._showSystemMessage(helpMsg);
+  }
+
+  /**
+   * Show a system message in chat (GM only, styled differently).
+   *
+   * @param {string} content - The message content (supports markdown).
+   * @private
+   */
+  async _showSystemMessage(content) {
+    const formattedContent = formatResponse(content);
+
+    const messageData = {
+      content: `<div class="loremaster-system-message">${formattedContent}</div>`,
+      speaker: ChatMessage.getSpeaker({ alias: 'Loremaster System' }),
+      user: game.user.id,
+      whisper: game.users.filter(u => u.isGM).map(u => u.id),
+      flags: {
+        [MODULE_ID]: {
+          isSystemMessage: true
+        }
+      }
+    };
+
+    await ChatMessage.create(messageData);
   }
 
   /**
