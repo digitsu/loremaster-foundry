@@ -1199,6 +1199,83 @@ export class SocketClient {
     return this._sendRequest('delete-module-content', { moduleId });
   }
 
+  // ===== Campaign Progress Methods =====
+
+  /**
+   * Get campaign progress for a module or all modules.
+   *
+   * @param {string} moduleId - Optional module ID. If omitted, returns all progress.
+   * @returns {Promise<object>} Campaign progress object.
+   */
+  async getCampaignProgress(moduleId = null) {
+    this._requireAuth();
+    return this._sendRequest('get-campaign-progress', { moduleId });
+  }
+
+  /**
+   * Set campaign progress for a module.
+   * GM only.
+   *
+   * @param {string} moduleId - The module ID.
+   * @param {string} stage - The stage (prologue, act_1, act_2, etc.).
+   * @param {string} notes - Optional notes about the progress.
+   * @returns {Promise<object>} Updated progress.
+   */
+  async setCampaignProgress(moduleId, stage, notes = null) {
+    this._requireAuth();
+
+    if (!this.isGM) {
+      throw new Error('Setting campaign progress requires GM permissions');
+    }
+
+    return this._sendRequest('set-campaign-progress', { moduleId, stage, notes });
+  }
+
+  /**
+   * Advance to the next campaign stage.
+   * GM only.
+   *
+   * @param {string} moduleId - The module ID.
+   * @returns {Promise<object>} Updated progress.
+   */
+  async advanceCampaignStage(moduleId) {
+    this._requireAuth();
+
+    if (!this.isGM) {
+      throw new Error('Advancing campaign stage requires GM permissions');
+    }
+
+    return this._sendRequest('advance-campaign-stage', { moduleId });
+  }
+
+  /**
+   * Regress to the previous campaign stage.
+   * GM only.
+   *
+   * @param {string} moduleId - The module ID.
+   * @returns {Promise<object>} Updated progress.
+   */
+  async regressCampaignStage(moduleId) {
+    this._requireAuth();
+
+    if (!this.isGM) {
+      throw new Error('Regressing campaign stage requires GM permissions');
+    }
+
+    return this._sendRequest('regress-campaign-stage', { moduleId });
+  }
+
+  /**
+   * Get stage statistics for a module.
+   *
+   * @param {string} moduleId - The module ID.
+   * @returns {Promise<object>} Stage statistics.
+   */
+  async getModuleStageStats(moduleId) {
+    this._requireAuth();
+    return this._sendRequest('get-module-stage-stats', { moduleId });
+  }
+
   // ===== Embedding Methods =====
 
   /**
