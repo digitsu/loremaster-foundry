@@ -1,0 +1,65 @@
+# Publish to Public Repository
+#
+# Syncs the private loremaster repo to the public loremaster-foundry repo,
+# excluding private/internal files like CLAUDE.md, TODO.md, and docs/.
+#
+# Required setup:
+# 1. Create the public repo: digitsu/loremaster-foundry
+# 2. Create a Personal Access Token (PAT) with 'repo' scope
+# 3. Add the PAT as a secret named PUBLIC_REPO_TOKEN in this repo's settings
+
+name: Publish to Public Repo
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:  # Allow manual trigger
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout private repo
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Remove private files
+        run: |
+          # Remove Claude-related files
+          rm -rf CLAUDE.md
+          rm -rf .claude/
+
+          # Remove internal docs and TODO
+          rm -rf TODO.md
+          rm -rf docs/
+
+          # Remove this workflow from public repo (optional - keeps public repo clean)
+          rm -rf .github/workflows/publish-public.yml
+
+          echo "Removed private files:"
+          echo "  - CLAUDE.md"
+          echo "  - .claude/"
+          echo "  - TODO.md"
+          echo "  - docs/"
+
+      - name: Configure git
+        run: |
+          git config user.name "GitHub Actions"
+          git config user.email "actions@github.com"
+
+      - name: Commit and push to public repo
+        env:
+          PUBLIC_REPO_TOKEN: ${{ secrets.PUBLIC_REPO_TOKEN }}
+        run: |
+          # Stage all changes (including deletions)
+          git add -A
+
+          # Commit if there are changes
+          git diff --staged --quiet || git commit -m "Sync from private repo"
+
+          # Add public remote and push
+          git remote add public https://x-access-token:${PUBLIC_REPO_TOKEN}@github.com/digitsu/loremaster-foundry.git
+          git push public main --force
+
+          echo "Successfully published to digitsu/loremaster-foundry"
