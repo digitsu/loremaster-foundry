@@ -8,6 +8,18 @@
   {{!-- Header with stats --}}
   <header class="content-manager-header">
     <div class="stats-summary">
+      {{!-- License Status --}}
+      {{#if license}}
+        <span class="stat-item license-status {{#if license.isValid}}license-valid{{else}}license-invalid{{/if}}"
+              title="{{#if license.isValid}}License: {{license.tier}}{{#if license.holderEmail}} ({{license.holderEmail}}){{/if}}{{else}}No valid license{{/if}}">
+          <i class="fas {{#if license.isValid}}fa-key{{else}}fa-exclamation-triangle{{/if}}"></i>
+          {{#if license.isValid}}
+            {{license.tier}}
+          {{else}}
+            Unlicensed
+          {{/if}}
+        </span>
+      {{/if}}
       {{#if stats}}
         <span class="stat-item" title="{{localize 'LOREMASTER.ContentManager.Stats.Total'}}">
           <i class="fas fa-file-pdf"></i> {{stats.total}}
@@ -205,6 +217,96 @@
             <i class="fas fa-upload"></i> {{localize "LOREMASTER.ContentManager.UploadBtn"}}
           </button>
         </form>
+
+        {{!-- Foundry Module Import Section --}}
+        <div class="foundry-module-import-section">
+          <hr class="section-divider">
+          <h3>{{localize "LOREMASTER.ModuleImport.Title"}}</h3>
+          <p class="hint">{{localize "LOREMASTER.ModuleImport.Hint"}}</p>
+
+          {{#if foundryModulesAvailable}}
+            {{!-- Module List --}}
+            <div class="foundry-module-list">
+              {{#each foundryModules}}
+                <div class="foundry-module-item {{this.importStatus}}">
+                  <div class="module-icon">
+                    <i class="fas fa-cube"></i>
+                  </div>
+                  <div class="module-info">
+                    <div class="module-name">{{this.name}}</div>
+                    <div class="module-meta">
+                      <span class="module-id">{{this.id}}</span>
+                      {{#if this.version}}
+                        <span class="module-version">v{{this.version}}</span>
+                      {{/if}}
+                      {{#if this.chunkCount}}
+                        <span class="module-chunks">{{this.chunkCount}} chunks</span>
+                      {{/if}}
+                    </div>
+                    {{#if this.importStatus}}
+                      <div class="module-status">
+                        <span class="import-status-badge {{this.importStatus}}">
+                          {{#if (eq this.importStatus "completed")}}
+                            <i class="fas fa-check-circle"></i> {{localize "LOREMASTER.ModuleImport.Status.Imported"}}
+                          {{else if (eq this.importStatus "importing")}}
+                            <i class="fas fa-spinner fa-spin"></i> {{localize "LOREMASTER.ModuleImport.Status.Importing"}}
+                          {{else if (eq this.importStatus "failed")}}
+                            <i class="fas fa-exclamation-circle"></i> {{localize "LOREMASTER.ModuleImport.Status.Failed"}}
+                          {{else}}
+                            <i class="fas fa-clock"></i> {{localize "LOREMASTER.ModuleImport.Status.NotImported"}}
+                          {{/if}}
+                        </span>
+                      </div>
+                    {{/if}}
+                  </div>
+                  <div class="module-actions">
+                    {{#if (eq this.importStatus "completed")}}
+                      <button type="button" class="delete-module-btn"
+                              data-module-id="{{this.id}}"
+                              data-module-name="{{this.name}}"
+                              title="{{localize 'LOREMASTER.ModuleImport.Delete'}}">
+                        <i class="fas fa-trash"></i>
+                      </button>
+                    {{else if (eq this.importStatus "importing")}}
+                      <button type="button" class="import-module-btn" disabled>
+                        <i class="fas fa-spinner fa-spin"></i>
+                      </button>
+                    {{else}}
+                      <button type="button" class="import-module-btn"
+                              data-module-id="{{this.id}}"
+                              data-module-name="{{this.name}}"
+                              title="{{localize 'LOREMASTER.ModuleImport.Import'}}">
+                        <i class="fas fa-download"></i> {{localize "LOREMASTER.ModuleImport.Import"}}
+                      </button>
+                    {{/if}}
+                  </div>
+                </div>
+              {{/each}}
+            </div>
+
+            {{!-- Import Progress --}}
+            <div class="module-import-progress hidden">
+              <div class="progress-bar">
+                <div class="progress-bar-fill" style="width: 0%"></div>
+              </div>
+              <div class="progress-info">
+                <span class="progress-message">{{localize "LOREMASTER.ModuleImport.Importing"}}...</span>
+                <span class="progress-percent">0%</span>
+              </div>
+            </div>
+          {{else}}
+            <div class="no-modules-state">
+              <i class="fas fa-cube"></i>
+              <p>{{localize "LOREMASTER.ModuleImport.NoModules"}}</p>
+              <p class="hint">{{localize "LOREMASTER.ModuleImport.NoModulesHint"}}</p>
+            </div>
+          {{/if}}
+
+          {{!-- Refresh Button --}}
+          <button type="button" class="refresh-modules-btn">
+            <i class="fas fa-sync-alt"></i> {{localize "LOREMASTER.ModuleImport.Refresh"}}
+          </button>
+        </div>
       {{else}}
         <div class="permission-notice">
           <i class="fas fa-lock"></i>
