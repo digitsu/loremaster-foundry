@@ -50,7 +50,7 @@ jobs:
 
       - name: Commit and push to public repo
         env:
-          PUBLIC_REPO_TOKEN: ${{ secrets.PUBLIC_REPO_TOKEN }}
+          GITHUB_TOKEN: ${{ secrets.PUBLIC_REPO_TOKEN }}
         run: |
           # Stage all changes (including deletions)
           git add -A
@@ -58,8 +58,15 @@ jobs:
           # Commit if there are changes
           git diff --staged --quiet || git commit -m "Sync from private repo"
 
+          # Configure credential helper to use our token
+          git config --global credential.helper store
+          echo "https://x-access-token:${GITHUB_TOKEN}@github.com" > ~/.git-credentials
+
           # Add public remote and push
-          git remote add public https://x-access-token:${PUBLIC_REPO_TOKEN}@github.com/digitsu/loremaster-foundry.git
+          git remote add public https://github.com/digitsu/loremaster-foundry.git
           git push public main --force
+
+          # Clean up credentials
+          rm -f ~/.git-credentials
 
           echo "Successfully published to digitsu/loremaster-foundry"
