@@ -18,6 +18,24 @@ const MODULE_ID = 'loremaster';
 export function formatResponse(text) {
   if (!text) return '';
 
+  // Handle DOM collections (HTMLCollection, NodeList) - extract text content
+  if (text instanceof HTMLCollection || text instanceof NodeList) {
+    console.log('loremaster | Response is DOM collection, extracting text');
+    const textParts = [];
+    for (const node of text) {
+      if (node.textContent) {
+        textParts.push(node.textContent);
+      }
+    }
+    text = textParts.join('\n');
+  }
+
+  // Handle DOM elements - extract text content
+  if (text instanceof Element || text instanceof Node) {
+    console.log('loremaster | Response is DOM element, extracting text');
+    text = text.textContent || '';
+  }
+
   // Handle arrays - render as collapsible list
   if (Array.isArray(text)) {
     console.log('loremaster | Response is array, formatting as list');
