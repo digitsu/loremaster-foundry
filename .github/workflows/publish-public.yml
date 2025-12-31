@@ -23,6 +23,7 @@ jobs:
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
+          persist-credentials: false
 
       - name: Remove private files
         run: |
@@ -49,8 +50,6 @@ jobs:
           git config user.email "actions@github.com"
 
       - name: Commit and push to public repo
-        env:
-          GITHUB_TOKEN: ${{ secrets.PUBLIC_REPO_TOKEN }}
         run: |
           # Stage all changes (including deletions)
           git add -A
@@ -58,15 +57,7 @@ jobs:
           # Commit if there are changes
           git diff --staged --quiet || git commit -m "Sync from private repo"
 
-          # Configure credential helper to use our token
-          git config --global credential.helper store
-          echo "https://x-access-token:${GITHUB_TOKEN}@github.com" > ~/.git-credentials
-
-          # Add public remote and push
-          git remote add public https://github.com/digitsu/loremaster-foundry.git
-          git push public main --force
-
-          # Clean up credentials
-          rm -f ~/.git-credentials
+          # Push directly with token in URL
+          git push --force "https://x-access-token:${{ secrets.PUBLIC_REPO_TOKEN }}@github.com/digitsu/loremaster-foundry.git" main
 
           echo "Successfully published to digitsu/loremaster-foundry"
