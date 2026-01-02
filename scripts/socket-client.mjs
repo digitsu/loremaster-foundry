@@ -1276,6 +1276,83 @@ export class SocketClient {
     return this._sendRequest('get-module-stage-stats', { moduleId });
   }
 
+  // ===== PDF Adventure Campaign Progress Methods =====
+
+  /**
+   * Get campaign progress for a PDF adventure or all PDF adventures.
+   *
+   * @param {number} pdfId - Optional PDF ID. If omitted, returns all PDF progress.
+   * @returns {Promise<object>} Campaign progress object.
+   */
+  async getPdfCampaignProgress(pdfId = null) {
+    this._requireAuth();
+    return this._sendRequest('get-pdf-campaign-progress', { pdfId });
+  }
+
+  /**
+   * Set campaign progress for a PDF adventure.
+   * GM only.
+   *
+   * @param {number} pdfId - The PDF ID.
+   * @param {string} stage - The stage (prologue, act_1, act_2, etc.).
+   * @param {string} notes - Optional notes about the progress.
+   * @returns {Promise<object>} Updated progress.
+   */
+  async setPdfCampaignProgress(pdfId, stage, notes = null) {
+    this._requireAuth();
+
+    if (!this.isGM) {
+      throw new Error('Setting campaign progress requires GM permissions');
+    }
+
+    return this._sendRequest('set-pdf-campaign-progress', { pdfId, stage, notes });
+  }
+
+  /**
+   * Advance to the next campaign stage for a PDF adventure.
+   * GM only.
+   *
+   * @param {number} pdfId - The PDF ID.
+   * @returns {Promise<object>} Updated progress.
+   */
+  async advancePdfCampaignStage(pdfId) {
+    this._requireAuth();
+
+    if (!this.isGM) {
+      throw new Error('Advancing campaign stage requires GM permissions');
+    }
+
+    return this._sendRequest('advance-pdf-campaign-stage', { pdfId });
+  }
+
+  /**
+   * Regress to the previous campaign stage for a PDF adventure.
+   * GM only.
+   *
+   * @param {number} pdfId - The PDF ID.
+   * @returns {Promise<object>} Updated progress.
+   */
+  async regressPdfCampaignStage(pdfId) {
+    this._requireAuth();
+
+    if (!this.isGM) {
+      throw new Error('Regressing campaign stage requires GM permissions');
+    }
+
+    return this._sendRequest('regress-pdf-campaign-stage', { pdfId });
+  }
+
+  /**
+   * Get stage statistics for a PDF adventure.
+   *
+   * @param {number} pdfId - The PDF ID.
+   * @returns {Promise<object>} Stage statistics.
+   */
+  async getPdfStageStats(pdfId) {
+    this._requireAuth();
+    return this._sendRequest('get-pdf-stage-stats', { pdfId });
+  }
+
   // ===== Embedding Methods =====
 
   /**
