@@ -263,21 +263,21 @@ export class ChatHandler {
   }
 
   /**
-   * Handle /lm stage <stage> [moduleId] command.
-   * Sets the campaign stage for a module.
+   * Handle /lm stage <stage> [adventureId] command.
+   * Sets the campaign stage for a module or PDF adventure.
    *
-   * @param {Array} args - Command arguments [stage, moduleId?].
+   * @param {Array} args - Command arguments [stage, adventureId?].
    * @private
    */
   async _handleStageCommand(args) {
     if (args.length === 0) {
-      ui.notifications.warn('Usage: /lm stage <stage> [moduleId]');
+      ui.notifications.warn('Usage: /lm stage <stage> [adventureId]');
       ui.notifications.info(`Valid stages: ${VALID_STAGES.join(', ')}`);
       return;
     }
 
     const stage = args[0].toLowerCase();
-    const moduleId = args[1] || null;
+    const adventureId = args[1] || null;
 
     // Validate stage
     if (!VALID_STAGES.includes(stage)) {
@@ -286,50 +286,89 @@ export class ChatHandler {
       return;
     }
 
-    // If no moduleId, try to get active adventure module
-    let targetModuleId = moduleId;
-    if (!targetModuleId) {
+    // If no adventureId, try to get active adventure
+    let adventureType = null;
+    let targetId = adventureId;
+
+    if (!targetId) {
       const activeAdventure = await this.socketClient.getActiveAdventure();
-      if (activeAdventure?.activeAdventure?.adventureType === 'module') {
-        targetModuleId = activeAdventure.activeAdventure.adventureId;
+      if (activeAdventure?.activeAdventure) {
+        adventureType = activeAdventure.activeAdventure.adventureType;
+        targetId = activeAdventure.activeAdventure.adventureId;
       } else {
-        ui.notifications.warn('No module specified and no active adventure module set. Use: /lm stage <stage> <moduleId>');
+        ui.notifications.warn('No adventure specified and no active adventure set. Use: /lm stage <stage> <adventureId>');
         return;
       }
     }
 
-    const result = await this.socketClient.setCampaignProgress(targetModuleId, stage);
+    let result;
+    let displayName;
+
+    // Check if this is a PDF adventure (numeric ID or 'pdf:' prefix)
+    const isPdfAdventure = adventureType === 'pdf' ||
+      (adventureId && (adventureId.startsWith('pdf:') || !isNaN(parseInt(adventureId, 10))));
+
+    if (isPdfAdventure) {
+      // Handle PDF adventure
+      const pdfId = adventureId?.startsWith('pdf:')
+        ? parseInt(adventureId.replace('pdf:', ''), 10)
+        : parseInt(targetId, 10);
+
+      result = await this.socketClient.setPdfCampaignProgress(pdfId, stage);
+      displayName = `PDF adventure #${pdfId}`;
+    } else {
+      // Handle module adventure
+      result = await this.socketClient.setCampaignProgress(targetId, stage);
+      displayName = `module: ${targetId}`;
+    }
 
     if (result.success) {
       const stageName = STAGE_NAMES[stage] || stage;
-      this._showSystemMessage(`Campaign stage set to **${stageName}** for module: ${targetModuleId}`);
+      this._showSystemMessage(`Campaign stage set to **${stageName}** for ${displayName}`);
       ui.notifications.info(`Campaign stage set to ${stageName}`);
     }
   }
 
   /**
-   * Handle /lm advance [moduleId] command.
-   * Advances to the next campaign stage.
+   * Handle /lm advance [adventureId] command.
+   * Advances to the next campaign stage for a module or PDF adventure.
    *
-   * @param {Array} args - Command arguments [moduleId?].
+   * @param {Array} args - Command arguments [adventureId?].
    * @private
    */
   async _handleAdvanceCommand(args) {
-    const moduleId = args[0] || null;
+    const adventureId = args[0] || null;
 
-    // If no moduleId, try to get active adventure module
-    let targetModuleId = moduleId;
-    if (!targetModuleId) {
+    // If no adventureId, try to get active adventure
+    let adventureType = null;
+    let targetId = adventureId;
+
+    if (!targetId) {
       const activeAdventure = await this.socketClient.getActiveAdventure();
-      if (activeAdventure?.activeAdventure?.adventureType === 'module') {
-        targetModuleId = activeAdventure.activeAdventure.adventureId;
+      if (activeAdventure?.activeAdventure) {
+        adventureType = activeAdventure.activeAdventure.adventureType;
+        targetId = activeAdventure.activeAdventure.adventureId;
       } else {
-        ui.notifications.warn('No module specified and no active adventure module set.');
+        ui.notifications.warn('No adventure specified and no active adventure set.');
         return;
       }
     }
 
-    const result = await this.socketClient.advanceCampaignStage(targetModuleId);
+    let result;
+
+    // Check if this is a PDF adventure
+    const isPdfAdventure = adventureType === 'pdf' ||
+      (adventureId && (adventureId.startsWith('pdf:') || !isNaN(parseInt(adventureId, 10))));
+
+    if (isPdfAdventure) {
+      const pdfId = adventureId?.startsWith('pdf:')
+        ? parseInt(adventureId.replace('pdf:', ''), 10)
+        : parseInt(targetId, 10);
+
+      result = await this.socketClient.advancePdfCampaignStage(pdfId);
+    } else {
+      result = await this.socketClient.advanceCampaignStage(targetId);
+    }
 
     if (result.success) {
       const newStage = result.progress?.currentStage;
@@ -340,28 +379,45 @@ export class ChatHandler {
   }
 
   /**
-   * Handle /lm back [moduleId] command.
-   * Regresses to the previous campaign stage.
+   * Handle /lm back [adventureId] command.
+   * Regresses to the previous campaign stage for a module or PDF adventure.
    *
-   * @param {Array} args - Command arguments [moduleId?].
+   * @param {Array} args - Command arguments [adventureId?].
    * @private
    */
   async _handleBackCommand(args) {
-    const moduleId = args[0] || null;
+    const adventureId = args[0] || null;
 
-    // If no moduleId, try to get active adventure module
-    let targetModuleId = moduleId;
-    if (!targetModuleId) {
+    // If no adventureId, try to get active adventure
+    let adventureType = null;
+    let targetId = adventureId;
+
+    if (!targetId) {
       const activeAdventure = await this.socketClient.getActiveAdventure();
-      if (activeAdventure?.activeAdventure?.adventureType === 'module') {
-        targetModuleId = activeAdventure.activeAdventure.adventureId;
+      if (activeAdventure?.activeAdventure) {
+        adventureType = activeAdventure.activeAdventure.adventureType;
+        targetId = activeAdventure.activeAdventure.adventureId;
       } else {
-        ui.notifications.warn('No module specified and no active adventure module set.');
+        ui.notifications.warn('No adventure specified and no active adventure set.');
         return;
       }
     }
 
-    const result = await this.socketClient.regressCampaignStage(targetModuleId);
+    let result;
+
+    // Check if this is a PDF adventure
+    const isPdfAdventure = adventureType === 'pdf' ||
+      (adventureId && (adventureId.startsWith('pdf:') || !isNaN(parseInt(adventureId, 10))));
+
+    if (isPdfAdventure) {
+      const pdfId = adventureId?.startsWith('pdf:')
+        ? parseInt(adventureId.replace('pdf:', ''), 10)
+        : parseInt(targetId, 10);
+
+      result = await this.socketClient.regressPdfCampaignStage(pdfId);
+    } else {
+      result = await this.socketClient.regressCampaignStage(targetId);
+    }
 
     if (result.success) {
       const newStage = result.progress?.currentStage;
@@ -372,55 +428,101 @@ export class ChatHandler {
   }
 
   /**
-   * Handle /lm status [moduleId] command.
-   * Shows current campaign progress and stage statistics.
+   * Handle /lm status [adventureId] command.
+   * Shows current campaign progress and stage statistics for modules or PDF adventures.
    *
-   * @param {Array} args - Command arguments [moduleId?].
+   * @param {Array} args - Command arguments [adventureId?].
    * @private
    */
   async _handleStatusCommand(args) {
-    const moduleId = args[0] || null;
+    const adventureId = args[0] || null;
 
-    // If no moduleId, try to get active adventure module or show all progress
-    let targetModuleId = moduleId;
-    if (!targetModuleId) {
+    // If no adventureId, try to get active adventure or show all progress
+    let adventureType = null;
+    let targetId = adventureId;
+
+    if (!targetId) {
       const activeAdventure = await this.socketClient.getActiveAdventure();
-      if (activeAdventure?.activeAdventure?.adventureType === 'module') {
-        targetModuleId = activeAdventure.activeAdventure.adventureId;
+      if (activeAdventure?.activeAdventure) {
+        adventureType = activeAdventure.activeAdventure.adventureType;
+        targetId = activeAdventure.activeAdventure.adventureId;
       }
     }
 
-    if (targetModuleId) {
-      // Show stats for specific module
-      const stats = await this.socketClient.getModuleStageStats(targetModuleId);
-      const currentStage = stats.currentStage || 'Not set';
-      const stageName = STAGE_NAMES[currentStage] || currentStage;
+    // Check if this is a PDF adventure
+    const isPdfAdventure = adventureType === 'pdf' ||
+      (adventureId && (adventureId.startsWith('pdf:') || !isNaN(parseInt(adventureId, 10))));
 
-      let statusMsg = `**Campaign Progress: ${stats.moduleName || targetModuleId}**\n`;
-      statusMsg += `Current Stage: **${stageName}**\n\n`;
-      statusMsg += `**Stage Content:**\n`;
+    if (targetId) {
+      if (isPdfAdventure) {
+        // Show stats for PDF adventure
+        const pdfId = adventureId?.startsWith('pdf:')
+          ? parseInt(adventureId.replace('pdf:', ''), 10)
+          : parseInt(targetId, 10);
 
-      for (const [stage, data] of Object.entries(stats.stages || {})) {
-        const name = STAGE_NAMES[stage] || stage;
-        const marker = stage === currentStage ? ' ← Current' : '';
-        statusMsg += `- ${name}: ${data.chunkCount} chunks (~${data.totalTokens?.toLocaleString()} tokens)${marker}\n`;
+        const stats = await this.socketClient.getPdfStageStats(pdfId);
+        const currentStage = stats.currentStage || 'Not set';
+        const stageName = STAGE_NAMES[currentStage] || currentStage;
+
+        let statusMsg = `**Campaign Progress: PDF Adventure #${pdfId}**\n`;
+        statusMsg += `Adventure Type: ${stats.isAdventure ? 'Stage-based' : 'Reference'}\n`;
+        statusMsg += `Current Stage: **${stageName}**\n\n`;
+        statusMsg += `**Stage Content:**\n`;
+
+        for (const [stage, data] of Object.entries(stats.stages || {})) {
+          const name = STAGE_NAMES[stage] || stage;
+          const marker = stage === currentStage ? ' ← Current' : '';
+          statusMsg += `- ${name}: ${data.count} chunks (~${data.tokens?.toLocaleString()} tokens)${marker}\n`;
+        }
+
+        this._showSystemMessage(statusMsg);
+      } else {
+        // Show stats for module adventure
+        const stats = await this.socketClient.getModuleStageStats(targetId);
+        const currentStage = stats.currentStage || 'Not set';
+        const stageName = STAGE_NAMES[currentStage] || currentStage;
+
+        let statusMsg = `**Campaign Progress: ${stats.moduleName || targetId}**\n`;
+        statusMsg += `Current Stage: **${stageName}**\n\n`;
+        statusMsg += `**Stage Content:**\n`;
+
+        for (const [stage, data] of Object.entries(stats.stages || {})) {
+          const name = STAGE_NAMES[stage] || stage;
+          const marker = stage === currentStage ? ' ← Current' : '';
+          statusMsg += `- ${name}: ${data.chunkCount} chunks (~${data.totalTokens?.toLocaleString()} tokens)${marker}\n`;
+        }
+
+        this._showSystemMessage(statusMsg);
       }
-
-      this._showSystemMessage(statusMsg);
     } else {
-      // Show all progress
-      const result = await this.socketClient.getCampaignProgress();
-      const progressList = result.progress || [];
+      // Show all progress (both modules and PDFs)
+      const moduleResult = await this.socketClient.getCampaignProgress();
+      const pdfResult = await this.socketClient.getPdfCampaignProgress();
+      const moduleProgressList = moduleResult.progress || [];
+      const pdfProgressList = pdfResult.progress || [];
 
-      if (progressList.length === 0) {
-        this._showSystemMessage('No campaign progress tracked. Use `/lm stage <stage> <moduleId>` to set progress.');
+      if (moduleProgressList.length === 0 && pdfProgressList.length === 0) {
+        this._showSystemMessage('No campaign progress tracked. Use `/lm stage <stage>` to set progress for your active adventure.');
         return;
       }
 
       let statusMsg = '**All Campaign Progress:**\n\n';
-      for (const p of progressList) {
-        const stageName = STAGE_NAMES[p.currentStage] || p.currentStage;
-        statusMsg += `- **${p.moduleId}**: ${stageName}\n`;
+
+      if (moduleProgressList.length > 0) {
+        statusMsg += '*Module Adventures:*\n';
+        for (const p of moduleProgressList) {
+          const stageName = STAGE_NAMES[p.currentStage] || p.currentStage;
+          statusMsg += `- **${p.moduleId}**: ${stageName}\n`;
+        }
+        statusMsg += '\n';
+      }
+
+      if (pdfProgressList.length > 0) {
+        statusMsg += '*PDF Adventures:*\n';
+        for (const p of pdfProgressList) {
+          const stageName = STAGE_NAMES[p.currentStage] || p.currentStage;
+          statusMsg += `- **PDF #${p.pdfId}**: ${stageName}\n`;
+        }
       }
 
       this._showSystemMessage(statusMsg);
@@ -435,22 +537,25 @@ export class ChatHandler {
   _showCommandHelp() {
     const helpMsg = `**Loremaster Commands:**
 
-**/lm stage <stage> [moduleId]** - Set campaign stage
+**/lm stage <stage> [adventureId]** - Set campaign stage
   Stages: ${VALID_STAGES.join(', ')}
   Example: \`/lm stage act_1\`
+  Example: \`/lm stage act_2 pdf:5\` (for PDF adventure #5)
 
-**/lm advance [moduleId]** - Advance to next stage
+**/lm advance [adventureId]** - Advance to next stage
   Example: \`/lm advance\`
 
-**/lm back [moduleId]** - Go back to previous stage
+**/lm back [adventureId]** - Go back to previous stage
   Example: \`/lm back\`
 
-**/lm status [moduleId]** - Show campaign progress
+**/lm status [adventureId]** - Show campaign progress
   Example: \`/lm status\`
+  Example: \`/lm status pdf:5\` (for PDF adventure #5)
 
 **/lm help** - Show this help message
 
-*Note: If moduleId is omitted, uses the active adventure module.*`;
+*Note: If adventureId is omitted, uses the active adventure (module or PDF).*
+*For PDF adventures, use 'pdf:ID' format or just the numeric ID.*`;
 
     this._showSystemMessage(helpMsg);
   }
