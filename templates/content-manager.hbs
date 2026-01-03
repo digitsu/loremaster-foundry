@@ -86,6 +86,7 @@
               <div class="pdf-info">
                 <div class="pdf-name">
                   {{display_name}}
+                  <span class="pdf-id-badge" title="Use 'pdf:{{id}}' for /lm commands">pdf:{{id}}</span>
                   {{#if hasGMPrepScript}}
                     {{#if (eq gmPrepStatus "completed")}}
                       <span class="gm-script-tag gm-script-ready">
@@ -435,6 +436,7 @@
                   {{#each availableAdventures.moduleAdventures}}
                     <li>
                       <span class="module-name">{{this.module_name}}</span>
+                      <span class="module-id-badge" title="Use '{{this.module_id}}' for /lm commands">{{this.module_id}}</span>
                       <button type="button" class="unregister-module-btn" data-module-id="{{this.module_id}}">
                         <i class="fas fa-trash"></i>
                       </button>
