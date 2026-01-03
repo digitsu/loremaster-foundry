@@ -32,6 +32,39 @@ const STAGE_NAMES = {
 };
 
 /**
+ * Normalize stage input to canonical format.
+ * Accepts formats like "act 1", "act1", "Act 1", "ACT_1" and normalizes to "act_1".
+ *
+ * @param {string} input - The raw stage input from user.
+ * @returns {string} Normalized stage name (e.g., "act_1") or original if no match.
+ */
+function normalizeStage(input) {
+  if (!input) return input;
+
+  const normalized = input.toLowerCase().trim();
+
+  // Direct match
+  if (VALID_STAGES.includes(normalized)) {
+    return normalized;
+  }
+
+  // Handle "act 1", "act1", "act-1" → "act_1"
+  const actMatch = normalized.match(/^act\s*[-_]?\s*([1-5])$/);
+  if (actMatch) {
+    return `act_${actMatch[1]}`;
+  }
+
+  // Handle roman numerals: "act i", "act ii", etc.
+  const romanMap = { i: '1', ii: '2', iii: '3', iv: '4', v: '5' };
+  const romanMatch = normalized.match(/^act\s*[-_]?\s*(i{1,3}|iv|v)$/);
+  if (romanMatch && romanMap[romanMatch[1]]) {
+    return `act_${romanMap[romanMatch[1]]}`;
+  }
+
+  return normalized;
+}
+
+/**
  * Random thinking phrases displayed while waiting for Loremaster response.
  * Shown as a public chat message to all players.
  */
@@ -276,13 +309,14 @@ export class ChatHandler {
       return;
     }
 
-    const stage = args[0].toLowerCase();
+    // Normalize stage input (accepts "act 1", "act1", "act i", etc.)
+    const stage = normalizeStage(args[0]);
     const adventureId = args[1] || null;
 
     // Validate stage
     if (!VALID_STAGES.includes(stage)) {
-      ui.notifications.error(`Invalid stage: ${stage}`);
-      ui.notifications.info(`Valid stages: ${VALID_STAGES.join(', ')}`);
+      ui.notifications.error(`Invalid stage: ${args[0]}`);
+      ui.notifications.info(`Valid stages: prologue, act 1-5, epilogue, appendix`);
       return;
     }
 
@@ -538,9 +572,9 @@ export class ChatHandler {
     const helpMsg = `**Loremaster Commands:**
 
 **/lm stage <stage> [adventureId]** - Set campaign stage
-  Stages: ${VALID_STAGES.join(', ')}
-  Example: \`/lm stage act_1\`
-  Example: \`/lm stage act_2 pdf:5\` (for PDF adventure #5)
+  Stages: prologue, act 1-5, epilogue, appendix
+  Example: \`/lm stage act 1\` or \`/lm stage act_1\`
+  Example: \`/lm stage act 2 pdf:5\` (for PDF adventure #5)
 
 **/lm advance [adventureId]** - Advance to next stage
   Example: \`/lm advance\`
