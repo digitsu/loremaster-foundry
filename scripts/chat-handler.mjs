@@ -349,8 +349,10 @@ export class ChatHandler {
     if (!targetId) {
       const activeAdventure = await this.socketClient.getActiveAdventure();
       if (activeAdventure?.activeAdventure) {
-        adventureType = activeAdventure.activeAdventure.adventureType;
-        targetId = activeAdventure.activeAdventure.adventureId;
+        const active = activeAdventure.activeAdventure;
+        adventureType = active.adventure_type;
+        // Get the appropriate ID based on adventure type
+        targetId = active.adventure_type === 'pdf' ? active.pdf_id : active.module_id;
       } else {
         ui.notifications.warn('No adventure specified and no active adventure set. Use: /lm stage <stage> <adventureId>');
         return;
@@ -402,8 +404,9 @@ export class ChatHandler {
     if (!targetId) {
       const activeAdventure = await this.socketClient.getActiveAdventure();
       if (activeAdventure?.activeAdventure) {
-        adventureType = activeAdventure.activeAdventure.adventureType;
-        targetId = activeAdventure.activeAdventure.adventureId;
+        const active = activeAdventure.activeAdventure;
+        adventureType = active.adventure_type;
+        targetId = active.adventure_type === 'pdf' ? active.pdf_id : active.module_id;
       } else {
         ui.notifications.warn('No adventure specified and no active adventure set.');
         return;
@@ -451,8 +454,9 @@ export class ChatHandler {
     if (!targetId) {
       const activeAdventure = await this.socketClient.getActiveAdventure();
       if (activeAdventure?.activeAdventure) {
-        adventureType = activeAdventure.activeAdventure.adventureType;
-        targetId = activeAdventure.activeAdventure.adventureId;
+        const active = activeAdventure.activeAdventure;
+        adventureType = active.adventure_type;
+        targetId = active.adventure_type === 'pdf' ? active.pdf_id : active.module_id;
       } else {
         ui.notifications.warn('No adventure specified and no active adventure set.');
         return;
@@ -500,8 +504,9 @@ export class ChatHandler {
     if (!targetId) {
       const activeAdventure = await this.socketClient.getActiveAdventure();
       if (activeAdventure?.activeAdventure) {
-        adventureType = activeAdventure.activeAdventure.adventureType;
-        targetId = activeAdventure.activeAdventure.adventureId;
+        const active = activeAdventure.activeAdventure;
+        adventureType = active.adventure_type;
+        targetId = active.adventure_type === 'pdf' ? active.pdf_id : active.module_id;
       }
     }
 
