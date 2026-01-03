@@ -1357,6 +1357,15 @@ export class ChatHandler {
     const visibility = getSetting('responseVisibility');
     const gmMode = getSetting('gmMode');
 
+    // TRACE: Log raw response from proxy
+    console.log(`${MODULE_ID} | TRACE _createBatchResponseMessage raw response:`, {
+      type: typeof response,
+      constructor: response?.constructor?.name,
+      isArray: Array.isArray(response),
+      length: response?.length,
+      preview: typeof response === 'string' ? response.substring(0, 200) : JSON.stringify(response)?.substring(0, 200)
+    });
+
     // Check for empty response
     if (!response || response.length === 0) {
       console.error(`${MODULE_ID} | ERROR: Empty response received from server`);
@@ -1364,12 +1373,34 @@ export class ChatHandler {
       return;
     }
 
+    // Check if response is already "[object X]" string (proxy serialization issue)
+    if (typeof response === 'string' && /^\[object \w+\]$/.test(response.trim())) {
+      console.error(`${MODULE_ID} | ERROR: Response is pre-serialized object string: "${response}"`);
+      console.error(`${MODULE_ID} | This indicates the proxy is sending an object instead of a string`);
+      ui.notifications.error('Received malformed response from proxy server');
+      return;
+    }
+
     // Ensure response is a string
     const responseText = typeof response === 'string' ? response : String(response);
+
+    // TRACE: Log before formatResponse
+    console.log(`${MODULE_ID} | TRACE before formatResponse:`, {
+      responseTextType: typeof responseText,
+      responseTextLength: responseText.length,
+      preview: responseText.substring(0, 200)
+    });
 
     // Format the response with markdown conversion and styling
     // (formatResponse auto-detects if already HTML-formatted)
     const formattedContent = formatResponse(responseText);
+
+    // TRACE: Log after formatResponse
+    console.log(`${MODULE_ID} | TRACE after formatResponse:`, {
+      formattedType: typeof formattedContent,
+      formattedLength: formattedContent?.length,
+      preview: formattedContent?.substring(0, 200)
+    });
 
     // Collect all user IDs from the batch for whisper targeting
     const batchUserIds = [...new Set(batch.messages.map(m => m.userId))];
