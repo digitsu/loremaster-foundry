@@ -1926,14 +1926,18 @@ export class ContentManager extends Application {
    */
   async _loadFoundryModules() {
     try {
+      console.log(`${MODULE_ID} | Loading Foundry modules...`);
       const result = await this.socketClient.discoverFoundryModules();
+      console.log(`${MODULE_ID} | discoverFoundryModules result:`, result);
 
       if (result.available) {
         this.foundryModulesAvailable = true;
         this.foundryModules = result.modules || [];
+        console.log(`${MODULE_ID} | Found ${this.foundryModules.length} modules available for import`);
       } else {
         this.foundryModulesAvailable = false;
         this.foundryModules = [];
+        console.log(`${MODULE_ID} | No modules available (result.available is false)`);
       }
 
       this.render(false);
@@ -1941,6 +1945,8 @@ export class ContentManager extends Application {
       console.error(`${MODULE_ID} | Failed to load Foundry modules:`, error);
       this.foundryModulesAvailable = false;
       this.foundryModules = [];
+      // Still render to show error state
+      this.render(false);
     }
   }
 

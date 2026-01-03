@@ -77,6 +77,16 @@ AI-powered Loremaster module for Foundry VTT, allowing players to interact with 
 
 ---
 
+## Publishing & Distribution
+
+### 11. Foundry Package Listing
+- [ ] Ensure `module.json` has all required fields (manifest URL, download URL)
+- [ ] Create GitHub Release with tagged version and zip file
+- [ ] Submit to Foundry Package Database: https://foundryvtt.com/packages/submit
+- [ ] Wait for approval and verify listing in Foundry module browser
+
+---
+
 ## Future Considerations
 
 ### NPC Dialogue System
