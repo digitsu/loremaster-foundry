@@ -317,13 +317,27 @@ export class ChatHandler {
       return;
     }
 
+    // Handle split arguments: "/lm stage act 1" -> args = ['act', '1']
+    // Combine "act" + number/roman into single stage string
+    let stageInput = args[0];
+    let adventureIdIndex = 1;
+
+    if (args[0].toLowerCase() === 'act' && args.length > 1) {
+      // Check if next arg is a number (1-5) or roman numeral (i-v)
+      const nextArg = args[1].toLowerCase();
+      if (/^[1-5]$/.test(nextArg) || /^(i{1,3}|iv|v)$/.test(nextArg)) {
+        stageInput = `act ${args[1]}`;
+        adventureIdIndex = 2;
+      }
+    }
+
     // Normalize stage input (accepts "act 1", "act1", "act i", etc.)
-    const stage = normalizeStage(args[0]);
-    const adventureId = args[1] || null;
+    const stage = normalizeStage(stageInput);
+    const adventureId = args[adventureIdIndex] || null;
 
     // Validate stage
     if (!VALID_STAGES.includes(stage)) {
-      ui.notifications.error(`Invalid stage: ${args[0]}`);
+      ui.notifications.error(`Invalid stage: ${stageInput}`);
       ui.notifications.info(`Valid stages: prologue, act 1-5, epilogue, appendix`);
       return;
     }
