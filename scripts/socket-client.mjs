@@ -1353,6 +1353,40 @@ export class SocketClient {
     return this._sendRequest('get-pdf-stage-stats', { pdfId });
   }
 
+  /**
+   * Delete campaign progress for a PDF adventure.
+   * GM only.
+   *
+   * @param {number} pdfId - The PDF ID.
+   * @returns {Promise<object>} Result with success status.
+   */
+  async deletePdfCampaignProgress(pdfId) {
+    this._requireAuth();
+
+    if (!this.isGM) {
+      throw new Error('Deleting campaign progress requires GM permissions');
+    }
+
+    return this._sendRequest('delete-pdf-campaign-progress', { pdfId });
+  }
+
+  /**
+   * Delete campaign progress for a module adventure.
+   * GM only.
+   *
+   * @param {string} moduleId - The module ID.
+   * @returns {Promise<object>} Result with success status.
+   */
+  async deleteCampaignProgress(moduleId) {
+    this._requireAuth();
+
+    if (!this.isGM) {
+      throw new Error('Deleting campaign progress requires GM permissions');
+    }
+
+    return this._sendRequest('delete-campaign-progress', { moduleId });
+  }
+
   // ===== Embedding Methods =====
 
   /**
