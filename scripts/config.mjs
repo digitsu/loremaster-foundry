@@ -123,17 +123,17 @@ export function registerSettings() {
     default: 'timer'
   });
 
-  // Batch Timer Duration (3-30 seconds)
+  // Batch Timer Duration (5 seconds - 5 minutes)
   game.settings.register(MODULE_ID, 'batchTimerDuration', {
     name: 'Batch Timer Duration (seconds)',
-    hint: 'Seconds to wait for additional messages before auto-sending (3-30 seconds).',
+    hint: 'Seconds to wait for additional messages before auto-sending (5 seconds - 5 minutes).',
     scope: 'world',
     config: true,
     type: Number,
     range: {
-      min: 3,
-      max: 30,
-      step: 1
+      min: 5,
+      max: 300,
+      step: 5
     },
     default: 10
   });
