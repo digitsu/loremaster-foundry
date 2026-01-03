@@ -203,13 +203,14 @@ export class SocketClient {
   async sendBatchedMessage(batch, context = {}) {
     this._requireAuth();
 
+    // Use 3 minute timeout to account for rate limit cooldowns and tool execution
     const result = await this._sendRequest('chat-batch', {
       batchId: batch.id,
       messages: batch.messages,
       gmRulings: batch.gmRulings,
       formattedPrompt: batch.formattedPrompt,
       context
-    });
+    }, 180000);
 
     return result.response;
   }
@@ -226,6 +227,7 @@ export class SocketClient {
   async sendVeto(batchId, correction, originalBatch, context = {}) {
     this._requireAuth();
 
+    // Use 3 minute timeout to account for rate limit cooldowns and tool execution
     const result = await this._sendRequest('veto', {
       batchId,
       correction,
@@ -236,7 +238,7 @@ export class SocketClient {
         formattedPrompt: originalBatch.formattedPrompt
       },
       context
-    });
+    }, 180000);
 
     return result.response;
   }
