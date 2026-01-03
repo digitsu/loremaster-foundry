@@ -212,6 +212,17 @@ export class SocketClient {
       context
     }, 180000);
 
+    // TRACE: Log raw result from proxy for debugging
+    console.log(`${MODULE_ID} | TRACE sendBatchedMessage result:`, {
+      resultType: typeof result,
+      resultKeys: result ? Object.keys(result) : null,
+      responseType: typeof result?.response,
+      responseConstructor: result?.response?.constructor?.name,
+      responsePreview: typeof result?.response === 'string'
+        ? result.response.substring(0, 200)
+        : JSON.stringify(result?.response)?.substring(0, 200)
+    });
+
     return result.response;
   }
 
