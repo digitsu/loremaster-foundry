@@ -281,6 +281,14 @@ export class ChatHandler {
           await this._handleStatusCommand(args);
           break;
 
+        case 'clear':
+          await this._handleClearCommand(args);
+          break;
+
+        case 'clear-progress':
+          await this._handleClearProgressCommand(args);
+          break;
+
         case 'help':
         case '?':
           this._showCommandHelp();
@@ -529,37 +537,138 @@ export class ChatHandler {
         this._showSystemMessage(statusMsg);
       }
     } else {
-      // Show all progress (both modules and PDFs)
+      // Show active adventure first, then all progress records
+      const activeAdventure = await this.socketClient.getActiveAdventure();
       const moduleResult = await this.socketClient.getCampaignProgress();
       const pdfResult = await this.socketClient.getPdfCampaignProgress();
       const moduleProgressList = moduleResult.progress || [];
       const pdfProgressList = pdfResult.progress || [];
 
+      let statusMsg = '**Campaign Status:**\n\n';
+
+      // Show active adventure
+      if (activeAdventure?.activeAdventure) {
+        const active = activeAdventure.activeAdventure;
+        const typeLabel = active.adventure_type === 'pdf' ? 'PDF' : 'Module';
+        const idLabel = active.adventure_type === 'pdf' ? `pdf:${active.pdf_id}` : active.module_id;
+        statusMsg += `**Active Adventure:** ${active.adventure_name} (${typeLabel}: ${idLabel})\n\n`;
+      } else {
+        statusMsg += '**Active Adventure:** None selected\n';
+        statusMsg += '_Use Content Manager or `/lm set-adventure` to select one._\n\n';
+      }
+
+      // Show saved progress records
       if (moduleProgressList.length === 0 && pdfProgressList.length === 0) {
-        this._showSystemMessage('No campaign progress tracked. Use `/lm stage <stage>` to set progress for your active adventure.');
-        return;
-      }
+        statusMsg += '*No saved campaign progress.*';
+      } else {
+        statusMsg += '**Saved Progress:**\n';
 
-      let statusMsg = '**All Campaign Progress:**\n\n';
-
-      if (moduleProgressList.length > 0) {
-        statusMsg += '*Module Adventures:*\n';
-        for (const p of moduleProgressList) {
-          const stageName = STAGE_NAMES[p.currentStage] || p.currentStage;
-          statusMsg += `- **${p.moduleId}**: ${stageName}\n`;
+        if (moduleProgressList.length > 0) {
+          for (const p of moduleProgressList) {
+            const stageName = STAGE_NAMES[p.currentStage] || p.currentStage;
+            statusMsg += `- ${p.moduleId}: ${stageName}\n`;
+          }
         }
-        statusMsg += '\n';
-      }
 
-      if (pdfProgressList.length > 0) {
-        statusMsg += '*PDF Adventures:*\n';
-        for (const p of pdfProgressList) {
-          const stageName = STAGE_NAMES[p.currentStage] || p.currentStage;
-          statusMsg += `- **PDF #${p.pdfId}**: ${stageName}\n`;
+        if (pdfProgressList.length > 0) {
+          for (const p of pdfProgressList) {
+            const stageName = STAGE_NAMES[p.currentStage] || p.currentStage;
+            statusMsg += `- pdf:${p.pdfId}: ${stageName}\n`;
+          }
         }
+
+        statusMsg += '\n_Use `/lm clear-progress <id>` to remove old progress._';
       }
 
       this._showSystemMessage(statusMsg);
+    }
+  }
+
+  /**
+   * Handle /lm clear command.
+   * Clears the active adventure (GM only).
+   *
+   * @param {Array} args - Command arguments (unused).
+   * @private
+   */
+  async _handleClearCommand(args) {
+    if (!game.user.isGM) {
+      ui.notifications.warn('Only the GM can clear the active adventure.');
+      return;
+    }
+
+    try {
+      const activeAdventure = await this.socketClient.getActiveAdventure();
+
+      if (!activeAdventure?.activeAdventure) {
+        this._showSystemMessage('No active adventure to clear.');
+        return;
+      }
+
+      const adventureName = activeAdventure.activeAdventure.adventure_name;
+      await this.socketClient.clearActiveAdventure();
+
+      this._showSystemMessage(`Active adventure **${adventureName}** has been cleared.`);
+      ui.notifications.info('Active adventure cleared.');
+    } catch (error) {
+      console.error(`${MODULE_ID} | Failed to clear active adventure:`, error);
+      ui.notifications.error(`Failed to clear: ${error.message}`);
+    }
+  }
+
+  /**
+   * Handle /lm clear-progress <adventureId> command.
+   * Clears saved campaign progress for an adventure (GM only).
+   *
+   * @param {Array} args - Command arguments [adventureId].
+   * @private
+   */
+  async _handleClearProgressCommand(args) {
+    if (!game.user.isGM) {
+      ui.notifications.warn('Only the GM can clear campaign progress.');
+      return;
+    }
+
+    if (args.length === 0) {
+      ui.notifications.warn('Usage: /lm clear-progress <adventureId>');
+      ui.notifications.info('Example: /lm clear-progress pdf:5 or /lm clear-progress coriolis-ghazali');
+      return;
+    }
+
+    const adventureId = args[0];
+
+    try {
+      // Check if this is a PDF adventure
+      const isPdfAdventure = adventureId.startsWith('pdf:') || !isNaN(parseInt(adventureId, 10));
+
+      if (isPdfAdventure) {
+        const pdfId = adventureId.startsWith('pdf:')
+          ? parseInt(adventureId.replace('pdf:', ''), 10)
+          : parseInt(adventureId, 10);
+
+        // Delete PDF progress via proxy
+        const result = await this.socketClient.deletePdfCampaignProgress(pdfId);
+
+        if (result.success) {
+          this._showSystemMessage(`Campaign progress for **pdf:${pdfId}** has been cleared.`);
+          ui.notifications.info('Campaign progress cleared.');
+        } else {
+          this._showSystemMessage(`No progress found for pdf:${pdfId}.`);
+        }
+      } else {
+        // Delete module progress via proxy
+        const result = await this.socketClient.deleteCampaignProgress(adventureId);
+
+        if (result.success) {
+          this._showSystemMessage(`Campaign progress for **${adventureId}** has been cleared.`);
+          ui.notifications.info('Campaign progress cleared.');
+        } else {
+          this._showSystemMessage(`No progress found for ${adventureId}.`);
+        }
+      }
+    } catch (error) {
+      console.error(`${MODULE_ID} | Failed to clear campaign progress:`, error);
+      ui.notifications.error(`Failed to clear progress: ${error.message}`);
     }
   }
 
@@ -585,6 +694,13 @@ export class ChatHandler {
 **/lm status [adventureId]** - Show campaign progress
   Example: \`/lm status\`
   Example: \`/lm status pdf:5\` (for PDF adventure #5)
+
+**/lm clear** - Clear active adventure (GM only)
+  Example: \`/lm clear\`
+
+**/lm clear-progress <adventureId>** - Delete saved progress (GM only)
+  Example: \`/lm clear-progress pdf:5\`
+  Example: \`/lm clear-progress coriolis-ghazali\`
 
 **/lm help** - Show this help message
 
