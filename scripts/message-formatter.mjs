@@ -16,31 +16,47 @@ const MODULE_ID = 'loremaster';
  * @returns {string} Formatted HTML for chat display.
  */
 export function formatResponse(text) {
+  // Always log the input type for debugging
+  const inputType = text === null ? 'null' :
+                    text === undefined ? 'undefined' :
+                    Array.isArray(text) ? 'array' :
+                    typeof text;
+
+  // Log non-string inputs for debugging
+  if (typeof text !== 'string' && text !== null && text !== undefined) {
+    console.warn(`loremaster | formatResponse received non-string input:`, {
+      type: inputType,
+      constructor: text?.constructor?.name,
+      value: text
+    });
+  }
+
   if (!text) return '';
 
   // Check if it's a string that looks like a serialized object (e.g., "[object HTMLCollection]")
   // This can happen if something was stringified before reaching this function
   if (typeof text === 'string') {
     const trimmed = text.trim();
-    if (trimmed === '[object HTMLCollection]' ||
-        trimmed === '[object NodeList]' ||
-        trimmed === '[object Object]') {
-      console.warn('loremaster | Received pre-stringified object:', trimmed);
-      return `<div class="loremaster-response"><p class="loremaster-paragraph"><em>(Empty response)</em></p></div>`;
+    // Catch any [object X] pattern
+    const objectPattern = /^\[object \w+\]$/;
+    if (objectPattern.test(trimmed)) {
+      console.error('loremaster | Received pre-stringified object in chat:', trimmed);
+      console.error('loremaster | Stack trace:', new Error().stack);
+      return `<div class="loremaster-response"><p class="loremaster-paragraph"><em>(Invalid response format - check console)</em></p></div>`;
     }
   }
 
   // Handle DOM collections (HTMLCollection, NodeList) - extract text content
   // Use duck-typing in addition to instanceof for cross-frame compatibility
-  const isDOMCollection = (text instanceof HTMLCollection) ||
-                          (text instanceof NodeList) ||
+  const isDOMCollection = (typeof HTMLCollection !== 'undefined' && text instanceof HTMLCollection) ||
+                          (typeof NodeList !== 'undefined' && text instanceof NodeList) ||
                           (typeof text === 'object' && text !== null &&
                            typeof text.length === 'number' &&
                            typeof text.item === 'function' &&
                            !Array.isArray(text));
 
   if (isDOMCollection) {
-    console.log('loremaster | Response is DOM collection, extracting text');
+    console.warn('loremaster | Response is DOM collection, extracting text. Stack:', new Error().stack);
     const textParts = [];
     for (let i = 0; i < text.length; i++) {
       const node = text[i] || text.item(i);
@@ -49,19 +65,25 @@ export function formatResponse(text) {
       }
     }
     text = textParts.join('\n');
+    if (!text) {
+      return `<div class="loremaster-response"><p class="loremaster-paragraph"><em>(Empty DOM collection)</em></p></div>`;
+    }
   }
 
   // Handle DOM elements - extract text content
   // Use duck-typing for cross-frame compatibility
-  const isDOMElement = (text instanceof Element) ||
-                       (text instanceof Node) ||
+  const isDOMElement = (typeof Element !== 'undefined' && text instanceof Element) ||
+                       (typeof Node !== 'undefined' && text instanceof Node) ||
                        (typeof text === 'object' && text !== null &&
                         typeof text.nodeType === 'number' &&
                         typeof text.textContent === 'string');
 
   if (isDOMElement) {
-    console.log('loremaster | Response is DOM element, extracting text');
+    console.warn('loremaster | Response is DOM element, extracting text. Stack:', new Error().stack);
     text = text.textContent || '';
+    if (!text) {
+      return `<div class="loremaster-response"><p class="loremaster-paragraph"><em>(Empty DOM element)</em></p></div>`;
+    }
   }
 
   // Handle arrays - render as collapsible list
@@ -72,7 +94,8 @@ export function formatResponse(text) {
 
   // Handle objects (but not strings) - render as structured view
   if (typeof text === 'object' && text !== null) {
-    console.log('loremaster | Response is object, formatting as structured view');
+    console.warn('loremaster | Response is unexpected object type:', text?.constructor?.name);
+    console.warn('loremaster | Object value:', JSON.stringify(text, null, 2));
     return formatObjectResponse(text);
   }
 
