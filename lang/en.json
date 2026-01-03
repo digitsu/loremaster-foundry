@@ -45,7 +45,7 @@
       },
       "BatchTimerDuration": {
         "Name": "Batch Timer Duration (seconds)",
-        "Hint": "Seconds to wait for additional messages before auto-sending (3-30 seconds)."
+        "Hint": "Seconds to wait for additional messages before auto-sending (5 seconds - 5 minutes)."
       },
       "PlayerMessageVisibility": {
         "Name": "Player Message Visibility",
@@ -446,6 +446,28 @@
       "StartAdventure": "Start Adventure",
       "NoCharacters": "No characters found in this adventure. Characters will be extracted when you start.",
       "NoPlayableCharacters": "No playable characters found. Check the GM Prep script's Character Roster Table and ensure the 'Playable' column is set to 'Yes' for player characters."
+    },
+    "ModuleImport": {
+      "Title": "Foundry Module Content",
+      "Hint": "Import content from installed Foundry modules for rules lookup. This chunks journal entries, items, and tables for semantic search.",
+      "NoModules": "No modules available for import",
+      "NoModulesHint": "The proxy server needs FOUNDRY_DATA_PATH configured to discover Foundry modules.",
+      "Refresh": "Refresh Modules",
+      "Import": "Import",
+      "Delete": "Remove imported content",
+      "Importing": "Importing module content",
+      "Status": {
+        "Imported": "Imported",
+        "Importing": "Importing...",
+        "Failed": "Failed",
+        "NotImported": "Not Imported"
+      },
+      "Success": "Successfully imported \"{name}\" ({chunks} chunks)",
+      "Error": "Import failed: {error}",
+      "DeleteTitle": "Remove Imported Content",
+      "DeleteConfirm": "Are you sure you want to remove the imported content from \"{name}\"? This will delete all chunks and embeddings for this module.",
+      "DeleteSuccess": "Removed imported content from \"{name}\"",
+      "DeleteError": "Delete failed: {error}"
     }
   }
 }

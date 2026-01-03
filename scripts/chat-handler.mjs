@@ -97,6 +97,33 @@ const THINKING_PHRASES = [
 ];
 
 /**
+ * Extended wait phrases shown when response takes longer than expected.
+ * Indicates to users that the system is still working.
+ */
+const EXTENDED_WAIT_PHRASES = [
+  'The Loremaster delves deeper into the archives...',
+  'Loremaster is consulting the elder scrolls...',
+  'The wheels of fate turn slowly today...',
+  'Loremaster weaves a particularly complex tale...',
+  'The cosmic calculations require more time...',
+  'Loremaster wrestles with narrative threads...',
+  'The muse is taking her time...',
+  'Loremaster awaits wisdom from the void...'
+];
+
+/**
+ * Long wait phrases shown when response takes significantly longer.
+ * Reassures users that everything is still working.
+ */
+const LONG_WAIT_PHRASES = [
+  'Still pondering... The Loremaster appreciates your patience.',
+  'The prophecy unfolds slowly... Thank you for waiting.',
+  'Complex narratives require time... Still working on it.',
+  'Loremaster is deeply immersed in thought... Almost there.',
+  'The stars are aligning... Please continue to wait.'
+];
+
+/**
  * ChatHandler class manages the chat message pipeline.
  */
 export class ChatHandler {
@@ -115,6 +142,8 @@ export class ChatHandler {
     this.lastBatch = null;
     this.pendingPrivateResponses = new Map(); // messageId -> response data
     this.thinkingMessageId = null; // ID of the current thinking message
+    this.thinkingStartTime = null; // When thinking started (for elapsed time)
+    this.thinkingUpdateInterval = null; // Interval for updating extended wait messages
   }
 
   /**
@@ -1059,6 +1088,7 @@ export class ChatHandler {
   /**
    * Show a typing indicator in the chat.
    * Creates a temporary chat message with a spinning indicator.
+   * Also starts an interval to update the indicator for extended waits.
    *
    * @private
    */
@@ -1084,16 +1114,65 @@ export class ChatHandler {
       chatLog.scrollTop = chatLog.scrollHeight;
     }
 
+    // Set up interval to update the local indicator with elapsed time
+    this._typingIndicatorInterval = setInterval(() => {
+      this._updateTypingIndicator();
+    }, 10000); // Update every 10 seconds
+
     console.log(`${MODULE_ID} | AI is thinking...`);
+  }
+
+  /**
+   * Update the local typing indicator with elapsed time for extended waits.
+   *
+   * @private
+   */
+  _updateTypingIndicator() {
+    if (!this.thinkingStartTime) {
+      return;
+    }
+
+    const indicator = document.getElementById('loremaster-typing-indicator');
+    if (!indicator) {
+      return;
+    }
+
+    const textElement = indicator.querySelector('.loremaster-processing-text');
+    if (!textElement) {
+      return;
+    }
+
+    const elapsedSeconds = Math.floor((Date.now() - this.thinkingStartTime) / 1000);
+
+    // Only show elapsed time after 30 seconds
+    if (elapsedSeconds >= 30) {
+      let timeText;
+      if (elapsedSeconds >= 60) {
+        const minutes = Math.floor(elapsedSeconds / 60);
+        const seconds = elapsedSeconds % 60;
+        timeText = `${minutes}m ${seconds}s`;
+      } else {
+        timeText = `${elapsedSeconds}s`;
+      }
+
+      textElement.textContent = `Still working... (${timeText})`;
+    }
   }
 
   /**
    * Hide the typing indicator.
    * Removes the temporary indicator element from the chat.
+   * Clears the update interval.
    *
    * @private
    */
   _hideTypingIndicator() {
+    // Clear the update interval
+    if (this._typingIndicatorInterval) {
+      clearInterval(this._typingIndicatorInterval);
+      this._typingIndicatorInterval = null;
+    }
+
     const indicator = document.getElementById('loremaster-typing-indicator');
     if (indicator) {
       indicator.remove();
@@ -1104,6 +1183,7 @@ export class ChatHandler {
   /**
    * Show a public thinking message in chat.
    * Displays a random thinking phrase from Loremaster to all players.
+   * Sets up an interval to update the message for extended waits.
    *
    * @private
    */
@@ -1113,6 +1193,9 @@ export class ChatHandler {
 
     // Select a random thinking phrase
     const phrase = THINKING_PHRASES[Math.floor(Math.random() * THINKING_PHRASES.length)];
+
+    // Track when we started thinking
+    this.thinkingStartTime = Date.now();
 
     // Create public chat message
     const messageData = {
@@ -1130,18 +1213,78 @@ export class ChatHandler {
       const message = await ChatMessage.create(messageData);
       this.thinkingMessageId = message.id;
       console.log(`${MODULE_ID} | Showing thinking message: "${phrase}"`);
+
+      // Set up interval to update message for extended waits
+      // First update at 30s, then every 30s after that
+      this.thinkingUpdateInterval = setInterval(() => {
+        this._updateThinkingMessage();
+      }, 30000);
+
     } catch (error) {
       console.error(`${MODULE_ID} | Failed to create thinking message:`, error);
     }
   }
 
   /**
+   * Update the thinking message for extended waits.
+   * Shows different messages based on elapsed time to reassure users.
+   *
+   * @private
+   */
+  async _updateThinkingMessage() {
+    if (!this.thinkingMessageId || !this.thinkingStartTime) {
+      return;
+    }
+
+    const elapsedSeconds = Math.floor((Date.now() - this.thinkingStartTime) / 1000);
+
+    // Select appropriate phrase based on elapsed time
+    let phrase;
+    let elapsedText = '';
+
+    if (elapsedSeconds >= 120) {
+      // 2+ minutes: Long wait phrases with elapsed time
+      phrase = LONG_WAIT_PHRASES[Math.floor(Math.random() * LONG_WAIT_PHRASES.length)];
+      elapsedText = ` (${Math.floor(elapsedSeconds / 60)}m ${elapsedSeconds % 60}s)`;
+    } else if (elapsedSeconds >= 60) {
+      // 1-2 minutes: Extended wait phrases with elapsed time
+      phrase = EXTENDED_WAIT_PHRASES[Math.floor(Math.random() * EXTENDED_WAIT_PHRASES.length)];
+      elapsedText = ` (${elapsedSeconds}s)`;
+    } else {
+      // Under 1 minute: Pick a new random regular phrase
+      phrase = THINKING_PHRASES[Math.floor(Math.random() * THINKING_PHRASES.length)];
+    }
+
+    try {
+      const message = game.messages.get(this.thinkingMessageId);
+      if (message) {
+        await message.update({
+          content: `<div class="loremaster-thinking-message"><em>${phrase}${elapsedText}</em></div>`
+        });
+        console.log(`${MODULE_ID} | Updated thinking message (${elapsedSeconds}s): "${phrase}"`);
+      }
+    } catch (error) {
+      console.error(`${MODULE_ID} | Failed to update thinking message:`, error);
+    }
+  }
+
+  /**
    * Hide the thinking message from chat.
    * Deletes the temporary thinking message when response arrives.
+   * Clears the update interval and resets tracking state.
    *
    * @private
    */
   async _hideThinkingMessage() {
+    // Clear the update interval first
+    if (this.thinkingUpdateInterval) {
+      clearInterval(this.thinkingUpdateInterval);
+      this.thinkingUpdateInterval = null;
+    }
+
+    // Reset tracking state
+    this.thinkingStartTime = null;
+
     if (this.thinkingMessageId) {
       try {
         const message = game.messages.get(this.thinkingMessageId);
