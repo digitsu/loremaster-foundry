@@ -18,12 +18,33 @@ const MODULE_ID = 'loremaster';
 export function formatResponse(text) {
   if (!text) return '';
 
+  // Check if it's a string that looks like a serialized object (e.g., "[object HTMLCollection]")
+  // This can happen if something was stringified before reaching this function
+  if (typeof text === 'string') {
+    const trimmed = text.trim();
+    if (trimmed === '[object HTMLCollection]' ||
+        trimmed === '[object NodeList]' ||
+        trimmed === '[object Object]') {
+      console.warn('loremaster | Received pre-stringified object:', trimmed);
+      return `<div class="loremaster-response"><p class="loremaster-paragraph"><em>(Empty response)</em></p></div>`;
+    }
+  }
+
   // Handle DOM collections (HTMLCollection, NodeList) - extract text content
-  if (text instanceof HTMLCollection || text instanceof NodeList) {
+  // Use duck-typing in addition to instanceof for cross-frame compatibility
+  const isDOMCollection = (text instanceof HTMLCollection) ||
+                          (text instanceof NodeList) ||
+                          (typeof text === 'object' && text !== null &&
+                           typeof text.length === 'number' &&
+                           typeof text.item === 'function' &&
+                           !Array.isArray(text));
+
+  if (isDOMCollection) {
     console.log('loremaster | Response is DOM collection, extracting text');
     const textParts = [];
-    for (const node of text) {
-      if (node.textContent) {
+    for (let i = 0; i < text.length; i++) {
+      const node = text[i] || text.item(i);
+      if (node && node.textContent) {
         textParts.push(node.textContent);
       }
     }
@@ -31,7 +52,14 @@ export function formatResponse(text) {
   }
 
   // Handle DOM elements - extract text content
-  if (text instanceof Element || text instanceof Node) {
+  // Use duck-typing for cross-frame compatibility
+  const isDOMElement = (text instanceof Element) ||
+                       (text instanceof Node) ||
+                       (typeof text === 'object' && text !== null &&
+                        typeof text.nodeType === 'number' &&
+                        typeof text.textContent === 'string');
+
+  if (isDOMElement) {
     console.log('loremaster | Response is DOM element, extracting text');
     text = text.textContent || '';
   }
