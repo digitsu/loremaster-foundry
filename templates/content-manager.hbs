@@ -334,7 +334,14 @@
                   {{/if}}
                 </div>
                 <div class="adventure-details">
-                  <div class="adventure-name">{{activeAdventure.adventure_name}}</div>
+                  <div class="adventure-name">
+                    {{activeAdventure.adventure_name}}
+                    {{#if (eq activeAdventure.adventure_type "pdf")}}
+                      <span class="pdf-id-badge" title="Use 'pdf:{{activeAdventure.pdf_id}}' for /lm commands">pdf:{{activeAdventure.pdf_id}}</span>
+                    {{else}}
+                      <span class="module-id-badge" title="Use '{{activeAdventure.module_id}}' for /lm commands">{{activeAdventure.module_id}}</span>
+                    {{/if}}
+                  </div>
                   <div class="adventure-type-badge">
                     {{#if (eq activeAdventure.adventure_type "pdf")}}
                       {{localize "LOREMASTER.ActiveAdventure.TypePDF"}}
