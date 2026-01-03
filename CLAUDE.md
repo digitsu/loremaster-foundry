@@ -12,6 +12,7 @@
 
 ## Git Commit Guidelines
 
+- Claude-related files and directories (`.claude/`, `CLAUDE.md`, etc.) may be committed to the repository
 - Do NOT include any "Co-authored by", "Generated with Claude Code", or "Co-Authored-By" lines in commit messages
 - Keep commit messages clean and focused on the changes only
 
