@@ -155,7 +155,8 @@ export class ChatHandler {
     Hooks.on('chatMessage', this._onChatMessage.bind(this));
 
     // Hook into chat message rendering to attach button handlers
-    Hooks.on('renderChatMessage', this._onRenderChatMessage.bind(this));
+    // Use renderChatMessageHTML for Foundry V13+ (passes HTMLElement instead of jQuery)
+    Hooks.on('renderChatMessageHTML', this._onRenderChatMessage.bind(this));
 
     console.log(`${MODULE_ID} | Chat handler initialized`);
   }
@@ -169,7 +170,9 @@ export class ChatHandler {
    * @private
    */
   _onRenderChatMessage(message, html, data) {
-    html = $(html); // Ensure jQuery for Foundry v12 compatibility
+    // Foundry V13+: html is an HTMLElement, not jQuery
+    const element = html instanceof HTMLElement ? html : html?.[0];
+    if (!element) return;
 
     // Check if this is a private Loremaster response
     if (!message.flags?.[MODULE_ID]?.isPrivateResponse) {
@@ -177,19 +180,19 @@ export class ChatHandler {
     }
 
     // Attach publish button handler
-    html.find('.loremaster-publish-btn').on('click', async (event) => {
+    element.querySelector('.loremaster-publish-btn')?.addEventListener('click', async (event) => {
       const messageId = event.currentTarget.dataset.messageId;
       await this.publishPrivateResponse(messageId);
     });
 
     // Attach iterate button handler
-    html.find('.loremaster-iterate-btn').on('click', async (event) => {
+    element.querySelector('.loremaster-iterate-btn')?.addEventListener('click', async (event) => {
       const messageId = event.currentTarget.dataset.messageId;
       await this.iteratePrivateResponse(messageId);
     });
 
     // Attach discard button handler
-    html.find('.loremaster-discard-btn').on('click', async (event) => {
+    element.querySelector('.loremaster-discard-btn')?.addEventListener('click', async (event) => {
       const messageId = event.currentTarget.dataset.messageId;
       await this.discardPrivateResponse(messageId, message);
     });
@@ -1033,12 +1036,31 @@ export class ChatHandler {
     }
 
     // Add recent chat history (last 10 messages)
+    // Defensive: ensure content is always a string (guards against corrupted messages)
     context.recentChat = game.messages.contents
       .slice(-10)
-      .map(m => ({
-        speaker: m.speaker?.alias || 'Unknown',
-        content: m.content
-      }));
+      .map(m => {
+        let content = m.content;
+        // Guard against DOM objects or other non-strings that might have been stored
+        if (typeof content !== 'string') {
+          console.warn(`${MODULE_ID} | Message ${m.id} has non-string content:`, {
+            type: typeof content,
+            constructor: content?.constructor?.name
+          });
+          // Try to extract text if it's a DOM element/collection
+          if (content?.textContent !== undefined) {
+            content = content.textContent;
+          } else if (content?.toString) {
+            content = content.toString();
+          } else {
+            content = '[Unable to read message content]';
+          }
+        }
+        return {
+          speaker: m.speaker?.alias || 'Unknown',
+          content
+        };
+      });
 
     return context;
   }
@@ -1357,26 +1379,16 @@ export class ChatHandler {
     const visibility = getSetting('responseVisibility');
     const gmMode = getSetting('gmMode');
 
-    // TRACE: Log raw response from proxy
-    console.log(`${MODULE_ID} | TRACE _createBatchResponseMessage raw response:`, {
-      type: typeof response,
-      constructor: response?.constructor?.name,
-      isArray: Array.isArray(response),
-      length: response?.length,
-      preview: typeof response === 'string' ? response.substring(0, 200) : JSON.stringify(response)?.substring(0, 200)
-    });
-
     // Check for empty response
     if (!response || response.length === 0) {
-      console.error(`${MODULE_ID} | ERROR: Empty response received from server`);
+      console.error(`${MODULE_ID} | Empty response received from server`);
       ui.notifications.error('Received empty response from Loremaster');
       return;
     }
 
     // Check if response is already "[object X]" string (proxy serialization issue)
     if (typeof response === 'string' && /^\[object \w+\]$/.test(response.trim())) {
-      console.error(`${MODULE_ID} | ERROR: Response is pre-serialized object string: "${response}"`);
-      console.error(`${MODULE_ID} | This indicates the proxy is sending an object instead of a string`);
+      console.error(`${MODULE_ID} | Response is pre-serialized object string: "${response}"`);
       ui.notifications.error('Received malformed response from proxy server');
       return;
     }
@@ -1384,23 +1396,9 @@ export class ChatHandler {
     // Ensure response is a string
     const responseText = typeof response === 'string' ? response : String(response);
 
-    // TRACE: Log before formatResponse
-    console.log(`${MODULE_ID} | TRACE before formatResponse:`, {
-      responseTextType: typeof responseText,
-      responseTextLength: responseText.length,
-      preview: responseText.substring(0, 200)
-    });
-
     // Format the response with markdown conversion and styling
     // (formatResponse auto-detects if already HTML-formatted)
     const formattedContent = formatResponse(responseText);
-
-    // TRACE: Log after formatResponse
-    console.log(`${MODULE_ID} | TRACE after formatResponse:`, {
-      formattedType: typeof formattedContent,
-      formattedLength: formattedContent?.length,
-      preview: formattedContent?.substring(0, 200)
-    });
 
     // Collect all user IDs from the batch for whisper targeting
     const batchUserIds = [...new Set(batch.messages.map(m => m.userId))];

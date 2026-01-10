@@ -174,11 +174,12 @@ async function initializeLoremaster() {
     };
 
     // Set up hook to add veto controls to AI responses
-    Hooks.on('renderChatMessage', (message, html, data) => {
+    // Use renderChatMessageHTML for Foundry V13+ (passes HTMLElement instead of jQuery)
+    Hooks.on('renderChatMessageHTML', (message, html, data) => {
       if (message.flags?.[MODULE_ID]?.isAIResponse) {
         const messageId = message.flags[MODULE_ID].batchId || message.id;
 
-        // Get the element safely (html can be jQuery or HTMLElement depending on Foundry version)
+        // Foundry V13+: html is an HTMLElement
         const element = html instanceof HTMLElement ? html : html?.[0];
         if (element instanceof HTMLElement) {
           addVetoControls(
