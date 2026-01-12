@@ -31,8 +31,30 @@ An AI-powered Game Master assistant for Foundry VTT. Loremaster uses Claude AI t
 ## Requirements
 
 - Foundry VTT v13 or later
-- Loremaster Proxy Server (see [loremaster-proxy](https://github.com/your-repo/loremaster-proxy))
+- Loremaster Proxy Server
 - Claude API key from Anthropic
+
+## Getting the Proxy Server
+
+Choose the option that works best for you:
+
+### Option 1: Self-Hosted (One-Time Purchase)
+Run your own Loremaster server with a one-time license purchase.
+
+**[Purchase on Gumroad](https://burninator.gumroad.com/l/glzbu)** - $25 one-time
+
+- You host the server on your own machine or VPS
+- You pay Anthropic directly for Claude API usage
+- Full control over your data and infrastructure
+
+### Option 2: Fully Hosted (Subscription)
+Let us handle the server infrastructure for you.
+
+**[Subscribe on Patreon](https://patreon.com/Burninator)** - Monthly subscription
+
+- No server setup required
+- Managed infrastructure with automatic updates
+- Priority support and early access to new features
 
 ## Installation
 
@@ -51,7 +73,7 @@ An AI-powered Game Master assistant for Foundry VTT. Loremaster uses Claude AI t
 ## Configuration
 
 ### 1. Set Up the Proxy Server
-The Loremaster proxy server handles communication with Claude AI. See the [proxy server documentation](https://github.com/your-repo/loremaster-proxy) for setup instructions.
+The Loremaster proxy server handles communication with Claude AI. See the [self-hosted server documentation](https://github.com/digitsu/loremaster-server) for setup instructions, or subscribe to our [hosted solution on Patreon](https://patreon.com/Burninator).
 
 ### 2. Configure Module Settings
 In Foundry, go to **Settings > Module Settings > Loremaster**:
@@ -104,7 +126,10 @@ Access Loremaster features from the Notes scene controls:
 
 ## Support
 
-For issues and feature requests, please contact the developer.
+- **Discord**: [discord.gg/loremaster](https://discord.gg/loremaster)
+- **Website**: [loremastervtt.com](https://loremastervtt.com)
+- **Issues**: [GitHub Issues](https://github.com/digitsu/loremaster-foundry/issues)
+- **Email**: support@loremastervtt.com
 
 ## License
 
