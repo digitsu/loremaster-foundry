@@ -5,7 +5,18 @@
  * Handles authentication, chat messages, data sync, and tool execution.
  */
 
-import { getSetting, setSetting } from './config.mjs';
+import {
+  getSetting,
+  setSetting,
+  isHostedMode,
+  getSessionToken,
+  setSessionToken,
+  clearSessionToken,
+  getPatreonUser,
+  setPatreonUser,
+  clearPatreonUser,
+  getHostedProxyUrl
+} from './config.mjs';
 
 const MODULE_ID = 'loremaster';
 
@@ -29,6 +40,11 @@ export class SocketClient {
     this.maxReconnectAttempts = 5;
     this.reconnectDelay = 2000;
     this.toolHandlers = new Map();
+
+    // Hosted mode properties
+    this.tier = null;           // User's subscription tier (basic, pro, premium)
+    this.quotaRemaining = 0;    // Remaining tokens for the period
+    this.quotaLimit = 0;        // Total token limit for the period
   }
 
   /**
@@ -82,7 +98,8 @@ export class SocketClient {
 
   /**
    * Authenticate with the proxy server.
-   * Sends user info including GM status for access control.
+   * In hosted mode, uses session token from Patreon OAuth.
+   * In self-hosted mode, uses API key and license key.
    *
    * @returns {Promise<object>} Authentication result.
    */
@@ -91,8 +108,6 @@ export class SocketClient {
       throw new Error('Not connected to proxy server');
     }
 
-    const apiKey = getSetting('apiKey');
-    const licenseKey = getSetting('licenseKey');
     const worldId = game.world.id;
     const worldName = game.world.title;
 
@@ -101,7 +116,7 @@ export class SocketClient {
     const userName = game.user.name;
     const isGM = game.user.isGM;
 
-    // Build auth payload
+    // Build auth payload based on server mode
     const payload = {
       worldId,
       worldName,
@@ -110,24 +125,56 @@ export class SocketClient {
       isGM
     };
 
-    // Only send API key if it's been set (non-empty)
-    if (apiKey) {
-      payload.apiKey = apiKey;
-    }
+    if (isHostedMode()) {
+      // Hosted mode: use session token from Patreon OAuth
+      const sessionToken = getSessionToken();
+      if (!sessionToken) {
+        // No session token - need to authenticate with Patreon first
+        throw new Error('PATREON_AUTH_REQUIRED');
+      }
+      payload.sessionToken = sessionToken;
+    } else {
+      // Self-hosted mode: use API key and license key
+      const apiKey = getSetting('apiKey');
+      const licenseKey = getSetting('licenseKey');
 
-    // Send license key if configured (for production proxy servers)
-    if (licenseKey) {
-      payload.licenseKey = licenseKey;
+      // Only send API key if it's been set (non-empty)
+      if (apiKey) {
+        payload.apiKey = apiKey;
+      }
+
+      // Send license key if configured (for production proxy servers)
+      if (licenseKey) {
+        payload.licenseKey = licenseKey;
+      }
     }
 
     const result = await this._sendRequest('auth', payload);
+
+    // Handle session token expiry/invalid in hosted mode
+    if (!result.success && result.error === 'INVALID_SESSION') {
+      // Clear invalid session token
+      await clearSessionToken();
+      await clearPatreonUser();
+      throw new Error('PATREON_AUTH_REQUIRED');
+    }
+
     this.isAuthenticated = result.success;
     this.isGM = result.isGM || false;
     this.licenseStatus = result.license || null;
 
+    // In hosted mode, store quota and tier info
+    if (isHostedMode() && result.success) {
+      this.tier = result.tier || 'basic';
+      this.quotaRemaining = result.quotaRemaining || 0;
+      this.quotaLimit = result.quotaLimit || 0;
+    }
+
     if (result.success) {
       console.log(`${MODULE_ID} | Authenticated with proxy server (GM: ${this.isGM})`);
-      if (this.licenseStatus) {
+      if (isHostedMode()) {
+        console.log(`${MODULE_ID} | Tier: ${this.tier}, Quota: ${this.quotaRemaining}/${this.quotaLimit} tokens`);
+      } else if (this.licenseStatus) {
         console.log(`${MODULE_ID} | License: ${this.licenseStatus.isValid ? 'Valid' : 'Invalid'} (${this.licenseStatus.tier})`);
       }
     }
@@ -1444,6 +1491,187 @@ export class SocketClient {
         requestId
       }));
     });
+  }
+
+  // ===== Patreon OAuth Methods (Hosted Mode) =====
+
+  /**
+   * Start Patreon OAuth flow.
+   * Opens a popup window to authenticate with Patreon.
+   * GM only in hosted mode.
+   *
+   * @returns {Promise<object>} Authentication result with user info and session token.
+   */
+  async startPatreonAuth() {
+    if (!isHostedMode()) {
+      throw new Error('Patreon authentication is only available in hosted mode');
+    }
+
+    if (!game.user.isGM) {
+      throw new Error('Only the GM can authenticate with Patreon');
+    }
+
+    const proxyUrl = getHostedProxyUrl();
+    const worldId = game.world.id;
+
+    // Generate a state parameter to prevent CSRF
+    const state = crypto.randomUUID();
+
+    // Store state for verification when callback returns
+    sessionStorage.setItem('loremaster_oauth_state', state);
+    sessionStorage.setItem('loremaster_oauth_world', worldId);
+
+    // Build OAuth URL with state
+    const authUrl = `${proxyUrl}/auth/patreon?state=${encodeURIComponent(state)}&world_id=${encodeURIComponent(worldId)}`;
+
+    return new Promise((resolve, reject) => {
+      // Open popup for OAuth
+      const popup = window.open(authUrl, 'Loremaster Patreon Auth', 'width=600,height=700');
+
+      if (!popup) {
+        reject(new Error('Could not open authentication popup. Please allow popups for this site.'));
+        return;
+      }
+
+      // Listen for message from popup
+      const messageHandler = async (event) => {
+        // Verify origin
+        if (event.origin !== proxyUrl) return;
+
+        const { type, success, sessionToken, user, error, state: returnedState } = event.data;
+
+        if (type !== 'loremaster_oauth_callback') return;
+
+        // Clean up
+        window.removeEventListener('message', messageHandler);
+        popup.close();
+
+        // Verify state
+        const expectedState = sessionStorage.getItem('loremaster_oauth_state');
+        sessionStorage.removeItem('loremaster_oauth_state');
+        sessionStorage.removeItem('loremaster_oauth_world');
+
+        if (returnedState !== expectedState) {
+          reject(new Error('OAuth state mismatch. Please try again.'));
+          return;
+        }
+
+        if (!success) {
+          reject(new Error(error || 'Authentication failed'));
+          return;
+        }
+
+        // Store session token and user info
+        await setSessionToken(sessionToken);
+        await setPatreonUser(user);
+
+        console.log(`${MODULE_ID} | Patreon authentication successful: ${user.displayName}`);
+
+        resolve({ success: true, user, sessionToken });
+      };
+
+      window.addEventListener('message', messageHandler);
+
+      // Check if popup was closed without completing auth
+      const checkClosed = setInterval(() => {
+        if (popup.closed) {
+          clearInterval(checkClosed);
+          window.removeEventListener('message', messageHandler);
+          sessionStorage.removeItem('loremaster_oauth_state');
+          sessionStorage.removeItem('loremaster_oauth_world');
+          reject(new Error('Authentication cancelled'));
+        }
+      }, 500);
+
+      // Timeout after 5 minutes
+      setTimeout(() => {
+        clearInterval(checkClosed);
+        if (!popup.closed) {
+          popup.close();
+        }
+        window.removeEventListener('message', messageHandler);
+        sessionStorage.removeItem('loremaster_oauth_state');
+        sessionStorage.removeItem('loremaster_oauth_world');
+        reject(new Error('Authentication timed out'));
+      }, 300000);
+    });
+  }
+
+  /**
+   * Log out from Patreon (hosted mode).
+   * Clears session token and disconnects.
+   *
+   * @returns {Promise<void>}
+   */
+  async logoutPatreon() {
+    if (!isHostedMode()) {
+      throw new Error('Patreon logout is only available in hosted mode');
+    }
+
+    // Clear stored credentials
+    await clearSessionToken();
+    await clearPatreonUser();
+
+    // Disconnect from server
+    this.disconnect();
+
+    console.log(`${MODULE_ID} | Logged out from Patreon`);
+  }
+
+  /**
+   * Check if user is authenticated with Patreon (hosted mode).
+   *
+   * @returns {boolean} True if user has a valid session token.
+   */
+  isPatreonAuthenticated() {
+    if (!isHostedMode()) return false;
+    return !!getSessionToken();
+  }
+
+  /**
+   * Get cached Patreon user info.
+   *
+   * @returns {Object|null} Patreon user object or null.
+   */
+  getPatreonUserInfo() {
+    return getPatreonUser();
+  }
+
+  // ===== Quota Methods (Hosted Mode) =====
+
+  /**
+   * Get current quota status for the authenticated user.
+   * Only available in hosted mode.
+   *
+   * @returns {Promise<object>} Quota status with used, remaining, limit, and tier.
+   */
+  async getQuotaStatus() {
+    if (!isHostedMode()) {
+      throw new Error('Quota tracking is only available in hosted mode');
+    }
+
+    this._requireAuth();
+    return this._sendRequest('get-quota-status', {});
+  }
+
+  /**
+   * Get current tier for the authenticated user.
+   *
+   * @returns {string|null} Current tier name or null if not in hosted mode.
+   */
+  getCurrentTier() {
+    if (!isHostedMode()) return null;
+    return this.tier || null;
+  }
+
+  /**
+   * Get remaining quota tokens.
+   *
+   * @returns {number|null} Remaining tokens or null if not in hosted mode.
+   */
+  getRemainingQuota() {
+    if (!isHostedMode()) return null;
+    return this.quotaRemaining || 0;
   }
 
   /**
