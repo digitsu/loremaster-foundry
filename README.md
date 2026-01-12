@@ -31,41 +31,46 @@ An AI-powered Game Master assistant for Foundry VTT. Loremaster uses Claude AI t
 ## Requirements
 
 - Foundry VTT v13 or later
-- Loremaster Proxy Server
-- Claude API key from Anthropic
+- **Hosted Mode**: Patreon subscription (no additional setup)
+- **Self-Hosted Mode**: Loremaster Proxy Server + Claude API key
 
-## Getting the Proxy Server
+## Choose Your Setup
 
-Choose the option that works best for you:
+### Option 1: Hosted Mode (Recommended)
+Let us handle the server infrastructure. Just subscribe and play.
 
-### Option 1: Self-Hosted (One-Time Purchase)
-Run your own Loremaster server with a one-time license purchase.
+**[Subscribe on Patreon](https://patreon.com/Burninator)** - Monthly subscription
+
+| Tier | Monthly Tokens | Best For |
+|------|---------------|----------|
+| **Basic** | 500,000 | Casual games, 1-2 sessions/month |
+| **Pro** | 2,000,000 | Regular campaigns, weekly sessions |
+| **Premium** | 10,000,000 | Heavy usage, multiple campaigns |
+
+### Option 2: Self-Hosted (One-Time Purchase)
+Run your own Loremaster server with full control.
 
 **[Purchase & Download on Gumroad](https://burninator.gumroad.com/l/glzbu)** - $25 one-time
 
-- Download the server package directly from Gumroad after purchase
 - You host the server on your own machine or VPS
 - You pay Anthropic directly for Claude API usage
 - Full control over your data and infrastructure
 
-### Option 2: Fully Hosted (Subscription)
-Let us handle the server infrastructure for you.
-
-**[Subscribe on Patreon](https://patreon.com/Burninator)** - Monthly subscription
-
-- No server setup required
-- Managed infrastructure with automatic updates
-- Priority support and early access to new features
-
 ## Installation
 
-### Method 1: Manual Installation
+### The Forge Users
+1. Go to your Forge game configuration
+2. Click "Install Module" and search for "Loremaster"
+3. Install and enable the module in your world
+
+### Self-Hosted Foundry
+**Method 1: Manual Installation**
 1. Download the latest release
 2. Extract to `Data/modules/loremaster` in your Foundry user data folder
 3. Restart Foundry VTT
 4. Enable the module in your world
 
-### Method 2: Manifest URL
+**Method 2: Manifest URL**
 1. In Foundry, go to Add-on Modules
 2. Click "Install Module"
 3. Paste the manifest URL in the bottom field
@@ -73,17 +78,39 @@ Let us handle the server infrastructure for you.
 
 ## Configuration
 
-### 1. Set Up the Proxy Server
-The Loremaster proxy server handles communication with Claude AI. Purchase and download from [Gumroad](https://burninator.gumroad.com/l/glzbu) - setup instructions are included in the download. Or subscribe to our [hosted solution on Patreon](https://patreon.com/Burninator).
+### Hosted Mode Setup (Patreon)
 
-### 2. Configure Module Settings
-In Foundry, go to **Settings > Module Settings > Loremaster**:
+1. **Subscribe** to [Loremaster on Patreon](https://patreon.com/Burninator)
+2. **Enable the module** in your Foundry world
+3. **Open Module Settings** (Settings > Module Settings > Loremaster)
+4. **Set Server Mode** to "Hosted (Patreon)"
+5. **Enable Loremaster** and save settings
+6. **Connect with Patreon**: A popup will appear asking you to authenticate
+7. **Authorize**: Log in to Patreon and grant Loremaster access
+8. **Done!** The module will automatically connect using your subscription
+
+Your session stays connected until you log out. Quota resets monthly on your billing date.
+
+### Self-Hosted Setup
+
+1. **Download and run** the proxy server from [Gumroad](https://burninator.gumroad.com/l/glzbu) (setup instructions included)
+2. **Enable the module** in your Foundry world
+3. **Open Module Settings** (Settings > Module Settings > Loremaster)
+4. **Set Server Mode** to "Self-Hosted"
+5. **Enter your Proxy URL** (e.g., `http://localhost:3001`)
+6. **Enter your Claude API Key** from [Anthropic](https://console.anthropic.com/)
+7. **Enter your License Key** (provided with Gumroad purchase)
+8. **Enable Loremaster** and save settings
+
+### Module Settings Reference
 
 | Setting | Description |
 |---------|-------------|
 | **Enable Loremaster** | Turn the module on/off |
-| **Proxy URL** | URL of your proxy server (e.g., `http://localhost:3001`) |
-| **Claude API Key** | Your Anthropic API key |
+| **Server Mode** | Hosted (Patreon) or Self-Hosted |
+| **Proxy URL** | Server URL (auto-set for hosted, configure for self-hosted) |
+| **Claude API Key** | Your Anthropic API key (self-hosted only) |
+| **License Key** | Your Gumroad license (self-hosted only) |
 | **Chat Trigger Prefix** | Prefix to activate Loremaster (default: `@lm`) |
 | **Response Visibility** | Who sees AI responses |
 | **Batching Mode** | Timer or Manual message batching |
