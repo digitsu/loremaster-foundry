@@ -7,6 +7,12 @@
 const MODULE_ID = 'loremaster';
 
 /**
+ * Hosted mode proxy URL.
+ * Users connect to this URL when using hosted mode.
+ */
+const HOSTED_PROXY_URL = 'https://api.loremastervtt.com';
+
+/**
  * Register all module settings.
  * Called during module initialization.
  */
@@ -22,17 +28,38 @@ export function registerSettings() {
     requiresReload: true
   });
 
-  // Proxy server URL
+  // Server Mode setting - determines hosted vs self-hosted
+  game.settings.register(MODULE_ID, 'serverMode', {
+    name: 'Server Mode',
+    hint: 'Hosted: Use Loremaster cloud service with Patreon subscription. Self-Hosted: Run your own proxy server with your own API key.',
+    scope: 'world',
+    config: true,
+    type: String,
+    choices: {
+      'hosted': 'Hosted (Patreon)',
+      'self-hosted': 'Self-Hosted'
+    },
+    default: 'hosted',
+    requiresReload: true,
+    onChange: (value) => {
+      // Auto-set proxy URL when switching to hosted mode
+      if (value === 'hosted') {
+        game.settings.set(MODULE_ID, 'proxyUrl', HOSTED_PROXY_URL);
+      }
+    }
+  });
+
+  // Proxy server URL (only shown in self-hosted mode)
   game.settings.register(MODULE_ID, 'proxyUrl', {
     name: 'Proxy Server URL',
     hint: 'URL of the Loremaster proxy server (e.g., http://localhost:3001).',
     scope: 'world',
     config: true,
     type: String,
-    default: 'http://localhost:3001'
+    default: HOSTED_PROXY_URL
   });
 
-  // API Key setting (stored securely, sent to proxy on first connection)
+  // API Key setting (only for self-hosted mode)
   game.settings.register(MODULE_ID, 'apiKey', {
     name: 'Claude API Key',
     hint: 'Your Anthropic API key for Claude. This is sent to the proxy server and stored encrypted.',
@@ -42,7 +69,7 @@ export function registerSettings() {
     default: ''
   });
 
-  // License Key setting (for self-hosted proxy servers)
+  // License Key setting (only for self-hosted mode)
   game.settings.register(MODULE_ID, 'licenseKey', {
     name: 'License Key',
     hint: 'Loremaster proxy license key (format: LM-XXXX-XXXX-XXXX-XXXX). Required for production servers.',
@@ -50,6 +77,22 @@ export function registerSettings() {
     config: true,
     type: String,
     default: ''
+  });
+
+  // Session Token (hidden - used internally for hosted mode authentication)
+  game.settings.register(MODULE_ID, 'sessionToken', {
+    scope: 'world',
+    config: false,
+    type: String,
+    default: ''
+  });
+
+  // Patreon User Info (hidden - cached from OAuth)
+  game.settings.register(MODULE_ID, 'patreonUser', {
+    scope: 'world',
+    config: false,
+    type: Object,
+    default: null
   });
 
   // Chat trigger prefix
@@ -217,4 +260,87 @@ export function getSetting(key) {
  */
 export function setSetting(key, value) {
   return game.settings.set(MODULE_ID, key, value);
+}
+
+/**
+ * Check if the module is in hosted mode.
+ *
+ * @returns {boolean} True if using hosted mode.
+ */
+export function isHostedMode() {
+  return getSetting('serverMode') === 'hosted';
+}
+
+/**
+ * Check if the module is in self-hosted mode.
+ *
+ * @returns {boolean} True if using self-hosted mode.
+ */
+export function isSelfHostedMode() {
+  return getSetting('serverMode') === 'self-hosted';
+}
+
+/**
+ * Get the session token for hosted mode.
+ *
+ * @returns {string|null} Session token or null if not set.
+ */
+export function getSessionToken() {
+  return getSetting('sessionToken') || null;
+}
+
+/**
+ * Set the session token for hosted mode.
+ *
+ * @param {string} token - The session token.
+ * @returns {Promise} Promise that resolves when token is saved.
+ */
+export function setSessionToken(token) {
+  return setSetting('sessionToken', token);
+}
+
+/**
+ * Clear the session token (logout).
+ *
+ * @returns {Promise} Promise that resolves when token is cleared.
+ */
+export function clearSessionToken() {
+  return setSetting('sessionToken', '');
+}
+
+/**
+ * Get cached Patreon user info.
+ *
+ * @returns {Object|null} Patreon user object or null.
+ */
+export function getPatreonUser() {
+  return getSetting('patreonUser');
+}
+
+/**
+ * Set cached Patreon user info.
+ *
+ * @param {Object} user - Patreon user info.
+ * @returns {Promise} Promise that resolves when user is saved.
+ */
+export function setPatreonUser(user) {
+  return setSetting('patreonUser', user);
+}
+
+/**
+ * Clear Patreon user info (logout).
+ *
+ * @returns {Promise} Promise that resolves when user is cleared.
+ */
+export function clearPatreonUser() {
+  return setSetting('patreonUser', null);
+}
+
+/**
+ * Get the hosted proxy URL constant.
+ *
+ * @returns {string} The hosted proxy URL.
+ */
+export function getHostedProxyUrl() {
+  return 'https://api.loremastervtt.com';
 }
