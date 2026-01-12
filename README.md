@@ -41,8 +41,9 @@ Choose the option that works best for you:
 ### Option 1: Self-Hosted (One-Time Purchase)
 Run your own Loremaster server with a one-time license purchase.
 
-**[Purchase on Gumroad](https://burninator.gumroad.com/l/glzbu)** - $25 one-time
+**[Purchase & Download on Gumroad](https://burninator.gumroad.com/l/glzbu)** - $25 one-time
 
+- Download the server package directly from Gumroad after purchase
 - You host the server on your own machine or VPS
 - You pay Anthropic directly for Claude API usage
 - Full control over your data and infrastructure
@@ -73,7 +74,7 @@ Let us handle the server infrastructure for you.
 ## Configuration
 
 ### 1. Set Up the Proxy Server
-The Loremaster proxy server handles communication with Claude AI. See the [self-hosted server documentation](https://github.com/digitsu/loremaster-server) for setup instructions, or subscribe to our [hosted solution on Patreon](https://patreon.com/Burninator).
+The Loremaster proxy server handles communication with Claude AI. Purchase and download from [Gumroad](https://burninator.gumroad.com/l/glzbu) - setup instructions are included in the download. Or subscribe to our [hosted solution on Patreon](https://patreon.com/Burninator).
 
 ### 2. Configure Module Settings
 In Foundry, go to **Settings > Module Settings > Loremaster**:
