@@ -35,15 +35,19 @@ jobs:
           rm -rf TODO.md
           rm -rf docs/
 
+          # Remove macOS metadata files
+          find . -name ".DS_Store" -type f -delete
+
           # Remove this workflow from public repo (keeps public repo clean)
           # But keep release.yml for building releases
           rm -rf .github/workflows/publish-public.yml
 
-          echo "Removed private files:"
+          echo "Removed private/system files:"
           echo "  - CLAUDE.md"
           echo "  - .claude/"
           echo "  - TODO.md"
           echo "  - docs/"
+          echo "  - .DS_Store (all)"
           echo "  - .github/workflows/publish-public.yml"
           echo ""
           echo "Kept in public repo:"
