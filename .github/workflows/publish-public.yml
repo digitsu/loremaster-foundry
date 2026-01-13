@@ -35,7 +35,8 @@ jobs:
           rm -rf TODO.md
           rm -rf docs/
 
-          # Remove this workflow from public repo (optional - keeps public repo clean)
+          # Remove this workflow from public repo (keeps public repo clean)
+          # But keep release.yml for building releases
           rm -rf .github/workflows/publish-public.yml
 
           echo "Removed private files:"
@@ -43,6 +44,10 @@ jobs:
           echo "  - .claude/"
           echo "  - TODO.md"
           echo "  - docs/"
+          echo "  - .github/workflows/publish-public.yml"
+          echo ""
+          echo "Kept in public repo:"
+          echo "  - .github/workflows/release.yml"
 
       - name: Configure git
         run: |
