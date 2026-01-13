@@ -62,7 +62,9 @@ jobs:
 
       - name: Create module.zip
         run: |
-          # Create zip with only the necessary files
+          # Create zip with only the necessary module files
+          # This should match what ends up in the public loremaster-foundry repo
+          # Excludes: CLAUDE.md, .claude/, TODO.md, docs/, .DS_Store, .git/, .github/
           zip -r module.zip \
             module.json \
             scripts/ \
@@ -72,8 +74,14 @@ jobs:
             README.md \
             LICENSE.md \
             -x "*.DS_Store" \
+            -x "*/.DS_Store" \
             -x "*/__pycache__/*" \
-            -x "*.pyc"
+            -x "*.pyc" \
+            -x "*.git*" \
+            -x "CLAUDE.md" \
+            -x ".claude/*" \
+            -x "TODO.md" \
+            -x "docs/*"
 
           echo "Created module.zip contents:"
           unzip -l module.zip
