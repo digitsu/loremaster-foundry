@@ -39,7 +39,7 @@ An AI-powered Game Master assistant for Foundry VTT. Loremaster uses Claude AI t
 ### Option 1: Hosted Mode (Recommended)
 Let us handle the server infrastructure. Just subscribe and play.
 
-**[Subscribe on Patreon](https://patreon.com/Burninator)** - Monthly subscription
+**[Subscribe on Patreon](https://patreon.com/loremastervtt)** - Monthly subscription
 
 | Tier | Monthly Tokens | Best For |
 |------|---------------|----------|
@@ -80,7 +80,7 @@ Run your own Loremaster server with full control.
 
 ### Hosted Mode Setup (Patreon)
 
-1. **Subscribe** to [Loremaster on Patreon](https://patreon.com/Burninator)
+1. **Subscribe** to [Loremaster on Patreon](https://patreon.com/loremastervtt)
 2. **Enable the module** in your Foundry world
 3. **Open Module Settings** (Settings > Module Settings > Loremaster)
 4. **Set Server Mode** to "Hosted (Patreon)"
