@@ -96,6 +96,40 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
+      - name: Notify Foundry Package Registry
+        if: ${{ secrets.FOUNDRY_PACKAGE_RELEASE_TOKEN }}
+        run: |
+          # Notify Foundry of the new release
+          RESPONSE=$(curl -s -w "\n%{http_code}" -X POST \
+            "https://api.foundryvtt.com/_api/packages/release_version/" \
+            -H "Content-Type: application/json" \
+            -H "Authorization: ${{ secrets.FOUNDRY_PACKAGE_RELEASE_TOKEN }}" \
+            -d '{
+              "id": "loremaster",
+              "dry-run": false,
+              "release": {
+                "version": "${{ steps.version.outputs.version }}",
+                "manifest": "https://github.com/${{ github.repository }}/releases/download/${{ steps.version.outputs.tag }}/module.json",
+                "notes": "https://github.com/${{ github.repository }}/releases/tag/${{ steps.version.outputs.tag }}",
+                "compatibility": {
+                  "minimum": "12",
+                  "verified": "13"
+                }
+              }
+            }')
+
+          HTTP_CODE=$(echo "$RESPONSE" | tail -n1)
+          BODY=$(echo "$RESPONSE" | sed '$d')
+
+          if [ "$HTTP_CODE" -ge 200 ] && [ "$HTTP_CODE" -lt 300 ]; then
+            echo "✅ Successfully notified Foundry Package Registry"
+            echo "$BODY"
+          else
+            echo "⚠️ Failed to notify Foundry (HTTP $HTTP_CODE)"
+            echo "$BODY"
+            # Don't fail the workflow, just warn
+          fi
+
       - name: Summary
         run: |
           echo "## Release Build Complete" >> $GITHUB_STEP_SUMMARY
@@ -111,3 +145,6 @@ jobs:
           echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
           echo "https://github.com/${{ github.repository }}/releases/latest/download/module.json" >> $GITHUB_STEP_SUMMARY
           echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### Foundry Package Registry" >> $GITHUB_STEP_SUMMARY
+          echo "Notified Foundry of new version (if token configured)" >> $GITHUB_STEP_SUMMARY
