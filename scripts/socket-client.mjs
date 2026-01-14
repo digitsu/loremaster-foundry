@@ -1436,6 +1436,147 @@ export class SocketClient {
     return this._sendRequest('delete-campaign-progress', { moduleId });
   }
 
+  // ===== Backup & Migration Methods =====
+
+  /**
+   * Get preview of data available for backup.
+   * GM only operation.
+   *
+   * @returns {Promise<object>} Preview with counts of each data type.
+   */
+  async getBackupPreview() {
+    this._requireAuth();
+
+    if (!this.isGM) {
+      throw new Error('Backup requires GM permissions');
+    }
+
+    return this._sendRequest('get-backup-preview', {});
+  }
+
+  /**
+   * Create and download a world state backup.
+   * GM only operation.
+   *
+   * @param {string} backupName - Optional name for the backup.
+   * @param {Function} onProgress - Progress callback: (stage, percent, message) => void.
+   * @returns {Promise<object>} Backup data and statistics.
+   */
+  async createBackup(backupName = null, onProgress = null) {
+    this._requireAuth();
+
+    if (!this.isGM) {
+      throw new Error('Backup requires GM permissions');
+    }
+
+    const requestId = `backup_${++this.requestIdCounter}`;
+
+    // Store progress callback if provided
+    if (onProgress) {
+      this.progressCallbacks.set(requestId, onProgress);
+    }
+
+    return new Promise((resolve, reject) => {
+      // Set up timeout (2 minutes for backup creation)
+      const timeout = 120000;
+      const timeoutId = setTimeout(() => {
+        this.pendingRequests.delete(requestId);
+        this.progressCallbacks.delete(requestId);
+        reject(new Error('Backup creation timeout'));
+      }, timeout);
+
+      this.pendingRequests.set(requestId, {
+        resolve: (data) => {
+          clearTimeout(timeoutId);
+          this.progressCallbacks.delete(requestId);
+          resolve(data);
+        },
+        reject: (error) => {
+          clearTimeout(timeoutId);
+          this.progressCallbacks.delete(requestId);
+          reject(error);
+        }
+      });
+
+      this.ws.send(JSON.stringify({
+        type: 'create-backup',
+        requestId,
+        backupName
+      }));
+    });
+  }
+
+  /**
+   * Validate a backup file before import.
+   * GM only operation.
+   *
+   * @param {object} backup - The parsed backup JSON.
+   * @returns {Promise<object>} Validation result with valid flag and errors.
+   */
+  async validateBackup(backup) {
+    this._requireAuth();
+
+    if (!this.isGM) {
+      throw new Error('Backup validation requires GM permissions');
+    }
+
+    return this._sendRequest('validate-backup', { backup });
+  }
+
+  /**
+   * Import a world state backup.
+   * GM only operation.
+   *
+   * @param {object} backup - The backup data to import.
+   * @param {object} options - Import options (overwrite, merge).
+   * @param {Function} onProgress - Progress callback: (stage, percent, message) => void.
+   * @returns {Promise<object>} Import result with counts.
+   */
+  async importBackup(backup, options = {}, onProgress = null) {
+    this._requireAuth();
+
+    if (!this.isGM) {
+      throw new Error('Backup import requires GM permissions');
+    }
+
+    const requestId = `import_${++this.requestIdCounter}`;
+
+    // Store progress callback if provided
+    if (onProgress) {
+      this.progressCallbacks.set(requestId, onProgress);
+    }
+
+    return new Promise((resolve, reject) => {
+      // Set up timeout (2 minutes for import)
+      const timeout = 120000;
+      const timeoutId = setTimeout(() => {
+        this.pendingRequests.delete(requestId);
+        this.progressCallbacks.delete(requestId);
+        reject(new Error('Backup import timeout'));
+      }, timeout);
+
+      this.pendingRequests.set(requestId, {
+        resolve: (data) => {
+          clearTimeout(timeoutId);
+          this.progressCallbacks.delete(requestId);
+          resolve(data);
+        },
+        reject: (error) => {
+          clearTimeout(timeoutId);
+          this.progressCallbacks.delete(requestId);
+          reject(error);
+        }
+      });
+
+      this.ws.send(JSON.stringify({
+        type: 'import-backup',
+        requestId,
+        backup,
+        options
+      }));
+    });
+  }
+
   // ===== Embedding Methods =====
 
   /**
@@ -1800,6 +1941,18 @@ export class SocketClient {
         return;
       }
 
+      // Handle backup progress updates
+      if (message.type === 'backup-progress') {
+        this._handleBackupProgress(message);
+        return;
+      }
+
+      // Handle import progress updates
+      if (message.type === 'import-progress') {
+        this._handleImportProgress(message);
+        return;
+      }
+
       // Handle response to pending request
       const { requestId, success, data: responseData, error } = message;
 
@@ -1917,6 +2070,70 @@ export class SocketClient {
             callback(stage, progress, progressMessage);
           } catch (error) {
             console.error(`${MODULE_ID} | Error in module import progress callback:`, error);
+          }
+          break;
+        }
+      }
+    }
+  }
+
+  /**
+   * Handle backup progress message.
+   *
+   * @param {object} message - Progress message with requestId, stage, progress, message.
+   * @private
+   */
+  _handleBackupProgress(message) {
+    const { requestId, stage, progress, message: progressMessage } = message;
+
+    // Use requestId if available
+    if (requestId && this.progressCallbacks.has(requestId)) {
+      const callback = this.progressCallbacks.get(requestId);
+      try {
+        callback(stage, progress, progressMessage);
+      } catch (error) {
+        console.error(`${MODULE_ID} | Error in backup progress callback:`, error);
+      }
+    } else {
+      // Fallback: find any pending backup callback
+      for (const [reqId, callback] of this.progressCallbacks) {
+        if (reqId.startsWith('backup_')) {
+          try {
+            callback(stage, progress, progressMessage);
+          } catch (error) {
+            console.error(`${MODULE_ID} | Error in backup progress callback:`, error);
+          }
+          break;
+        }
+      }
+    }
+  }
+
+  /**
+   * Handle import progress message.
+   *
+   * @param {object} message - Progress message with requestId, stage, progress, message.
+   * @private
+   */
+  _handleImportProgress(message) {
+    const { requestId, stage, progress, message: progressMessage } = message;
+
+    // Use requestId if available
+    if (requestId && this.progressCallbacks.has(requestId)) {
+      const callback = this.progressCallbacks.get(requestId);
+      try {
+        callback(stage, progress, progressMessage);
+      } catch (error) {
+        console.error(`${MODULE_ID} | Error in import progress callback:`, error);
+      }
+    } else {
+      // Fallback: find any pending import callback
+      for (const [reqId, callback] of this.progressCallbacks) {
+        if (reqId.startsWith('import_')) {
+          try {
+            callback(stage, progress, progressMessage);
+          } catch (error) {
+            console.error(`${MODULE_ID} | Error in import progress callback:`, error);
           }
           break;
         }

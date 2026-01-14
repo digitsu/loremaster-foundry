@@ -69,6 +69,9 @@
       <a class="item" data-tab="history">
         <i class="fas fa-history"></i> {{localize "LOREMASTER.History.TabLabel"}}
       </a>
+      <a class="item" data-tab="backup">
+        <i class="fas fa-box-archive"></i> {{localize "LOREMASTER.Backup.TabLabel"}}
+      </a>
     {{/if}}
   </nav>
 
@@ -684,6 +687,158 @@
         <div class="permission-notice">
           <i class="fas fa-lock"></i>
           <p>{{localize "LOREMASTER.History.GMOnly"}}</p>
+        </div>
+      {{/if}}
+    </div>
+
+    {{!-- Backup Tab (GM Only) --}}
+    <div class="tab backup-tab" data-tab="backup">
+      {{#if isGM}}
+        <div class="backup-panel">
+          {{!-- Export Section --}}
+          <section class="backup-section export-section">
+            <h3><i class="fas fa-download"></i> {{localize "LOREMASTER.Backup.ExportTitle"}}</h3>
+            <p class="section-description">
+              {{localize "LOREMASTER.Backup.ExportDescription"}}
+            </p>
+
+            {{#if backupPreview}}
+              <div class="backup-preview">
+                <h4>{{localize "LOREMASTER.Backup.DataToExport"}}</h4>
+                <ul class="preview-list">
+                  <li><i class="fas fa-scroll"></i> {{backupPreview.canonCount}} {{localize "LOREMASTER.Backup.CanonEntries"}}</li>
+                  <li><i class="fas fa-gavel"></i> {{backupPreview.houseRulesCount}} {{localize "LOREMASTER.Backup.HouseRules"}}</li>
+                  <li><i class="fas fa-book"></i> {{backupPreview.scriptsCount}} {{localize "LOREMASTER.Backup.GMPrepScripts"}}</li>
+                  <li><i class="fas fa-users"></i> {{backupPreview.characterCount}} {{localize "LOREMASTER.Backup.CharacterAssignments"}}</li>
+                  <li><i class="fas fa-flag-checkered"></i> {{backupPreview.progressCount}} {{localize "LOREMASTER.Backup.CampaignProgress"}}</li>
+                  <li><i class="fas fa-comments"></i> {{backupPreview.summaryCount}} {{localize "LOREMASTER.Backup.ConversationSummaries"}}</li>
+                </ul>
+                <p class="preview-note">
+                  <i class="fas fa-info-circle"></i>
+                  {{localize "LOREMASTER.Backup.NotIncludedNote"}}
+                </p>
+              </div>
+            {{else}}
+              <div class="loading-state">
+                <i class="fas fa-spinner fa-spin"></i>
+                <p>{{localize "LOREMASTER.Backup.LoadingPreview"}}</p>
+              </div>
+            {{/if}}
+
+            <div class="backup-controls">
+              <input type="text" class="backup-name-input"
+                     placeholder="{{localize 'LOREMASTER.Backup.NamePlaceholder'}}"
+                     value="{{worldName}} Backup - {{currentDate}}">
+              <button class="create-backup-btn" {{#if isBackingUp}}disabled{{/if}}>
+                <i class="fas fa-download"></i>
+                {{#if isBackingUp}}
+                  {{localize "LOREMASTER.Backup.Creating"}}
+                {{else}}
+                  {{localize "LOREMASTER.Backup.CreateDownload"}}
+                {{/if}}
+              </button>
+              <button type="button" class="refresh-backup-btn" title="{{localize 'LOREMASTER.Backup.RefreshPreview'}}">
+                <i class="fas fa-sync-alt"></i>
+              </button>
+            </div>
+
+            {{#if isBackingUp}}
+              <div class="progress-container backup-progress">
+                <div class="progress-bar backup-progress-bar" style="width: {{backupProgress.progress}}%"></div>
+                <span class="progress-text backup-progress-text">{{backupProgress.message}}</span>
+              </div>
+            {{/if}}
+          </section>
+
+          {{!-- Import Section --}}
+          <section class="backup-section import-section">
+            <h3><i class="fas fa-upload"></i> {{localize "LOREMASTER.Backup.ImportTitle"}}</h3>
+            <p class="section-description">
+              {{localize "LOREMASTER.Backup.ImportDescription"}}
+            </p>
+
+            {{#unless pendingImport}}
+              <div class="import-controls">
+                <div class="file-drop-zone" id="backup-drop-zone">
+                  <i class="fas fa-file-import"></i>
+                  <p>{{localize "LOREMASTER.Backup.DropZoneText"}}</p>
+                  <input type="file" class="backup-file-input" accept=".json" style="display: none;">
+                </div>
+              </div>
+            {{/unless}}
+
+            {{#if pendingImport}}
+              <div class="import-preview">
+                <h4>{{localize "LOREMASTER.Backup.BackupContents"}}</h4>
+                <div class="import-meta">
+                  <p><strong>{{localize "LOREMASTER.Backup.World"}}:</strong> {{pendingImport.worldName}}</p>
+                  <p><strong>{{localize "LOREMASTER.Backup.System"}}:</strong> {{pendingImport.systemTitle}}</p>
+                  <p><strong>{{localize "LOREMASTER.Backup.Exported"}}:</strong> {{pendingImport.exportedAt}}</p>
+                </div>
+                <ul class="preview-list">
+                  <li>{{pendingImport.canon.length}} {{localize "LOREMASTER.Backup.CanonEntries"}}</li>
+                  <li>{{pendingImport.houseRules.length}} {{localize "LOREMASTER.Backup.HouseRules"}}</li>
+                  <li>{{pendingImport.gmPrepScripts.length}} {{localize "LOREMASTER.Backup.GMPrepScripts"}}</li>
+                  {{#if pendingImport.conversationSummaries}}
+                    <li>{{pendingImport.conversationSummaries.length}} {{localize "LOREMASTER.Backup.ConversationSummaries"}}</li>
+                  {{/if}}
+                </ul>
+
+                <div class="import-options">
+                  <label>
+                    <input type="checkbox" name="overwrite" checked>
+                    {{localize "LOREMASTER.Backup.OverwriteExisting"}}
+                  </label>
+                  <label>
+                    <input type="checkbox" name="merge">
+                    {{localize "LOREMASTER.Backup.MergeWithExisting"}}
+                  </label>
+                </div>
+
+                <div class="import-actions">
+                  <button class="cancel-import-btn">
+                    <i class="fas fa-times"></i> {{localize "LOREMASTER.Backup.Cancel"}}
+                  </button>
+                  <button class="confirm-import-btn" {{#if isImportingBackup}}disabled{{/if}}>
+                    <i class="fas fa-check"></i> {{localize "LOREMASTER.Backup.ImportBackup"}}
+                  </button>
+                </div>
+              </div>
+            {{/if}}
+
+            {{#if isImportingBackup}}
+              <div class="progress-container import-progress">
+                <div class="progress-bar import-progress-bar" style="width: {{importProgress.progress}}%"></div>
+                <span class="progress-text import-progress-text">{{importProgress.message}}</span>
+              </div>
+            {{/if}}
+          </section>
+
+          {{!-- Info Section --}}
+          <section class="backup-section info-section">
+            <h3><i class="fas fa-info-circle"></i> {{localize "LOREMASTER.Backup.WhatsIncluded"}}</h3>
+            <div class="info-grid">
+              <div class="info-item included">
+                <i class="fas fa-check-circle"></i>
+                <div>
+                  <strong>{{localize "LOREMASTER.Backup.Included"}}:</strong>
+                  {{localize "LOREMASTER.Backup.IncludedList"}}
+                </div>
+              </div>
+              <div class="info-item not-included">
+                <i class="fas fa-times-circle"></i>
+                <div>
+                  <strong>{{localize "LOREMASTER.Backup.NotIncluded"}}:</strong>
+                  {{localize "LOREMASTER.Backup.NotIncludedList"}}
+                </div>
+              </div>
+            </div>
+          </section>
+        </div>
+      {{else}}
+        <div class="permission-notice">
+          <i class="fas fa-lock"></i>
+          <p>{{localize "LOREMASTER.Backup.GMOnly"}}</p>
         </div>
       {{/if}}
     </div>
