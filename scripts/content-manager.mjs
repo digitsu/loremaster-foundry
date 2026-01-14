@@ -89,6 +89,13 @@ export class ContentManager extends Application {
     this.foundryModulesAvailable = false;
     this.isImportingModule = false;
     this.moduleImportProgress = { progress: 0, message: '' };
+    // Backup tab data
+    this.backupPreview = null;
+    this.isBackingUp = false;
+    this.backupProgress = { stage: '', progress: 0, message: '' };
+    this.pendingImport = null;
+    this.isImportingBackup = false;
+    this.importProgress = { stage: '', progress: 0, message: '' };
   }
 
   /**
@@ -154,7 +161,16 @@ export class ContentManager extends Application {
       foundryModules: this.foundryModules,
       foundryModulesAvailable: this.foundryModulesAvailable,
       isImportingModule: this.isImportingModule,
-      moduleImportProgress: this.moduleImportProgress
+      moduleImportProgress: this.moduleImportProgress,
+      // Backup tab data
+      backupPreview: this.backupPreview,
+      isBackingUp: this.isBackingUp,
+      backupProgress: this.backupProgress,
+      pendingImport: this.pendingImport,
+      isImportingBackup: this.isImportingBackup,
+      importProgress: this.importProgress,
+      worldName: game.world?.title || 'World',
+      currentDate: new Date().toISOString().split('T')[0]
     };
   }
 
@@ -255,6 +271,29 @@ export class ContentManager extends Application {
 
     // Refresh modules list
     html.find('.refresh-modules-btn').on('click', this._onRefreshModules.bind(this));
+
+    // ===== Backup Tab =====
+    // Create backup button
+    html.find('.create-backup-btn').on('click', this._onCreateBackup.bind(this));
+
+    // Backup file drop zone
+    const backupDropZone = html.find('#backup-drop-zone')[0];
+    if (backupDropZone) {
+      backupDropZone.addEventListener('dragover', this._onBackupDragOver.bind(this));
+      backupDropZone.addEventListener('dragleave', this._onBackupDragLeave.bind(this));
+      backupDropZone.addEventListener('drop', this._onBackupDrop.bind(this));
+    }
+
+    // Backup file input
+    html.find('.backup-file-input').on('change', this._onBackupFileSelect.bind(this));
+    html.find('#backup-drop-zone').on('click', () => html.find('.backup-file-input').trigger('click'));
+
+    // Import backup buttons
+    html.find('.confirm-import-btn').on('click', this._onConfirmImport.bind(this));
+    html.find('.cancel-import-btn').on('click', this._onCancelImport.bind(this));
+
+    // Refresh backup preview
+    html.find('.refresh-backup-btn').on('click', this._onRefreshBackup.bind(this));
   }
 
   /**
@@ -270,12 +309,13 @@ export class ContentManager extends Application {
     if (!this._loaded) {
       this._loaded = true;
       await this._loadPDFs();
-      // Load adventure data, cast, history, and Foundry modules for GMs
+      // Load adventure data, cast, history, Foundry modules, and backup data for GMs
       if (game.user.isGM) {
         await this._loadAdventureData();
         await this._loadCastData();
         await this._loadHistoryData();
         await this._loadFoundryModules();
+        await this._loadBackupData();
       }
     }
   }
@@ -2060,5 +2100,285 @@ export class ContentManager extends Application {
     const html = $(this.element);
     html.find('.import-module-btn').prop('disabled', importing);
     html.find('.module-import-progress').toggleClass('hidden', !importing);
+  }
+
+  // ========================================
+  // Backup Tab Methods
+  // ========================================
+
+  /**
+   * Load backup preview data from the server.
+   * Fetches counts of exportable data for the current world.
+   *
+   * @private
+   */
+  async _loadBackupData() {
+    if (!game.user.isGM) return;
+
+    try {
+      this.backupPreview = await this.socketClient.getBackupPreview();
+      this.render();
+    } catch (error) {
+      console.error(`${MODULE_ID} | Failed to load backup preview:`, error);
+      this.backupPreview = null;
+    }
+  }
+
+  /**
+   * Handle create backup button click.
+   * Creates a world state backup and downloads it as a JSON file.
+   *
+   * @param {Event} event - The click event.
+   * @private
+   */
+  async _onCreateBackup(event) {
+    event.preventDefault();
+
+    if (this.isBackingUp) return;
+
+    const nameInput = this.element.find('.backup-name-input');
+    const backupName = nameInput.val() || `${game.world?.title || 'World'} Backup`;
+
+    this.isBackingUp = true;
+    this.backupProgress = { stage: 'starting', progress: 0, message: 'Gathering world data...' };
+    this.render();
+
+    try {
+      const result = await this.socketClient.createBackup(backupName, (stage, progress, message) => {
+        this.backupProgress = { stage, progress, message };
+        this._updateBackupProgressUI();
+      });
+
+      // Download the backup file
+      this._downloadBackup(result.backup, backupName);
+
+      ui.notifications.info(game.i18n.localize('LOREMASTER.Backup.CreateSuccess'));
+    } catch (error) {
+      console.error(`${MODULE_ID} | Backup creation failed:`, error);
+      ui.notifications.error(game.i18n.format('LOREMASTER.Backup.CreateError', {
+        error: error.message
+      }));
+    } finally {
+      this.isBackingUp = false;
+      this.backupProgress = { stage: '', progress: 0, message: '' };
+      this.render();
+    }
+  }
+
+  /**
+   * Download backup data as a JSON file.
+   *
+   * @param {object} backup - The backup data object.
+   * @param {string} name - The backup name for the filename.
+   * @private
+   */
+  _downloadBackup(backup, name) {
+    const blob = new Blob([JSON.stringify(backup, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    // Sanitize filename: replace non-alphanumeric chars with underscores
+    a.download = `${name.replace(/[^a-z0-9]/gi, '_')}.json`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  }
+
+  /**
+   * Handle backup drop zone dragover event.
+   *
+   * @param {DragEvent} event - The dragover event.
+   * @private
+   */
+  _onBackupDragOver(event) {
+    event.preventDefault();
+    event.stopPropagation();
+    event.currentTarget.classList.add('dragover');
+  }
+
+  /**
+   * Handle backup drop zone dragleave event.
+   *
+   * @param {DragEvent} event - The dragleave event.
+   * @private
+   */
+  _onBackupDragLeave(event) {
+    event.preventDefault();
+    event.stopPropagation();
+    event.currentTarget.classList.remove('dragover');
+  }
+
+  /**
+   * Handle backup file drop event.
+   *
+   * @param {DragEvent} event - The drop event.
+   * @private
+   */
+  async _onBackupDrop(event) {
+    event.preventDefault();
+    event.stopPropagation();
+    event.currentTarget.classList.remove('dragover');
+
+    const file = event.dataTransfer?.files?.[0];
+    if (file) {
+      await this._processBackupFile(file);
+    }
+  }
+
+  /**
+   * Handle backup file input selection.
+   *
+   * @param {Event} event - The change event.
+   * @private
+   */
+  async _onBackupFileSelect(event) {
+    const file = event.target.files?.[0];
+    if (file) {
+      await this._processBackupFile(file);
+    }
+    // Reset the input so the same file can be selected again
+    event.target.value = '';
+  }
+
+  /**
+   * Process a selected backup file for import.
+   * Parses and validates the JSON, then shows import preview.
+   *
+   * @param {File} file - The backup file to process.
+   * @private
+   */
+  async _processBackupFile(file) {
+    if (!file.name.endsWith('.json')) {
+      ui.notifications.error(game.i18n.localize('LOREMASTER.Backup.InvalidFileType'));
+      return;
+    }
+
+    try {
+      const text = await file.text();
+      const backup = JSON.parse(text);
+
+      // Validate the backup
+      const validation = await this.socketClient.validateBackup(backup);
+      if (!validation.valid) {
+        ui.notifications.error(game.i18n.format('LOREMASTER.Backup.ValidationError', {
+          errors: validation.errors.join(', ')
+        }));
+        return;
+      }
+
+      // Store pending import and show preview
+      this.pendingImport = backup;
+      this.render();
+    } catch (error) {
+      console.error(`${MODULE_ID} | Failed to read backup file:`, error);
+      ui.notifications.error(game.i18n.format('LOREMASTER.Backup.ReadError', {
+        error: error.message
+      }));
+    }
+  }
+
+  /**
+   * Handle confirm import button click.
+   * Imports the pending backup into the current world.
+   *
+   * @param {Event} event - The click event.
+   * @private
+   */
+  async _onConfirmImport(event) {
+    event.preventDefault();
+
+    if (!this.pendingImport || this.isImportingBackup) return;
+
+    const overwrite = this.element.find('input[name="overwrite"]').is(':checked');
+    const merge = this.element.find('input[name="merge"]').is(':checked');
+
+    this.isImportingBackup = true;
+    this.importProgress = { stage: 'starting', progress: 0, message: 'Starting import...' };
+    this.render();
+
+    try {
+      const result = await this.socketClient.importBackup(
+        this.pendingImport,
+        { overwrite, merge },
+        (stage, progress, message) => {
+          this.importProgress = { stage, progress, message };
+          this._updateImportProgressUI();
+        }
+      );
+
+      ui.notifications.info(game.i18n.format('LOREMASTER.Backup.ImportSuccess', {
+        count: result.imported?.total || 0
+      }));
+
+      // Clear pending import and refresh all data
+      this.pendingImport = null;
+      await this._loadBackupData();
+      await this._loadAdventureData();
+      await this._loadCastData();
+      await this._loadHistoryData();
+    } catch (error) {
+      console.error(`${MODULE_ID} | Backup import failed:`, error);
+      ui.notifications.error(game.i18n.format('LOREMASTER.Backup.ImportError', {
+        error: error.message
+      }));
+    } finally {
+      this.isImportingBackup = false;
+      this.importProgress = { stage: '', progress: 0, message: '' };
+      this.render();
+    }
+  }
+
+  /**
+   * Handle cancel import button click.
+   * Clears the pending import preview.
+   *
+   * @param {Event} event - The click event.
+   * @private
+   */
+  _onCancelImport(event) {
+    event.preventDefault();
+    this.pendingImport = null;
+    this.render();
+  }
+
+  /**
+   * Handle refresh backup button click.
+   * Reloads the backup preview data.
+   *
+   * @param {Event} event - The click event.
+   * @private
+   */
+  async _onRefreshBackup(event) {
+    event.preventDefault();
+    await this._loadBackupData();
+  }
+
+  /**
+   * Update the backup progress UI without full re-render.
+   *
+   * @private
+   */
+  _updateBackupProgressUI() {
+    const html = $(this.element);
+    const progressBar = html.find('.backup-progress-bar');
+    const progressText = html.find('.backup-progress-text');
+
+    progressBar.css('width', `${this.backupProgress.progress}%`);
+    progressText.text(this.backupProgress.message);
+  }
+
+  /**
+   * Update the import progress UI without full re-render.
+   *
+   * @private
+   */
+  _updateImportProgressUI() {
+    const html = $(this.element);
+    const progressBar = html.find('.import-progress-bar');
+    const progressText = html.find('.import-progress-text');
+
+    progressBar.css('width', `${this.importProgress.progress}%`);
+    progressText.text(this.importProgress.message);
   }
 }
