@@ -45,7 +45,7 @@ Let us handle the server infrastructure. Just subscribe and play.
 |------|---------------|----------|
 | **Basic** | 500,000 | Casual games, 1-2 sessions/month |
 | **Pro** | 2,000,000 | Regular campaigns, weekly sessions |
-| **Premium** | 10,000,000 | Heavy usage, multiple campaigns |
+| **Premium** | 5,000,000 | Professional GMs, multiple weekly sessions |
 
 ### Option 2: Self-Hosted (One-Time Purchase)
 Run your own Loremaster server with full control.
