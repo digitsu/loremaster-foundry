@@ -6,7 +6,7 @@
  * Uses a WebSocket connection to the Loremaster proxy server for Claude API access.
  */
 
-import { registerSettings, getSetting } from './config.mjs';
+import { registerSettings, getSetting, isHostedMode } from './config.mjs';
 import { ChatHandler } from './chat-handler.mjs';
 import { SocketClient } from './socket-client.mjs';
 import { registerToolHandlers } from './tool-handlers.mjs';
@@ -20,6 +20,8 @@ import { registerWelcomeSettings, checkAndShowWelcome, openWelcomeJournal } from
 import { createHouseRulesJournal } from './house-rules-journal.mjs';
 import { GMPrepJournalSync } from './gm-prep-journal.mjs';
 import { progressBar } from './progress-bar.mjs';
+import { getAuthManager, AuthState, AUTH_STATE_CHANGED_EVENT } from './patreon-auth.mjs';
+import { openPatreonLogin, registerPatreonLoginHelpers } from './patreon-login-ui.mjs';
 
 // Module constants
 const MODULE_ID = 'loremaster';
@@ -46,6 +48,9 @@ Hooks.once('init', () => {
 
   // Register Handlebars helpers for Usage Monitor
   registerUsageMonitorHelpers();
+
+  // Register Handlebars helpers for Patreon Login
+  registerPatreonLoginHelpers();
 });
 
 /**
@@ -60,7 +65,12 @@ Hooks.once('ready', async () => {
 
   // Initialize the chat handler
   if (game.settings.get(MODULE_ID, 'enabled')) {
-    await initializeLoremaster();
+    // For hosted mode, check auth status first
+    if (isHostedMode()) {
+      await initializeHostedMode();
+    } else {
+      await initializeLoremaster();
+    }
   }
 
   // Force re-render of scene controls to show our buttons
@@ -70,6 +80,71 @@ Hooks.once('ready', async () => {
     ui.controls.render();
   }
 });
+
+/**
+ * Initialize hosted mode with Patreon authentication.
+ * Checks if user is authenticated, shows login UI if not.
+ */
+async function initializeHostedMode() {
+  console.log(`${MODULE_NAME} | Initializing hosted mode`);
+
+  const authManager = getAuthManager();
+
+  // Set up listener for auth state changes (for auto-reconnect)
+  authManager.onStateChange(async (state, user) => {
+    if (state === AuthState.LOGGED_IN && !game.loremaster?.socketClient?.isConnected) {
+      console.log(`${MODULE_NAME} | Auth successful, initializing connection...`);
+      ui.notifications.info(`${MODULE_NAME}: Connected as ${user?.displayName}. Initializing...`);
+      await initializeLoremaster();
+    }
+  });
+
+  // Check if already authenticated
+  if (authManager.isAuthenticated()) {
+    console.log(`${MODULE_NAME} | Already authenticated, validating session...`);
+
+    // Validate the session with the server
+    const status = await authManager.checkAuthStatus();
+
+    if (status.authenticated) {
+      console.log(`${MODULE_NAME} | Session valid, initializing...`);
+      await initializeLoremaster();
+      return;
+    } else {
+      console.log(`${MODULE_NAME} | Session invalid: ${status.reason}`);
+      // Session expired, show login UI
+    }
+  }
+
+  // Not authenticated - show login UI
+  console.log(`${MODULE_NAME} | Not authenticated, showing login UI`);
+  showPatreonLoginPrompt();
+}
+
+/**
+ * Show the Patreon login prompt to the user.
+ * Called when hosted mode requires authentication.
+ */
+function showPatreonLoginPrompt() {
+  // Store minimal reference on game object
+  game.loremaster = {
+    MODULE_ID,
+    MODULE_NAME,
+    openPatreonLogin,
+    openGuide: () => openWelcomeJournal(),
+    // Retry initialization after login
+    retryInit: () => initializeLoremaster()
+  };
+
+  // Show a notification with action
+  ui.notifications.warn(
+    `${MODULE_NAME}: Please sign in with Patreon to continue.`,
+    { permanent: true }
+  );
+
+  // Open the login dialog
+  openPatreonLogin();
+}
 
 /**
  * Initialize the Loremaster system.
@@ -170,6 +245,7 @@ async function initializeLoremaster() {
       openConversationManager: () => conversationManager.render(true),
       openHouseRulesJournal: () => houseRulesJournal.open(),
       openUsageMonitor: () => usageMonitor.open(),
+      openPatreonLogin,
       openGuide: () => openWelcomeJournal()
     };
 
@@ -199,6 +275,15 @@ async function initializeLoremaster() {
 
   } catch (error) {
     console.error(`${MODULE_NAME} | Failed to initialize:`, error);
+
+    // Handle Patreon auth required specifically
+    if (error.message === 'PATREON_AUTH_REQUIRED') {
+      console.log(`${MODULE_NAME} | Patreon authentication required`);
+      showPatreonLoginPrompt();
+      return;
+    }
+
+    // Generic error handling
     ui.notifications.error(`${MODULE_NAME} failed to start: ${error.message}`);
 
     // Store reference even on failure for debugging
@@ -217,6 +302,7 @@ async function initializeLoremaster() {
       openContentManager: () => contentManager.render(true),
       openConversationManager: () => conversationManager.render(true),
       openUsageMonitor: () => usageMonitor.open(),
+      openPatreonLogin,
       openGuide: () => openWelcomeJournal()
     };
 
@@ -355,6 +441,25 @@ Hooks.on('getSceneControlButtons', (controls) => {
         }
       }
     });
+
+    // Account button (for hosted mode)
+    if (isHostedMode()) {
+      loremasterTools.push({
+        name: 'loremaster-account',
+        order: 10,
+        title: 'Loremaster Account',
+        icon: 'fa-solid fa-user-circle',
+        button: true,
+        visible: true,
+        onChange: () => {
+          if (game.loremaster?.openPatreonLogin) {
+            game.loremaster.openPatreonLogin();
+          } else {
+            openPatreonLogin();
+          }
+        }
+      });
+    }
   }
 
   // Add tools based on the structure type
