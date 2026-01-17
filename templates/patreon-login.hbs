@@ -1,0 +1,514 @@
+{{!--
+  Patreon Login Template
+
+  Displays authentication UI for hosted mode users.
+  Shows different content based on auth state:
+  - Logged out: Sign in button
+  - Logging in: Loading state
+  - Logged in: User info, tier, quota
+  - Error: Error message with retry
+--}}
+
+<div class="patreon-login-container">
+
+  {{!-- Logged Out State --}}
+  {{#if isLoggedOut}}
+  <div class="patreon-state patreon-state--logged-out">
+    <div class="patreon-logo">
+      <i class="fas fa-book-open fa-3x"></i>
+    </div>
+
+    <div class="patreon-message">
+      <h3>Connect Your Account</h3>
+      <p>Sign in with Patreon to use the Loremaster hosted service.</p>
+    </div>
+
+    <button type="button" class="patreon-login-btn">
+      <span class="patreon-icon">🅿️</span>
+      Sign in with Patreon
+    </button>
+
+    <div class="patreon-divider">
+      <span>or</span>
+    </div>
+
+    <button type="button" class="patreon-paste-token-btn">
+      <i class="fas fa-paste"></i>
+      Paste Token Manually
+    </button>
+
+    <div class="patreon-footer">
+      <p class="patreon-footer-text">Don't have a subscription?</p>
+      <a href="#" class="patreon-subscribe-link">Subscribe on Patreon →</a>
+    </div>
+  </div>
+  {{/if}}
+
+  {{!-- Logging In State --}}
+  {{#if isLoggingIn}}
+  <div class="patreon-state patreon-state--logging-in">
+    <div class="patreon-spinner">
+      <i class="fas fa-spinner fa-spin fa-3x"></i>
+    </div>
+
+    <div class="patreon-message">
+      <h3>Signing In...</h3>
+      <p>Complete the authorization in the popup window.</p>
+      <p class="patreon-hint">If the popup was blocked, please allow popups and try again.</p>
+    </div>
+  </div>
+  {{/if}}
+
+  {{!-- Logged In State --}}
+  {{#if isLoggedIn}}
+  <div class="patreon-state patreon-state--logged-in">
+    <div class="patreon-header">
+      <div class="patreon-status-icon">✓</div>
+      <span class="patreon-status-text">Connected</span>
+    </div>
+
+    <div class="patreon-user-info">
+      <div class="patreon-user-name">{{displayName}}</div>
+      {{#if email}}
+      <div class="patreon-user-email">{{email}}</div>
+      {{/if}}
+    </div>
+
+    <div class="patreon-tier" style="border-color: {{tierColor}}">
+      <span class="tier-icon">{{tierIcon}}</span>
+      <span class="tier-name" style="color: {{tierColor}}">{{tierName}}</span>
+    </div>
+
+    {{!-- Quota Section --}}
+    <div class="patreon-quota">
+      <div class="quota-header">
+        <span class="quota-title">Monthly Usage</span>
+        {{#if isLoadingQuota}}
+        <i class="fas fa-spinner fa-spin"></i>
+        {{else}}
+        <button type="button" class="refresh-quota-btn" title="Refresh">
+          <i class="fas fa-sync-alt"></i>
+        </button>
+        {{/if}}
+      </div>
+
+      {{#if quota}}
+      <div class="quota-bar-container">
+        <div class="quota-bar quota-bar--{{quotaLevel tokensUsed tokensLimit}}"
+             style="width: {{quotaPercent tokensUsed tokensLimit}}%">
+        </div>
+      </div>
+
+      <div class="quota-details">
+        <span class="quota-used">{{formatTokens tokensUsed}}</span>
+        <span class="quota-separator">/</span>
+        <span class="quota-limit">{{formatTokens tokensLimit}}</span>
+        <span class="quota-percent">({{quotaPercent tokensUsed tokensLimit}}%)</span>
+      </div>
+
+      {{#if quotaResetDate}}
+      <div class="quota-reset">
+        Resets: {{quotaResetDate}}
+      </div>
+      {{/if}}
+      {{else}}
+      <div class="quota-bar-container">
+        <div class="quota-bar" style="width: 0%"></div>
+      </div>
+      <div class="quota-details">
+        <span class="quota-limit">{{formatTokens tokenLimit}} tokens/month</span>
+      </div>
+      {{/if}}
+    </div>
+
+    <div class="patreon-actions">
+      <button type="button" class="patreon-logout-btn">
+        <i class="fas fa-sign-out-alt"></i>
+        Sign Out
+      </button>
+    </div>
+  </div>
+  {{/if}}
+
+  {{!-- Error State --}}
+  {{#if isError}}
+  <div class="patreon-state patreon-state--error">
+    <div class="patreon-error-icon">
+      <i class="fas fa-exclamation-triangle fa-3x"></i>
+    </div>
+
+    <div class="patreon-message">
+      <h3>Authentication Failed</h3>
+      <p class="patreon-error-text">{{errorMessage}}</p>
+    </div>
+
+    <button type="button" class="patreon-retry-btn">
+      <i class="fas fa-redo"></i>
+      Try Again
+    </button>
+
+    <div class="patreon-footer">
+      <a href="#" class="patreon-subscribe-link">Subscribe on Patreon →</a>
+    </div>
+  </div>
+  {{/if}}
+
+</div>
+
+<style>
+  /* Container */
+  .patreon-login-container {
+    padding: 1rem;
+    font-family: var(--font-primary);
+  }
+
+  /* State containers */
+  .patreon-state {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+    gap: 1rem;
+  }
+
+  /* Logo */
+  .patreon-logo {
+    margin-bottom: 0.5rem;
+    color: #d4af37;
+    filter: drop-shadow(0 0 10px rgba(212, 175, 55, 0.3));
+  }
+
+  /* Messages */
+  .patreon-message h3 {
+    margin: 0 0 0.5rem 0;
+    font-size: 1.25rem;
+    color: var(--color-text-light-highlight);
+  }
+
+  .patreon-message p {
+    margin: 0;
+    color: var(--color-text-light-primary);
+    font-size: 0.9rem;
+  }
+
+  .patreon-hint {
+    font-size: 0.8rem !important;
+    color: var(--color-text-light-secondary) !important;
+    font-style: italic;
+    margin-top: 0.5rem !important;
+  }
+
+  /* Sign in button */
+  .patreon-login-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    padding: 0.75rem 1.5rem;
+    font-size: 1rem;
+    font-weight: 600;
+    color: #ffffff;
+    background: linear-gradient(135deg, #f96854 0%, #ff424d 100%);
+    border: none;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    width: 100%;
+    max-width: 280px;
+  }
+
+  .patreon-login-btn:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(249, 104, 84, 0.4);
+  }
+
+  .patreon-login-btn:active {
+    transform: translateY(0);
+  }
+
+  .patreon-icon {
+    font-size: 1.25rem;
+  }
+
+  /* Divider */
+  .patreon-divider {
+    display: flex;
+    align-items: center;
+    width: 100%;
+    max-width: 280px;
+    margin: 0.5rem 0;
+  }
+
+  .patreon-divider::before,
+  .patreon-divider::after {
+    content: '';
+    flex: 1;
+    height: 1px;
+    background: var(--color-border-light);
+  }
+
+  .patreon-divider span {
+    padding: 0 1rem;
+    color: var(--color-text-light-secondary);
+    font-size: 0.85rem;
+  }
+
+  /* Paste token button */
+  .patreon-paste-token-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    padding: 0.6rem 1.25rem;
+    font-size: 0.9rem;
+    color: var(--color-text-light-primary);
+    background: var(--color-bg-btn);
+    border: 1px solid var(--color-border-light);
+    border-radius: 6px;
+    cursor: pointer;
+    transition: all 0.2s;
+    width: 100%;
+    max-width: 280px;
+  }
+
+  .patreon-paste-token-btn:hover {
+    border-color: #d4af37;
+    color: #d4af37;
+  }
+
+  /* Footer */
+  .patreon-footer {
+    margin-top: 1rem;
+    padding-top: 1rem;
+    border-top: 1px solid var(--color-border-light);
+    width: 100%;
+  }
+
+  .patreon-footer-text {
+    margin: 0 0 0.25rem 0;
+    font-size: 0.85rem;
+    color: var(--color-text-light-secondary);
+  }
+
+  .patreon-subscribe-link {
+    color: #d4af37;
+    text-decoration: none;
+    font-size: 0.9rem;
+    transition: color 0.2s;
+  }
+
+  .patreon-subscribe-link:hover {
+    color: #f4d03f;
+    text-decoration: underline;
+  }
+
+  /* Spinner */
+  .patreon-spinner {
+    color: #d4af37;
+    margin: 1rem 0;
+  }
+
+  /* Logged in state */
+  .patreon-header {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.5rem 1rem;
+    background: rgba(74, 222, 128, 0.15);
+    border: 1px solid rgba(74, 222, 128, 0.3);
+    border-radius: 20px;
+  }
+
+  .patreon-status-icon {
+    color: #4ade80;
+    font-weight: bold;
+  }
+
+  .patreon-status-text {
+    color: #4ade80;
+    font-weight: 600;
+    font-size: 0.9rem;
+  }
+
+  .patreon-user-info {
+    margin: 0.5rem 0;
+  }
+
+  .patreon-user-name {
+    font-size: 1.1rem;
+    font-weight: 600;
+    color: var(--color-text-light-highlight);
+  }
+
+  .patreon-user-email {
+    font-size: 0.85rem;
+    color: var(--color-text-light-secondary);
+  }
+
+  /* Tier badge */
+  .patreon-tier {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.4rem 1rem;
+    background: rgba(212, 175, 55, 0.1);
+    border: 1px solid;
+    border-radius: 20px;
+  }
+
+  .tier-icon {
+    font-size: 0.9rem;
+  }
+
+  .tier-name {
+    font-weight: 600;
+    font-size: 0.9rem;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+  }
+
+  /* Quota section */
+  .patreon-quota {
+    width: 100%;
+    padding: 1rem;
+    background: var(--color-bg-option);
+    border: 1px solid var(--color-border-light);
+    border-radius: 8px;
+    margin-top: 0.5rem;
+  }
+
+  .quota-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 0.75rem;
+  }
+
+  .quota-title {
+    font-weight: 600;
+    font-size: 0.9rem;
+    color: var(--color-text-light-highlight);
+  }
+
+  .refresh-quota-btn {
+    background: none;
+    border: none;
+    color: var(--color-text-light-secondary);
+    cursor: pointer;
+    padding: 0.25rem;
+    transition: color 0.2s;
+  }
+
+  .refresh-quota-btn:hover {
+    color: #d4af37;
+  }
+
+  .quota-bar-container {
+    height: 12px;
+    background: var(--color-bg-btn);
+    border-radius: 6px;
+    overflow: hidden;
+    margin-bottom: 0.5rem;
+  }
+
+  .quota-bar {
+    height: 100%;
+    background: linear-gradient(90deg, #4ade80 0%, #22c55e 100%);
+    border-radius: 6px;
+    transition: width 0.3s ease;
+  }
+
+  .quota-bar--warning {
+    background: linear-gradient(90deg, #fbbf24 0%, #f59e0b 100%);
+  }
+
+  .quota-bar--critical {
+    background: linear-gradient(90deg, #f87171 0%, #ef4444 100%);
+  }
+
+  .quota-details {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.25rem;
+    font-size: 0.85rem;
+    color: var(--color-text-light-primary);
+  }
+
+  .quota-used {
+    font-weight: 600;
+  }
+
+  .quota-separator {
+    color: var(--color-text-light-secondary);
+  }
+
+  .quota-percent {
+    color: var(--color-text-light-secondary);
+    font-size: 0.8rem;
+  }
+
+  .quota-reset {
+    margin-top: 0.5rem;
+    font-size: 0.8rem;
+    color: var(--color-text-light-secondary);
+  }
+
+  /* Actions */
+  .patreon-actions {
+    margin-top: 1rem;
+    width: 100%;
+  }
+
+  .patreon-logout-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    padding: 0.5rem 1rem;
+    font-size: 0.9rem;
+    color: var(--color-text-light-secondary);
+    background: var(--color-bg-btn);
+    border: 1px solid var(--color-border-light);
+    border-radius: 6px;
+    cursor: pointer;
+    transition: all 0.2s;
+    width: 100%;
+  }
+
+  .patreon-logout-btn:hover {
+    color: var(--color-text-light-highlight);
+    border-color: var(--color-border-light-highlight);
+  }
+
+  /* Error state */
+  .patreon-state--error .patreon-error-icon {
+    color: #f87171;
+    margin: 0.5rem 0;
+  }
+
+  .patreon-error-text {
+    color: #f87171 !important;
+  }
+
+  .patreon-retry-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    padding: 0.6rem 1.25rem;
+    font-size: 0.9rem;
+    color: #ffffff;
+    background: var(--color-bg-btn);
+    border: 1px solid var(--color-border-light);
+    border-radius: 6px;
+    cursor: pointer;
+    transition: all 0.2s;
+  }
+
+  .patreon-retry-btn:hover {
+    background: var(--color-bg-option);
+    border-color: #d4af37;
+    color: #d4af37;
+  }
+</style>
