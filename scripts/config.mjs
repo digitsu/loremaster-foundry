@@ -342,5 +342,15 @@ export function clearPatreonUser() {
  * @returns {string} The hosted proxy URL.
  */
 export function getHostedProxyUrl() {
-  return 'https://api.loremastervtt.com';
+  return HOSTED_PROXY_URL;
+}
+
+/**
+ * Get the configured proxy URL.
+ * Returns the user-configured URL or the hosted default.
+ *
+ * @returns {string} The proxy URL to use.
+ */
+export function getProxyUrl() {
+  return getSetting('proxyUrl') || HOSTED_PROXY_URL;
 }
