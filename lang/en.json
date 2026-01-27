@@ -350,7 +350,12 @@
       "NoScriptMessage": "The adventure \"{name}\" doesn't have a GM Prep script yet. Would you like to generate one?",
       "NoScriptHint": "A GM Prep script provides character information and story structure for Loremaster.",
       "GenerateScript": "Generate Script",
-      "SkipScript": "Skip for Now"
+      "SkipScript": "Skip for Now",
+      "ScriptExistsTitle": "GM Prep Script Exists",
+      "ScriptExistsMessage": "A GM Prep script already exists for \"{name}\".",
+      "ScriptExistsHint": "You can keep the existing script or regenerate it from the PDF.",
+      "KeepScript": "Keep Existing",
+      "RegenerateScript": "Regenerate"
     },
     "UsageMonitor": {
       "Title": "API Usage Monitor",
