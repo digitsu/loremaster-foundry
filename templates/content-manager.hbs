@@ -730,15 +730,21 @@
                      placeholder="{{localize 'LOREMASTER.Backup.NamePlaceholder'}}"
                      value="{{worldName}} Backup - {{currentDate}}">
               <button class="create-backup-btn" {{#if isBackingUp}}disabled{{/if}}>
-                <i class="fas fa-download"></i>
-                {{#if isBackingUp}}
-                  {{localize "LOREMASTER.Backup.Creating"}}
+                {{#if isHostedMode}}
+                  <i class="fas fa-save"></i>
+                  {{#if isBackingUp}}
+                    {{localize "LOREMASTER.Backup.Creating"}}
+                  {{else}}
+                    {{localize "LOREMASTER.Backup.CreateBackup"}}
+                  {{/if}}
                 {{else}}
-                  {{localize "LOREMASTER.Backup.CreateDownload"}}
+                  <i class="fas fa-download"></i>
+                  {{#if isBackingUp}}
+                    {{localize "LOREMASTER.Backup.Creating"}}
+                  {{else}}
+                    {{localize "LOREMASTER.Backup.CreateDownload"}}
+                  {{/if}}
                 {{/if}}
-              </button>
-              <button type="button" class="refresh-backup-btn" title="{{localize 'LOREMASTER.Backup.RefreshPreview'}}">
-                <i class="fas fa-sync-alt"></i>
               </button>
             </div>
 
@@ -749,6 +755,63 @@
               </div>
             {{/if}}
           </section>
+
+          {{!-- Saved Backups Section (Hosted Mode Only) --}}
+          {{#if isHostedMode}}
+            <section class="backup-section saved-backups-section">
+              <h3><i class="fas fa-server"></i> {{localize "LOREMASTER.Backup.SavedBackupsTitle"}}</h3>
+              <p class="section-description">
+                {{localize "LOREMASTER.Backup.SavedBackupsDescription"}}
+              </p>
+
+              {{#if savedBackups.length}}
+                <ul class="saved-backups-list">
+                  {{#each savedBackups}}
+                    <li class="saved-backup-item">
+                      <div class="backup-info">
+                        <div class="backup-name">{{this.name}}</div>
+                        <div class="backup-meta">
+                          <span class="backup-date">
+                            <i class="fas fa-calendar"></i> {{this.createdAt}}
+                          </span>
+                          <span class="backup-size">
+                            <i class="fas fa-database"></i> {{formatSize this.sizeBytes}}
+                          </span>
+                          {{#if this.stats}}
+                            <span class="backup-stats" title="{{this.stats.conversations}} conversations, {{this.stats.messages}} messages">
+                              <i class="fas fa-comments"></i> {{this.stats.conversations}}
+                            </span>
+                          {{/if}}
+                        </div>
+                        {{#if this.description}}
+                          <div class="backup-description">{{this.description}}</div>
+                        {{/if}}
+                      </div>
+                      <div class="backup-actions">
+                        <button type="button" class="restore-backup-btn"
+                                data-backup-id="{{this.id}}"
+                                data-backup-name="{{this.name}}"
+                                title="{{localize 'LOREMASTER.Backup.RestoreBackup'}}">
+                          <i class="fas fa-undo"></i>
+                        </button>
+                        <button type="button" class="delete-backup-btn"
+                                data-backup-id="{{this.id}}"
+                                data-backup-name="{{this.name}}"
+                                title="{{localize 'LOREMASTER.Backup.DeleteBackup'}}">
+                          <i class="fas fa-trash"></i>
+                        </button>
+                      </div>
+                    </li>
+                  {{/each}}
+                </ul>
+              {{else}}
+                <div class="no-backups-state">
+                  <i class="fas fa-box-open"></i>
+                  <p>{{localize "LOREMASTER.Backup.NoSavedBackups"}}</p>
+                </div>
+              {{/if}}
+            </section>
+          {{/if}}
 
           {{!-- Import Section --}}
           <section class="backup-section import-section">
