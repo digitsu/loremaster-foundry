@@ -394,18 +394,20 @@ export class ChatHandler {
     let result;
     let displayName;
 
-    // Check if this is a PDF adventure (numeric ID or 'pdf:' prefix)
+    // Check if this is a PDF adventure (explicit type, 'pdf:' prefix, or UUID/numeric ID)
+    // UUIDs have format xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx
+    const looksLikeUuid = adventureId && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(adventureId);
     const isPdfAdventure = adventureType === 'pdf' ||
-      (adventureId && (adventureId.startsWith('pdf:') || !isNaN(parseInt(adventureId, 10))));
+      (adventureId && (adventureId.startsWith('pdf:') || looksLikeUuid || !isNaN(parseInt(adventureId, 10))));
 
     if (isPdfAdventure) {
-      // Handle PDF adventure
+      // Handle PDF adventure - keep ID as string for Elixir UUID compatibility
       const pdfId = adventureId?.startsWith('pdf:')
-        ? parseInt(adventureId.replace('pdf:', ''), 10)
-        : parseInt(targetId, 10);
+        ? adventureId.replace('pdf:', '')
+        : targetId;
 
       result = await this.socketClient.setPdfCampaignProgress(pdfId, stage);
-      displayName = `PDF adventure #${pdfId}`;
+      displayName = `PDF adventure ${pdfId}`;
     } else {
       // Handle module adventure
       result = await this.socketClient.setCampaignProgress(targetId, stage);
@@ -447,14 +449,16 @@ export class ChatHandler {
 
     let result;
 
-    // Check if this is a PDF adventure
+    // Check if this is a PDF adventure (explicit type, 'pdf:' prefix, or UUID/numeric ID)
+    const looksLikeUuid = adventureId && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(adventureId);
     const isPdfAdventure = adventureType === 'pdf' ||
-      (adventureId && (adventureId.startsWith('pdf:') || !isNaN(parseInt(adventureId, 10))));
+      (adventureId && (adventureId.startsWith('pdf:') || looksLikeUuid || !isNaN(parseInt(adventureId, 10))));
 
     if (isPdfAdventure) {
+      // Keep ID as string for Elixir UUID compatibility
       const pdfId = adventureId?.startsWith('pdf:')
-        ? parseInt(adventureId.replace('pdf:', ''), 10)
-        : parseInt(targetId, 10);
+        ? adventureId.replace('pdf:', '')
+        : targetId;
 
       result = await this.socketClient.advancePdfCampaignStage(pdfId);
     } else {
@@ -497,14 +501,16 @@ export class ChatHandler {
 
     let result;
 
-    // Check if this is a PDF adventure
+    // Check if this is a PDF adventure (explicit type, 'pdf:' prefix, or UUID/numeric ID)
+    const looksLikeUuid = adventureId && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(adventureId);
     const isPdfAdventure = adventureType === 'pdf' ||
-      (adventureId && (adventureId.startsWith('pdf:') || !isNaN(parseInt(adventureId, 10))));
+      (adventureId && (adventureId.startsWith('pdf:') || looksLikeUuid || !isNaN(parseInt(adventureId, 10))));
 
     if (isPdfAdventure) {
+      // Keep ID as string for Elixir UUID compatibility
       const pdfId = adventureId?.startsWith('pdf:')
-        ? parseInt(adventureId.replace('pdf:', ''), 10)
-        : parseInt(targetId, 10);
+        ? adventureId.replace('pdf:', '')
+        : targetId;
 
       result = await this.socketClient.regressPdfCampaignStage(pdfId);
     } else {
@@ -542,22 +548,23 @@ export class ChatHandler {
       }
     }
 
-    // Check if this is a PDF adventure
+    // Check if this is a PDF adventure (explicit type, 'pdf:' prefix, or UUID/numeric ID)
+    const looksLikeUuid = adventureId && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(adventureId);
     const isPdfAdventure = adventureType === 'pdf' ||
-      (adventureId && (adventureId.startsWith('pdf:') || !isNaN(parseInt(adventureId, 10))));
+      (adventureId && (adventureId.startsWith('pdf:') || looksLikeUuid || !isNaN(parseInt(adventureId, 10))));
 
     if (targetId) {
       if (isPdfAdventure) {
-        // Show stats for PDF adventure
+        // Show stats for PDF adventure - keep ID as string for Elixir UUID compatibility
         const pdfId = adventureId?.startsWith('pdf:')
-          ? parseInt(adventureId.replace('pdf:', ''), 10)
-          : parseInt(targetId, 10);
+          ? adventureId.replace('pdf:', '')
+          : targetId;
 
         const stats = await this.socketClient.getPdfStageStats(pdfId);
         const currentStage = stats.currentStage || 'Not set';
         const stageName = STAGE_NAMES[currentStage] || currentStage;
 
-        let statusMsg = `**Campaign Progress: PDF Adventure #${pdfId}**\n`;
+        let statusMsg = `**Campaign Progress: PDF Adventure ${pdfId}**\n`;
         statusMsg += `Adventure Type: ${stats.isAdventure ? 'Stage-based' : 'Reference'}\n`;
         statusMsg += `Current Stage: **${stageName}**\n\n`;
         statusMsg += `**Stage Content:**\n`;
@@ -689,13 +696,15 @@ export class ChatHandler {
     const adventureId = args[0];
 
     try {
-      // Check if this is a PDF adventure
-      const isPdfAdventure = adventureId.startsWith('pdf:') || !isNaN(parseInt(adventureId, 10));
+      // Check if this is a PDF adventure (explicit prefix, UUID, or numeric ID)
+      const looksLikeUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(adventureId);
+      const isPdfAdventure = adventureId.startsWith('pdf:') || looksLikeUuid || !isNaN(parseInt(adventureId, 10));
 
       if (isPdfAdventure) {
+        // Keep ID as string for Elixir UUID compatibility
         const pdfId = adventureId.startsWith('pdf:')
-          ? parseInt(adventureId.replace('pdf:', ''), 10)
-          : parseInt(adventureId, 10);
+          ? adventureId.replace('pdf:', '')
+          : adventureId;
 
         // Delete PDF progress via proxy
         const result = await this.socketClient.deletePdfCampaignProgress(pdfId);
