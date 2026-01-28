@@ -10,7 +10,7 @@ const MODULE_ID = 'loremaster';
  * Hosted mode proxy URL.
  * Users connect to this URL when using hosted mode.
  */
-const HOSTED_PROXY_URL = 'https://api.loremastervtt.com';
+const HOSTED_PROXY_URL = 'wss://elixir.loremastervtt.com/socket/websocket';
 
 /**
  * Register all module settings.

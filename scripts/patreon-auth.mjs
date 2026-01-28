@@ -100,7 +100,10 @@ export class PatreonAuthManager {
   _normalizeToHttpUrl(url) {
     if (!url) return url;
     // Convert wss:// to https:// and ws:// to http://
-    return url.replace(/^wss:\/\//i, 'https://').replace(/^ws:\/\//i, 'http://');
+    let normalized = url.replace(/^wss:\/\//i, 'https://').replace(/^ws:\/\//i, 'http://');
+    // Strip WebSocket paths (Phoenix /socket/websocket or raw /websocket)
+    normalized = normalized.replace(/\/socket\/websocket\/?$/, '').replace(/\/websocket\/?$/, '');
+    return normalized;
   }
 
   /**
@@ -113,12 +116,31 @@ export class PatreonAuthManager {
     const token = getSessionToken();
     const user = getPatreonUser();
 
-    if (token && user) {
+    console.log(`${MODULE_NAME} | _initializeFromStorage: token=${token ? 'present (' + token.substring(0, 10) + '...)' : 'null/empty'}`);
+    console.log(`${MODULE_NAME} | _initializeFromStorage: user=${user ? JSON.stringify(user) : 'null'}`);
+
+    // Validate user object has required properties (not just truthy)
+    const isValidUser = user && typeof user === 'object' && (user.displayName || user.id || user.patreonId);
+
+    if (token && isValidUser) {
       this.state = AuthState.LOGGED_IN;
-      console.log(`${MODULE_NAME} | Found stored session for user: ${user.displayName}`);
+      console.log(`${MODULE_NAME} | Found stored session for user: ${user.displayName || user.id}`);
     } else {
       this.state = AuthState.LOGGED_OUT;
+      console.log(`${MODULE_NAME} | No stored session found (token: ${!!token}, validUser: ${isValidUser})`);
     }
+  }
+
+  /**
+   * Refresh authentication state from storage.
+   * Call this after Foundry settings are definitely loaded.
+   *
+   * @returns {boolean} True if authenticated after refresh.
+   */
+  refreshFromStorage() {
+    console.log(`${MODULE_NAME} | refreshFromStorage called`);
+    this._initializeFromStorage();
+    return this.isAuthenticated();
   }
 
   /**
@@ -167,6 +189,11 @@ export class PatreonAuthManager {
     if (success && sessionToken) {
       await this._handleAuthSuccess(sessionToken, user);
     } else {
+      // Ignore error if we're already logged in (duplicate callback scenario)
+      if (this.state === AuthState.LOGGED_IN) {
+        console.log(`${MODULE_NAME} | Ignoring error callback - already logged in`);
+        return;
+      }
       this._handleAuthError(error || 'Authentication failed');
     }
   }

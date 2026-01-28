@@ -60,18 +60,22 @@ export function registerPatreonLoginHelpers() {
   });
 
   // Get tier configuration
+  // Note: Handlebars may pass options object if value is undefined, so we check for string type
   Handlebars.registerHelper('tierLabel', (tierName) => {
-    const tier = TIER_CONFIG[tierName?.toLowerCase()] || TIER_CONFIG.basic;
+    const name = typeof tierName === 'string' ? tierName.toLowerCase() : 'basic';
+    const tier = TIER_CONFIG[name] || TIER_CONFIG.basic;
     return tier.label;
   });
 
   Handlebars.registerHelper('tierIcon', (tierName) => {
-    const tier = TIER_CONFIG[tierName?.toLowerCase()] || TIER_CONFIG.basic;
+    const name = typeof tierName === 'string' ? tierName.toLowerCase() : 'basic';
+    const tier = TIER_CONFIG[name] || TIER_CONFIG.basic;
     return tier.icon;
   });
 
   Handlebars.registerHelper('tierColor', (tierName) => {
-    const tier = TIER_CONFIG[tierName?.toLowerCase()] || TIER_CONFIG.basic;
+    const name = typeof tierName === 'string' ? tierName.toLowerCase() : 'basic';
+    const tier = TIER_CONFIG[name] || TIER_CONFIG.basic;
     return tier.color;
   });
 
@@ -175,7 +179,13 @@ export class PatreonLoginUI extends Application {
       return;
     }
 
+    // Prevent re-entry
+    if (this.isLoadingQuota || this._quotaFetchAttempted) {
+      return;
+    }
+
     this.isLoadingQuota = true;
+    this._quotaFetchAttempted = true;
     if (this.rendered) this.render(false);
 
     try {
@@ -248,44 +258,71 @@ export class PatreonLoginUI extends Application {
   activateListeners(html) {
     super.activateListeners(html);
 
-    // Ensure jQuery wrapper
-    html = $(html);
+    // Get the element - handle both jQuery and HTMLElement
+    const element = html instanceof jQuery ? html[0] : html;
+
+    console.log(`${MODULE_NAME} | PatreonLoginUI activating listeners`, { element, isJQuery: html instanceof jQuery });
 
     // Sign in button
-    html.find('.patreon-login-btn').on('click', (event) => {
-      event.preventDefault();
-      this._onSignIn();
-    });
+    const loginBtn = element.querySelector('.patreon-login-btn');
+    if (loginBtn) {
+      console.log(`${MODULE_NAME} | Found login button`);
+      loginBtn.addEventListener('click', (event) => {
+        event.preventDefault();
+        this._onSignIn();
+      });
+    }
 
     // Sign out button
-    html.find('.patreon-logout-btn').on('click', (event) => {
-      event.preventDefault();
-      this._onSignOut();
-    });
+    const logoutBtn = element.querySelector('.patreon-logout-btn');
+    if (logoutBtn) {
+      console.log(`${MODULE_NAME} | Found logout button`);
+      logoutBtn.addEventListener('click', (event) => {
+        event.preventDefault();
+        console.log(`${MODULE_NAME} | Logout button clicked`);
+        this._onSignOut();
+      });
+    } else {
+      console.log(`${MODULE_NAME} | Logout button NOT found in DOM`);
+    }
 
     // Retry button (on error)
-    html.find('.patreon-retry-btn').on('click', (event) => {
-      event.preventDefault();
-      this._onSignIn();
-    });
+    const retryBtn = element.querySelector('.patreon-retry-btn');
+    if (retryBtn) {
+      retryBtn.addEventListener('click', (event) => {
+        event.preventDefault();
+        this._onSignIn();
+      });
+    }
 
     // Paste token button
-    html.find('.patreon-paste-token-btn').on('click', (event) => {
-      event.preventDefault();
-      this._onPasteToken();
-    });
+    const pasteBtn = element.querySelector('.patreon-paste-token-btn');
+    if (pasteBtn) {
+      pasteBtn.addEventListener('click', (event) => {
+        event.preventDefault();
+        this._onPasteToken();
+      });
+    }
 
     // Subscribe link
-    html.find('.patreon-subscribe-link').on('click', (event) => {
-      event.preventDefault();
-      window.open('https://patreon.com/loremastervtt', '_blank');
-    });
+    const subscribeLink = element.querySelector('.patreon-subscribe-link');
+    if (subscribeLink) {
+      subscribeLink.addEventListener('click', (event) => {
+        event.preventDefault();
+        window.open('https://patreon.com/loremastervtt', '_blank');
+      });
+    }
 
     // Refresh quota button
-    html.find('.refresh-quota-btn').on('click', (event) => {
-      event.preventDefault();
-      this._fetchQuota();
-    });
+    const refreshBtn = element.querySelector('.refresh-quota-btn');
+    if (refreshBtn) {
+      refreshBtn.addEventListener('click', (event) => {
+        event.preventDefault();
+        // Reset the fetch attempted flag so refresh actually works
+        this._quotaFetchAttempted = false;
+        this._fetchQuota();
+      });
+    }
   }
 
   /**

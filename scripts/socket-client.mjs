@@ -2328,6 +2328,10 @@ export class SocketClient {
       'gm-prep-error': 'gm-prep-error',
       'embedding_progress': 'embedding-progress',
       'embedding-progress': 'embedding-progress',
+      'embedding_complete': 'embedding-complete',
+      'embedding-complete': 'embedding-complete',
+      'embedding_error': 'embedding-error',
+      'embedding-error': 'embedding-error',
       'module_import_progress': 'module-import-progress',
       'module-import-progress': 'module-import-progress',
       'backup_progress': 'backup-progress',
@@ -2493,6 +2497,48 @@ export class SocketClient {
     // Handle embedding progress updates
     if (message.type === 'embedding-progress') {
       this._handleEmbeddingProgress(message);
+      return;
+    }
+
+    // Handle embedding complete (async response from Phoenix server)
+    if (message.type === 'embedding-complete') {
+      const { success, totalProcessed, totalFailed, details, worldId } = message;
+      console.log(`${MODULE_ID} | Embedding complete: ${totalProcessed} processed, ${totalFailed} failed`);
+
+      // Find the pending generateEmbeddings request
+      for (const [reqId, pending] of this.pendingRequests) {
+        if (reqId.startsWith('req_')) {
+          this.pendingRequests.delete(reqId);
+          this.progressCallbacks.delete(reqId);
+          pending.resolve({
+            success,
+            totalProcessed,
+            totalFailed,
+            details,
+            worldId
+          });
+          return;
+        }
+      }
+      console.log(`${MODULE_ID} | Embedding complete received (no pending request):`, message);
+      return;
+    }
+
+    // Handle embedding error (async error from Phoenix server)
+    if (message.type === 'embedding-error') {
+      const { message: errorMessage } = message;
+      console.error(`${MODULE_ID} | Embedding error:`, errorMessage);
+
+      // Find the pending generateEmbeddings request
+      for (const [reqId, pending] of this.pendingRequests) {
+        if (reqId.startsWith('req_')) {
+          this.pendingRequests.delete(reqId);
+          this.progressCallbacks.delete(reqId);
+          pending.reject(new Error(errorMessage || 'Embedding generation failed'));
+          return;
+        }
+      }
+      console.error(`${MODULE_ID} | Embedding error (no pending request):`, errorMessage);
       return;
     }
 

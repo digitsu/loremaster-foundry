@@ -110,6 +110,7 @@ AI-powered Loremaster module for Foundry VTT, allowing players to interact with 
 - [ ] AI response formatting options
 - [ ] Tool call visualization
 - [ ] Token usage tracking display
+- [ ] Grey out License Key and Claude API Key fields when hosted option is selected in module settings
 
 ---
 

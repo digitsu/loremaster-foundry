@@ -90,6 +90,11 @@ async function initializeHostedMode() {
 
   const authManager = getAuthManager();
 
+  // Refresh auth state from storage - important because the singleton may have been
+  // created before Foundry's world settings were fully loaded
+  console.log(`${MODULE_NAME} | Refreshing auth state from storage...`);
+  authManager.refreshFromStorage();
+
   // Set up listener for auth state changes (for auto-reconnect)
   authManager.onStateChange(async (state, user) => {
     if (state === AuthState.LOGGED_IN && !game.loremaster?.socketClient?.isConnected) {
@@ -103,16 +108,21 @@ async function initializeHostedMode() {
   if (authManager.isAuthenticated()) {
     console.log(`${MODULE_NAME} | Already authenticated, validating session...`);
 
-    // Validate the session with the server
-    const status = await authManager.checkAuthStatus();
+    try {
+      // Validate the session with the server
+      const status = await authManager.checkAuthStatus();
 
-    if (status.authenticated) {
-      console.log(`${MODULE_NAME} | Session valid, initializing...`);
-      await initializeLoremaster();
-      return;
-    } else {
-      console.log(`${MODULE_NAME} | Session invalid: ${status.reason}`);
-      // Session expired, show login UI
+      if (status.authenticated) {
+        console.log(`${MODULE_NAME} | Session valid, initializing...`);
+        await initializeLoremaster();
+        return;
+      } else {
+        console.log(`${MODULE_NAME} | Session invalid: ${status.reason}`);
+        // Session expired, show login UI
+      }
+    } catch (err) {
+      console.error(`${MODULE_NAME} | Failed to validate session:`, err);
+      // Network error or server unavailable - show login UI
     }
   }
 
@@ -126,14 +136,25 @@ async function initializeHostedMode() {
  * Called when hosted mode requires authentication.
  */
 function showPatreonLoginPrompt() {
-  // Store minimal reference on game object
+  // Helper that shows login prompt when user tries to use a feature
+  const requireAuth = () => {
+    ui.notifications.warn(`${MODULE_NAME}: Please sign in with Patreon first.`);
+    openPatreonLogin();
+  };
+
+  // Store reference on game object with auth-required stubs for all features
   game.loremaster = {
     MODULE_ID,
     MODULE_NAME,
     openPatreonLogin,
     openGuide: () => openWelcomeJournal(),
     // Retry initialization after login
-    retryInit: () => initializeLoremaster()
+    retryInit: () => initializeLoremaster(),
+    // Stub functions that require auth - open login dialog instead
+    openContentManager: requireAuth,
+    openConversationManager: requireAuth,
+    openHouseRulesJournal: requireAuth,
+    openUsageMonitor: requireAuth
   };
 
   // Show a notification with action
