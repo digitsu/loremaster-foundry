@@ -4252,21 +4252,6 @@
   cursor: not-allowed;
 }
 
-.refresh-backup-btn {
-  background: transparent;
-  border: 1px solid rgba(201, 132, 26, 0.5);
-  color: #c9841a;
-  padding: 8px;
-  border-radius: 6px;
-  cursor: pointer;
-  transition: all 0.2s;
-}
-
-.refresh-backup-btn:hover {
-  background: rgba(201, 132, 26, 0.1);
-  border-color: #c9841a;
-}
-
 /* Progress Container */
 .backup-progress,
 .import-progress {

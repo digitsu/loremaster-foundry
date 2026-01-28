@@ -298,9 +298,6 @@ export class ContentManager extends Application {
     html.find('.confirm-import-btn').on('click', this._onConfirmImport.bind(this));
     html.find('.cancel-import-btn').on('click', this._onCancelImport.bind(this));
 
-    // Refresh backup preview
-    html.find('.refresh-backup-btn').on('click', this._onRefreshBackup.bind(this));
-
     // Saved backups (hosted mode) - restore and delete buttons
     html.find('.restore-backup-btn').on('click', this._onRestoreSavedBackup.bind(this));
     html.find('.delete-backup-btn').on('click', this._onDeleteSavedBackup.bind(this));
@@ -2455,18 +2452,6 @@ export class ContentManager extends Application {
     event.preventDefault();
     this.pendingImport = null;
     this.render();
-  }
-
-  /**
-   * Handle refresh backup button click.
-   * Reloads the backup preview data.
-   *
-   * @param {Event} event - The click event.
-   * @private
-   */
-  async _onRefreshBackup(event) {
-    event.preventDefault();
-    await this._loadBackupData();
   }
 
   /**
