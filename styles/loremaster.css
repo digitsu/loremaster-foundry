@@ -4499,3 +4499,108 @@
   margin: 0;
   font-size: 0.95em;
 }
+
+/* ===== Saved Backups Section (Hosted Mode) ===== */
+.saved-backups-section {
+  margin-top: 15px;
+}
+
+.saved-backups-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.saved-backup-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background: rgba(255, 255, 255, 0.5);
+  border: 1px solid rgba(0, 0, 0, 0.08);
+  border-radius: 6px;
+  padding: 12px;
+}
+
+.saved-backup-item .backup-info {
+  flex: 1;
+}
+
+.saved-backup-item .backup-name {
+  font-weight: 600;
+  color: #4b4a44;
+  margin-bottom: 4px;
+}
+
+.saved-backup-item .backup-meta {
+  display: flex;
+  gap: 15px;
+  font-size: 0.85em;
+  color: #666;
+}
+
+.saved-backup-item .backup-meta span {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.saved-backup-item .backup-meta i {
+  font-size: 0.9em;
+  opacity: 0.7;
+}
+
+.saved-backup-item .backup-description {
+  font-size: 0.85em;
+  color: #888;
+  margin-top: 4px;
+}
+
+.saved-backup-item .backup-actions {
+  display: flex;
+  gap: 8px;
+}
+
+.saved-backup-item .backup-actions button {
+  background: transparent;
+  border: 1px solid rgba(0, 0, 0, 0.15);
+  color: #666;
+  padding: 6px 10px;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.saved-backup-item .backup-actions button:hover {
+  background: rgba(0, 0, 0, 0.05);
+  border-color: rgba(0, 0, 0, 0.25);
+}
+
+.saved-backup-item .restore-backup-btn:hover {
+  color: #2d862d;
+  border-color: #2d862d;
+}
+
+.saved-backup-item .delete-backup-btn:hover {
+  color: #aa5555;
+  border-color: #aa5555;
+}
+
+.no-backups-state {
+  text-align: center;
+  padding: 30px;
+  color: #888;
+}
+
+.no-backups-state i {
+  font-size: 2em;
+  margin-bottom: 10px;
+  opacity: 0.5;
+}
+
+.no-backups-state p {
+  margin: 0;
+  font-size: 0.95em;
+}

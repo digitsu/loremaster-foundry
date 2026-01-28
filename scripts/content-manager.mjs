@@ -8,6 +8,7 @@
 
 import { showCastSelectionIfNeeded } from './cast-selection-dialog.mjs';
 import { progressBar } from './progress-bar.mjs';
+import { isHostedMode } from './config.mjs';
 
 const MODULE_ID = 'loremaster';
 
@@ -96,6 +97,8 @@ export class ContentManager extends Application {
     this.pendingImport = null;
     this.isImportingBackup = false;
     this.importProgress = { stage: '', progress: 0, message: '' };
+    // Saved backups (hosted mode only)
+    this.savedBackups = [];
   }
 
   /**
@@ -170,7 +173,10 @@ export class ContentManager extends Application {
       isImportingBackup: this.isImportingBackup,
       importProgress: this.importProgress,
       worldName: game.world?.title || 'World',
-      currentDate: new Date().toISOString().split('T')[0]
+      currentDate: new Date().toISOString().split('T')[0],
+      // Hosted mode detection and saved backups
+      isHostedMode: isHostedMode(),
+      savedBackups: this.savedBackups
     };
   }
 
@@ -294,6 +300,10 @@ export class ContentManager extends Application {
 
     // Refresh backup preview
     html.find('.refresh-backup-btn').on('click', this._onRefreshBackup.bind(this));
+
+    // Saved backups (hosted mode) - restore and delete buttons
+    html.find('.restore-backup-btn').on('click', this._onRestoreSavedBackup.bind(this));
+    html.find('.delete-backup-btn').on('click', this._onDeleteSavedBackup.bind(this));
   }
 
   /**
@@ -502,7 +512,8 @@ export class ContentManager extends Application {
   async _onDeletePDF(event) {
     event.preventDefault();
 
-    const pdfId = parseInt(event.currentTarget.dataset.pdfId, 10);
+    // Keep pdfId as string - Elixir uses UUIDs, Node.js uses integers
+    const pdfId = event.currentTarget.dataset.pdfId;
     const pdfName = event.currentTarget.dataset.pdfName;
 
     // Confirm deletion
@@ -718,7 +729,8 @@ export class ContentManager extends Application {
   async _onGMPrep(event) {
     event.preventDefault();
 
-    const pdfId = parseInt(event.currentTarget.dataset.pdfId, 10);
+    // Keep pdfId as string - Elixir uses UUIDs, Node.js uses integers
+    const pdfId = event.currentTarget.dataset.pdfId;
     const pdfName = event.currentTarget.dataset.pdfName;
     const hasExisting = event.currentTarget.dataset.hasScript === 'true';
 
@@ -1057,10 +1069,12 @@ export class ContentManager extends Application {
     const value = event.target.value;
     if (!value) return;
 
-    // Parse selection value (format: "pdf:123" or "module:module-id")
+    // Parse selection value (format: "pdf:uuid" or "module:module-id")
     const [type, id] = value.split(':');
     const adventureType = type;
-    const adventureId = type === 'pdf' ? parseInt(id, 10) : id;
+    // Keep ID as string - Elixir uses UUIDs, Node.js uses integers
+    // Both work as strings since string comparison works for both
+    const adventureId = id;
 
     // Find the adventure name and GM script info
     let adventureName = '';
@@ -1112,6 +1126,46 @@ export class ContentManager extends Application {
           return;
         }
         // If 'skip', continue without a script
+      } else if (gmPrepScriptId && pdfId) {
+        // Script exists - ask if user wants to regenerate it
+        const regenerateChoice = await this._promptRegenerateGMScript(adventureName);
+        if (regenerateChoice === 'regenerate') {
+          // Regenerate the script with overwrite
+          try {
+            progressBar.show('gm-prep', `Regenerating GM Prep: ${adventureName}`, 'fa-scroll');
+
+            const result = await this.socketClient.generateGMPrep(
+              pdfId,
+              adventureName,
+              true, // overwrite existing
+              (stage, progress, message) => {
+                progressBar.update('gm-prep', progress, message);
+              }
+            );
+
+            // Update journal entry
+            await this._createGMPrepJournal(result.adventureName, result.scriptContent, result.scriptId);
+
+            progressBar.complete('gm-prep', 'GM Prep script regenerated!');
+
+            // Update the script ID
+            gmPrepScriptId = result.scriptId;
+
+            // Reload PDFs to update list
+            await this._loadPDFs();
+          } catch (error) {
+            console.error(`${MODULE_ID} | GM Prep regeneration failed:`, error);
+            progressBar.error('gm-prep', 'GM Prep regeneration failed');
+            ui.notifications.error(game.i18n.format('LOREMASTER.GMPrep.Error', { error: error.message }));
+            this.render(false);
+            return;
+          }
+        } else if (regenerateChoice === 'cancel') {
+          // User cancelled, reset selector
+          this.render(false);
+          return;
+        }
+        // If 'keep', continue with existing script
       }
     } else {
       const module = this.availableAdventures.moduleAdventures.find(m => m.module_id === adventureId);
@@ -1241,6 +1295,47 @@ export class ContentManager extends Application {
           }
         },
         default: 'generate',
+        close: () => resolve('cancel')
+      }).render(true);
+    });
+  }
+
+  /**
+   * Show prompt when a GM Prep script already exists.
+   * Lets GM choose to keep existing, regenerate, or cancel.
+   *
+   * @param {string} adventureName - The adventure name.
+   * @returns {Promise<string>} 'keep', 'regenerate', or 'cancel'.
+   * @private
+   */
+  async _promptRegenerateGMScript(adventureName) {
+    return new Promise((resolve) => {
+      new Dialog({
+        title: game.i18n.localize('LOREMASTER.ActiveAdventure.ScriptExistsTitle') || 'GM Prep Script Exists',
+        content: `
+          <div class="script-exists-dialog">
+            <p>${game.i18n.format('LOREMASTER.ActiveAdventure.ScriptExistsMessage', { name: adventureName }) || `A GM Prep script already exists for "${adventureName}".`}</p>
+            <p class="hint">${game.i18n.localize('LOREMASTER.ActiveAdventure.ScriptExistsHint') || 'You can keep the existing script or regenerate it from the PDF.'}</p>
+          </div>
+        `,
+        buttons: {
+          keep: {
+            icon: '<i class="fas fa-check"></i>',
+            label: game.i18n.localize('LOREMASTER.ActiveAdventure.KeepScript') || 'Keep Existing',
+            callback: () => resolve('keep')
+          },
+          regenerate: {
+            icon: '<i class="fas fa-sync"></i>',
+            label: game.i18n.localize('LOREMASTER.ActiveAdventure.RegenerateScript') || 'Regenerate',
+            callback: () => resolve('regenerate')
+          },
+          cancel: {
+            icon: '<i class="fas fa-times"></i>',
+            label: game.i18n.localize('LOREMASTER.Private.Cancel'),
+            callback: () => resolve('cancel')
+          }
+        },
+        default: 'keep',
         close: () => resolve('cancel')
       }).render(true);
     });
@@ -2117,6 +2212,18 @@ export class ContentManager extends Application {
 
     try {
       this.backupPreview = await this.socketClient.getBackupPreview();
+
+      // In hosted mode, also load saved backups list
+      if (isHostedMode()) {
+        try {
+          const result = await this.socketClient.listBackups();
+          this.savedBackups = result.backups || [];
+        } catch (err) {
+          console.error(`${MODULE_ID} | Failed to load saved backups:`, err);
+          this.savedBackups = [];
+        }
+      }
+
       this.render();
     } catch (error) {
       console.error(`${MODULE_ID} | Failed to load backup preview:`, error);
@@ -2144,13 +2251,21 @@ export class ContentManager extends Application {
     this.render();
 
     try {
-      const result = await this.socketClient.createBackup(backupName, (stage, progress, message) => {
+      const result = await this.socketClient.createBackup(backupName, {}, (stage, progress, message) => {
         this.backupProgress = { stage, progress, message };
         this._updateBackupProgressUI();
       });
 
-      // Download the backup file
-      this._downloadBackup(result.backup, backupName);
+      // In hosted mode, backup is saved to server - just refresh the list
+      // In self-hosted mode, download the backup file (result.backup contains data)
+      if (isHostedMode()) {
+        // Refresh the saved backups list
+        const listResult = await this.socketClient.listBackups();
+        this.savedBackups = listResult.backups || [];
+      } else if (result.backup && result.backup.data) {
+        // Self-hosted: download the backup file
+        this._downloadBackup(result.backup, backupName);
+      }
 
       ui.notifications.info(game.i18n.localize('LOREMASTER.Backup.CreateSuccess'));
     } catch (error) {
@@ -2380,5 +2495,103 @@ export class ContentManager extends Application {
 
     progressBar.css('width', `${this.importProgress.progress}%`);
     progressText.text(this.importProgress.message);
+  }
+
+  // ========================================
+  // Saved Backups Methods (Hosted Mode)
+  // ========================================
+
+  /**
+   * Handle restore saved backup button click.
+   * Restores world data from a server-stored backup.
+   *
+   * @param {Event} event - The click event.
+   * @private
+   */
+  async _onRestoreSavedBackup(event) {
+    event.preventDefault();
+
+    const button = $(event.currentTarget);
+    const backupId = button.data('backup-id');
+    const backupName = button.data('backup-name');
+
+    if (!backupId) return;
+
+    // Confirm restore
+    const confirmed = await Dialog.confirm({
+      title: game.i18n.localize('LOREMASTER.Backup.RestoreBackup'),
+      content: `<p>${game.i18n.localize('LOREMASTER.Backup.ConfirmRestore')}</p><p><strong>${backupName}</strong></p>`,
+      yes: () => true,
+      no: () => false
+    });
+
+    if (!confirmed) return;
+
+    try {
+      button.prop('disabled', true);
+      const result = await this.socketClient.restoreFromBackup(backupId, {
+        mergeStrategy: 'skip_existing'
+      });
+
+      ui.notifications.info(game.i18n.localize('LOREMASTER.Backup.RestoreSuccess'));
+
+      // Refresh all data
+      await this._loadBackupData();
+      await this._loadAdventureData();
+      await this._loadCastData();
+      await this._loadHistoryData();
+    } catch (error) {
+      console.error(`${MODULE_ID} | Restore failed:`, error);
+      ui.notifications.error(game.i18n.format('LOREMASTER.Backup.RestoreError', {
+        error: error.message
+      }));
+    } finally {
+      button.prop('disabled', false);
+    }
+  }
+
+  /**
+   * Handle delete saved backup button click.
+   * Deletes a backup from the server.
+   *
+   * @param {Event} event - The click event.
+   * @private
+   */
+  async _onDeleteSavedBackup(event) {
+    event.preventDefault();
+
+    const button = $(event.currentTarget);
+    const backupId = button.data('backup-id');
+    const backupName = button.data('backup-name');
+
+    if (!backupId) return;
+
+    // Confirm delete
+    const confirmed = await Dialog.confirm({
+      title: game.i18n.localize('LOREMASTER.Backup.DeleteBackup'),
+      content: `<p>${game.i18n.localize('LOREMASTER.Backup.ConfirmDelete')}</p><p><strong>${backupName}</strong></p>`,
+      yes: () => true,
+      no: () => false
+    });
+
+    if (!confirmed) return;
+
+    try {
+      button.prop('disabled', true);
+      await this.socketClient.deleteBackup(backupId);
+
+      ui.notifications.info(game.i18n.localize('LOREMASTER.Backup.DeleteSuccess'));
+
+      // Refresh saved backups list
+      const result = await this.socketClient.listBackups();
+      this.savedBackups = result.backups || [];
+      this.render();
+    } catch (error) {
+      console.error(`${MODULE_ID} | Delete failed:`, error);
+      ui.notifications.error(game.i18n.format('LOREMASTER.Backup.DeleteError', {
+        error: error.message
+      }));
+      button.prop('disabled', false);
+    }
   }
 }
