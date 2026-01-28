@@ -22,6 +22,17 @@ const MODULE_ID = 'loremaster';
 
 /**
  * SocketClient class manages WebSocket connection to the proxy server.
+ * Supports both Node.js (raw WebSocket) and Elixir (Phoenix Channels) protocols.
+ *
+ * Protocol Detection:
+ * - Hostname containing 'elixir' or port 4040 → Phoenix Channels (Elixir)
+ * - Otherwise → Raw WebSocket (Node.js)
+ *
+ * Phoenix Channels Protocol:
+ * - Requires topic join (phx_join) with auth payload
+ * - Messages wrapped in {topic, event, payload, ref} format
+ * - Heartbeat every 30 seconds to keep connection alive
+ * - Responses via phx_reply events
  */
 export class SocketClient {
   /**
@@ -45,10 +56,17 @@ export class SocketClient {
     this.tier = null;           // User's subscription tier (basic, pro, premium)
     this.quotaRemaining = 0;    // Remaining tokens for the period
     this.quotaLimit = 0;        // Total token limit for the period
+
+    // Phoenix Channels protocol state
+    this.isPhoenix = false;         // True if connected to Phoenix/Elixir server
+    this.topic = null;              // Phoenix topic (e.g., "world:abc123")
+    this.joinedTopic = false;       // True if successfully joined topic
+    this.heartbeatInterval = null;  // Interval timer for Phoenix heartbeat
   }
 
   /**
    * Connect to the proxy server.
+   * Automatically detects protocol (Node.js raw WebSocket vs Phoenix Channels).
    *
    * @returns {Promise<boolean>} True if connection successful.
    */
@@ -60,17 +78,38 @@ export class SocketClient {
     }
 
     // Convert HTTP URL to WebSocket URL
-    const wsUrl = proxyUrl.replace(/^http/, 'ws');
+    let wsUrl = proxyUrl.replace(/^http/, 'ws');
+
+    // Parse URL to detect Phoenix server
+    const url = new URL(wsUrl);
+
+    // Detect Phoenix server based on hostname or port
+    // Phoenix/Elixir servers typically run on port 4040 or have 'elixir' in hostname
+    this.isPhoenix = url.hostname.includes('elixir') || url.port === '4040' || url.port === '4000';
+
+    // For Phoenix/Elixir servers, append /socket/websocket if not already present
+    // Phoenix Channels require the /socket/websocket suffix for WebSocket transport
+    if (this.isPhoenix && (!url.pathname || url.pathname === '/' || url.pathname === '/websocket')) {
+      wsUrl = wsUrl.replace(/\/?(websocket)?$/, '/socket/websocket');
+      console.log(`${MODULE_ID} | Detected Phoenix server, using WebSocket path: ${wsUrl}`);
+    }
 
     return new Promise((resolve, reject) => {
       try {
-        console.log(`${MODULE_ID} | Connecting to proxy server: ${wsUrl}`);
+        const protocolLabel = this.isPhoenix ? 'Phoenix Channels' : 'Raw WebSocket';
+        console.log(`${MODULE_ID} | Connecting to proxy server: ${wsUrl} (${protocolLabel})`);
         this.ws = new WebSocket(wsUrl);
 
         this.ws.onopen = () => {
           console.log(`${MODULE_ID} | WebSocket connected`);
           this.isConnected = true;
           this.reconnectAttempts = 0;
+
+          // Start Phoenix heartbeat to keep connection alive
+          if (this.isPhoenix) {
+            this._startHeartbeat();
+          }
+
           resolve(true);
         };
 
@@ -78,6 +117,8 @@ export class SocketClient {
           console.log(`${MODULE_ID} | WebSocket disconnected: ${event.code}`);
           this.isConnected = false;
           this.isAuthenticated = false;
+          this.joinedTopic = false;
+          this._stopHeartbeat();
           this._handleDisconnect();
         };
 
@@ -97,9 +138,51 @@ export class SocketClient {
   }
 
   /**
+   * Start Phoenix heartbeat to keep connection alive.
+   * Phoenix requires heartbeat messages every 30 seconds.
+   *
+   * @private
+   */
+  _startHeartbeat() {
+    if (this.heartbeatInterval) {
+      return; // Already running
+    }
+
+    this.heartbeatInterval = setInterval(() => {
+      if (this.isConnected && this.ws && this.ws.readyState === WebSocket.OPEN) {
+        const ref = `hb_${++this.requestIdCounter}`;
+        this.ws.send(JSON.stringify({
+          topic: 'phoenix',
+          event: 'heartbeat',
+          payload: {},
+          ref
+        }));
+      }
+    }, 30000);
+
+    console.log(`${MODULE_ID} | Phoenix heartbeat started`);
+  }
+
+  /**
+   * Stop Phoenix heartbeat.
+   *
+   * @private
+   */
+  _stopHeartbeat() {
+    if (this.heartbeatInterval) {
+      clearInterval(this.heartbeatInterval);
+      this.heartbeatInterval = null;
+      console.log(`${MODULE_ID} | Phoenix heartbeat stopped`);
+    }
+  }
+
+  /**
    * Authenticate with the proxy server.
    * In hosted mode, uses session token from Patreon OAuth.
    * In self-hosted mode, uses API key and license key.
+   *
+   * For Phoenix servers, authentication happens via topic join (phx_join).
+   * For Node.js servers, authentication is a separate message after connect.
    *
    * @returns {Promise<object>} Authentication result.
    */
@@ -149,9 +232,33 @@ export class SocketClient {
       }
     }
 
-    const result = await this._sendRequest('auth', payload);
+    let result;
 
-    // Handle session token expiry/invalid in hosted mode
+    if (this.isPhoenix) {
+      // Phoenix: Authenticate via topic join (phx_join)
+      // Phoenix throws errors instead of returning result objects
+      try {
+        result = await this._phoenixAuthenticate(worldId, payload);
+      } catch (error) {
+        // Check if this is a session validation error from hosted mode
+        const errorMsg = error.message || '';
+        if (errorMsg.includes('Invalid or expired session') ||
+            errorMsg.includes('Session token required') ||
+            errorMsg.includes('INVALID_SESSION')) {
+          // Clear invalid session token
+          await clearSessionToken();
+          await clearPatreonUser();
+          throw new Error('PATREON_AUTH_REQUIRED');
+        }
+        // Re-throw other errors
+        throw error;
+      }
+    } else {
+      // Node.js: Send auth message
+      result = await this._sendRequest('auth', payload);
+    }
+
+    // Handle session token expiry/invalid in hosted mode (Node.js format)
     if (!result.success && result.error === 'INVALID_SESSION') {
       // Clear invalid session token
       await clearSessionToken();
@@ -180,6 +287,68 @@ export class SocketClient {
     }
 
     return result;
+  }
+
+  /**
+   * Phoenix-specific authentication via topic join.
+   * Phoenix Channels require joining a topic with auth credentials.
+   *
+   * @param {string} worldId - The world ID.
+   * @param {object} payload - Auth payload (apiKey, isGM, userId, userName, etc.).
+   * @returns {Promise<object>} Authentication result.
+   * @private
+   */
+  async _phoenixAuthenticate(worldId, payload) {
+    this.topic = `world:${worldId}`;
+
+    console.log(`${MODULE_ID} | Joining Phoenix topic: ${this.topic}`);
+
+    return new Promise((resolve, reject) => {
+      const requestId = `join_${++this.requestIdCounter}`;
+
+      // Set up timeout
+      const timeoutId = setTimeout(() => {
+        this.pendingRequests.delete(requestId);
+        reject(new Error('Phoenix topic join timeout'));
+      }, 30000);
+
+      // Store pending request
+      this.pendingRequests.set(requestId, {
+        resolve: (data) => {
+          clearTimeout(timeoutId);
+          this.pendingRequests.delete(requestId);
+
+          if (data.success) {
+            this.joinedTopic = true;
+            console.log(`${MODULE_ID} | Successfully joined Phoenix topic: ${this.topic}`);
+          }
+
+          resolve(data);
+        },
+        reject: (error) => {
+          clearTimeout(timeoutId);
+          this.pendingRequests.delete(requestId);
+          reject(error);
+        },
+        isPhoenixJoin: true // Mark as topic join for special handling
+      });
+
+      // Send phx_join with auth payload
+      this.ws.send(JSON.stringify({
+        topic: this.topic,
+        event: 'phx_join',
+        payload: {
+          apiKey: payload.apiKey,
+          sessionToken: payload.sessionToken,
+          licenseKey: payload.licenseKey,
+          isGM: payload.isGM,
+          userId: payload.userId,
+          userName: payload.userName,
+          worldName: payload.worldName
+        },
+        ref: requestId
+      }));
+    });
   }
 
   /**
@@ -374,15 +543,13 @@ export class SocketClient {
         }
       });
 
-      // Send request
-      this.ws.send(JSON.stringify({
-        type: 'pdf-upload',
-        requestId,
+      // Send request in appropriate protocol format
+      this._sendRawMessage('pdf-upload', requestId, {
         filename,
         category,
         displayName,
         fileData
-      }));
+      });
     });
   }
 
@@ -799,14 +966,12 @@ export class SocketClient {
         }
       });
 
-      // Send request
-      this.ws.send(JSON.stringify({
-        type: 'generate-gm-prep',
-        requestId,
+      // Send request in appropriate protocol format
+      this._sendRawMessage('generate-gm-prep', requestId, {
         pdfId,
         adventureName,
         overwrite
-      }));
+      });
     });
   }
 
@@ -1222,12 +1387,10 @@ export class SocketClient {
         }
       });
 
-      // Send request
-      this.ws.send(JSON.stringify({
-        type: 'import-foundry-module',
-        requestId,
+      // Send request in appropriate protocol format
+      this._sendRawMessage('import-foundry-module', requestId, {
         moduleId
-      }));
+      });
     });
   }
 
@@ -1455,14 +1618,15 @@ export class SocketClient {
   }
 
   /**
-   * Create and download a world state backup.
+   * Create a world state backup and save to server (hosted mode).
    * GM only operation.
    *
-   * @param {string} backupName - Optional name for the backup.
+   * @param {string} name - Name for the backup.
+   * @param {object} options - Backup options (description, includeMessages, includePdfs).
    * @param {Function} onProgress - Progress callback: (stage, percent, message) => void.
-   * @returns {Promise<object>} Backup data and statistics.
+   * @returns {Promise<object>} Backup record with id and metadata.
    */
-  async createBackup(backupName = null, onProgress = null) {
+  async createBackup(name = null, options = {}, onProgress = null) {
     this._requireAuth();
 
     if (!this.isGM) {
@@ -1498,11 +1662,86 @@ export class SocketClient {
         }
       });
 
-      this.ws.send(JSON.stringify({
-        type: 'create-backup',
-        requestId,
-        backupName
-      }));
+      // Send request in appropriate protocol format
+      this._sendRawMessage('create-backup', requestId, {
+        name,
+        description: options.description,
+        includeMessages: options.includeMessages !== false,
+        includePdfs: options.includePdfs !== false
+      });
+    });
+  }
+
+  /**
+   * List all saved backups for the current world (hosted mode).
+   * GM only operation.
+   *
+   * @returns {Promise<object[]>} Array of backup records with metadata.
+   */
+  async listBackups() {
+    this._requireAuth();
+
+    if (!this.isGM) {
+      throw new Error('Backup listing requires GM permissions');
+    }
+
+    return this._sendRequest('list-backups', {});
+  }
+
+  /**
+   * Get a specific backup by ID.
+   * GM only operation.
+   *
+   * @param {string} backupId - The backup UUID.
+   * @param {boolean} includeData - Whether to include full backup data.
+   * @returns {Promise<object>} Backup record with optional full data.
+   */
+  async getBackup(backupId, includeData = false) {
+    this._requireAuth();
+
+    if (!this.isGM) {
+      throw new Error('Backup access requires GM permissions');
+    }
+
+    return this._sendRequest('get-backup', { backupId, includeData });
+  }
+
+  /**
+   * Delete a backup by ID.
+   * GM only operation.
+   *
+   * @param {string} backupId - The backup UUID to delete.
+   * @returns {Promise<object>} Deletion result.
+   */
+  async deleteBackup(backupId) {
+    this._requireAuth();
+
+    if (!this.isGM) {
+      throw new Error('Backup deletion requires GM permissions');
+    }
+
+    return this._sendRequest('delete-backup', { backupId });
+  }
+
+  /**
+   * Restore from a saved backup by ID (hosted mode).
+   * GM only operation.
+   *
+   * @param {string} backupId - The backup UUID to restore from.
+   * @param {object} options - Restore options (mergeStrategy, dryRun).
+   * @returns {Promise<object>} Restore result with counts.
+   */
+  async restoreFromBackup(backupId, options = {}) {
+    this._requireAuth();
+
+    if (!this.isGM) {
+      throw new Error('Backup restore requires GM permissions');
+    }
+
+    return this._sendRequest('restore-backup', {
+      backupId,
+      mergeStrategy: options.mergeStrategy || 'skip_existing',
+      dryRun: options.dryRun || false
     });
   }
 
@@ -1568,12 +1807,11 @@ export class SocketClient {
         }
       });
 
-      this.ws.send(JSON.stringify({
-        type: 'import-backup',
-        requestId,
+      // Send request in appropriate protocol format
+      this._sendRawMessage('import-backup', requestId, {
         backup,
         options
-      }));
+      });
     });
   }
 
@@ -1626,11 +1864,8 @@ export class SocketClient {
         }
       });
 
-      // Send request
-      this.ws.send(JSON.stringify({
-        type: 'generate-embeddings',
-        requestId
-      }));
+      // Send request in appropriate protocol format
+      this._sendRawMessage('generate-embeddings', requestId, {});
     });
   }
 
@@ -1829,16 +2064,59 @@ export class SocketClient {
    * Disconnect from the proxy server.
    */
   disconnect() {
+    // Stop Phoenix heartbeat
+    this._stopHeartbeat();
+
     if (this.ws) {
       this.ws.close();
       this.ws = null;
     }
+
+    // Reset connection state
     this.isConnected = false;
     this.isAuthenticated = false;
+
+    // Reset Phoenix-specific state
+    this.joinedTopic = false;
+    this.topic = null;
+  }
+
+  /**
+   * Format and send a raw message to the server.
+   * Uses appropriate protocol format (Node.js or Phoenix).
+   * Does not wait for response - use for fire-and-forget or when manually tracking requests.
+   *
+   * @param {string} type - Message type/event name.
+   * @param {string} requestId - Request ID for tracking responses.
+   * @param {object} payload - Message payload.
+   * @private
+   */
+  _sendRawMessage(type, requestId, payload) {
+    let message;
+
+    if (this.isPhoenix) {
+      // Phoenix Channels format: {topic, event, payload, ref}
+      message = {
+        topic: this.topic,
+        event: type,
+        payload,
+        ref: requestId
+      };
+    } else {
+      // Node.js raw WebSocket format: {type, requestId, ...payload}
+      message = {
+        type,
+        requestId,
+        ...payload
+      };
+    }
+
+    this.ws.send(JSON.stringify(message));
   }
 
   /**
    * Send a request to the proxy server.
+   * Automatically uses the correct protocol format (Node.js or Phoenix).
    *
    * @param {string} type - Message type.
    * @param {object} payload - Request payload.
@@ -1847,6 +2125,11 @@ export class SocketClient {
    * @private
    */
   _sendRequest(type, payload, timeout = 60000) {
+    // For Phoenix, require topic join first
+    if (this.isPhoenix && !this.joinedTopic) {
+      return Promise.reject(new Error('Not joined to Phoenix topic. Call authenticate() first.'));
+    }
+
     return new Promise((resolve, reject) => {
       const requestId = `req_${++this.requestIdCounter}`;
 
@@ -1867,20 +2150,36 @@ export class SocketClient {
           clearTimeout(timeoutId);
           this.pendingRequests.delete(requestId);
           reject(error);
-        }
+        },
+        originalType: type // Store for Phoenix response handling
       });
 
-      // Send request
-      this.ws.send(JSON.stringify({
-        type,
-        requestId,
-        ...payload
-      }));
+      // Build and send message in appropriate format
+      let message;
+      if (this.isPhoenix) {
+        // Phoenix Channels format: {topic, event, payload, ref}
+        message = {
+          topic: this.topic,
+          event: type,
+          payload,
+          ref: requestId
+        };
+      } else {
+        // Node.js raw WebSocket format: {type, requestId, ...payload}
+        message = {
+          type,
+          requestId,
+          ...payload
+        };
+      }
+
+      this.ws.send(JSON.stringify(message));
     });
   }
 
   /**
    * Handle incoming WebSocket message.
+   * Automatically detects and handles both Node.js and Phoenix protocols.
    *
    * @param {string} data - Raw message data.
    * @private
@@ -1889,85 +2188,343 @@ export class SocketClient {
     try {
       const message = JSON.parse(data);
 
-      // Handle license-related errors specially
-      if (message.type === 'error' && message.error?.toLowerCase().includes('license')) {
-        console.error(`${MODULE_ID} | License error: ${message.error}`);
-        ui.notifications.error(`Loremaster: ${message.error}`, { permanent: true });
-
-        // Prompt GM to configure license
-        if (game.user.isGM) {
-          new Dialog({
-            title: 'Loremaster License Required',
-            content: `<p>${message.error}</p><p>Please configure a valid license key in Module Settings.</p>`,
-            buttons: {
-              settings: {
-                label: 'Open Settings',
-                callback: () => game.settings.sheet.render(true)
-              },
-              close: { label: 'Close' }
-            }
-          }).render(true);
-        }
+      // Detect and route to appropriate protocol handler
+      if (this.isPhoenix || message.event || message.topic) {
+        this._handlePhoenixMessage(message);
         return;
       }
 
-      // Handle tool execution requests from proxy
-      if (message.type === 'tool-execute') {
-        this._handleToolExecute(message);
-        return;
-      }
-
-      // Handle PDF upload progress updates
-      if (message.type === 'pdf-upload-progress') {
-        this._handlePDFProgress(message);
-        return;
-      }
-
-      // Handle GM Prep progress updates
-      if (message.type === 'gm-prep-progress') {
-        this._handleGMPrepProgress(message);
-        return;
-      }
-
-      // Handle embedding progress updates
-      if (message.type === 'embedding-progress') {
-        this._handleEmbeddingProgress(message);
-        return;
-      }
-
-      // Handle module import progress updates
-      if (message.type === 'module-import-progress') {
-        this._handleModuleImportProgress(message);
-        return;
-      }
-
-      // Handle backup progress updates
-      if (message.type === 'backup-progress') {
-        this._handleBackupProgress(message);
-        return;
-      }
-
-      // Handle import progress updates
-      if (message.type === 'import-progress') {
-        this._handleImportProgress(message);
-        return;
-      }
-
-      // Handle response to pending request
-      const { requestId, success, data: responseData, error } = message;
-
-      if (requestId && this.pendingRequests.has(requestId)) {
-        const pending = this.pendingRequests.get(requestId);
-
-        if (success) {
-          pending.resolve(responseData);
-        } else {
-          pending.reject(new Error(error || 'Unknown error'));
-        }
-      }
+      // Handle Node.js raw WebSocket protocol
+      this._handleRawMessage(message);
 
     } catch (error) {
       console.error(`${MODULE_ID} | Error parsing message:`, error);
+    }
+  }
+
+  /**
+   * Handle Phoenix Channels protocol message.
+   * Converts Phoenix responses to Node.js-compatible format for uniform handling.
+   *
+   * @param {object} message - Phoenix message with {topic, event, payload, ref}.
+   * @private
+   */
+  _handlePhoenixMessage(message) {
+    const { event, payload, ref } = message;
+
+    // Handle phx_reply (response to our request)
+    if (event === 'phx_reply') {
+      const pending = this.pendingRequests.get(ref);
+      if (pending) {
+        const { status, response } = payload || {};
+
+        // Convert Phoenix response to Node.js-compatible format
+        if (status === 'ok') {
+          // Always include success flag for compatibility with calling code
+          // The response might not include it, so we add it explicitly
+          if (pending.isPhoenixJoin) {
+            pending.resolve({
+              success: true,
+              ...response
+            });
+          } else {
+            // Check if this is an async acknowledgment (status: "processing" or "generating")
+            // For async operations, DON'T resolve yet - wait for the actual result event
+            if (response?.status === 'processing' || response?.status === 'generating') {
+              // Store correlation ID for async result matching
+              // Chat uses batchId, Veto uses originalBatchId, GM Prep uses scriptId
+              const batchId = response.batchId || response.originalBatchId;
+              const scriptId = response.scriptId;
+
+              if (batchId) {
+                pending.batchId = batchId;
+                pending.isVeto = !!response.originalBatchId;
+                // Move pending request to batch ID key for later resolution
+                this.pendingRequests.delete(ref);
+                this.pendingRequests.set(`batch_${batchId}`, pending);
+                console.log(`${MODULE_ID} | Async request acknowledged, waiting for result (batchId: ${batchId}, isVeto: ${pending.isVeto})`);
+              } else if (scriptId) {
+                // GM Prep async - store with scriptId for correlation
+                pending.scriptId = scriptId;
+                pending.adventureName = response.adventureName;
+                // Move to scriptId key for later resolution by gm-prep-complete
+                this.pendingRequests.delete(ref);
+                this.pendingRequests.set(`script_${scriptId}`, pending);
+                console.log(`${MODULE_ID} | GM Prep request acknowledged, waiting for completion (scriptId: ${scriptId})`);
+              }
+              // Don't resolve yet - wait for completion event
+              return;
+            }
+            // Spread response fields and ensure success is true
+            pending.resolve({
+              success: true,
+              ...(response || {})
+            });
+          }
+        } else {
+          // Error response
+          const errorMsg = response?.reason || response?.message || response?.error || 'Unknown error';
+          pending.reject(new Error(errorMsg));
+        }
+        return;
+      }
+    }
+
+    // Handle phx_error (channel error)
+    if (event === 'phx_error') {
+      console.error(`${MODULE_ID} | Phoenix channel error:`, payload);
+      const pending = this.pendingRequests.get(ref);
+      if (pending) {
+        pending.reject(new Error(payload?.reason || 'Channel error'));
+      }
+      return;
+    }
+
+    // Handle phx_close (channel closed)
+    if (event === 'phx_close') {
+      console.log(`${MODULE_ID} | Phoenix channel closed`);
+      this.joinedTopic = false;
+      return;
+    }
+
+    // Convert server-pushed Phoenix events to Node.js format and handle
+    const converted = this._convertPhoenixEventToRaw(event, payload);
+    if (converted) {
+      this._handleRawMessage(converted);
+    }
+  }
+
+  /**
+   * Convert Phoenix server-pushed events to Node.js message format.
+   *
+   * @param {string} event - Phoenix event name.
+   * @param {object} payload - Phoenix event payload.
+   * @returns {object|null} Converted message or null if not a handled event.
+   * @private
+   */
+  _convertPhoenixEventToRaw(event, payload) {
+    // Map Phoenix event names to Node.js message types
+    const eventMap = {
+      // Tool execution
+      'tool_execute': 'tool-execute',
+      'tool-execute': 'tool-execute',
+
+      // Chat events
+      'chat_chunk': 'chat-chunk',
+      'chat-chunk': 'chat-chunk',
+      'chat_complete': 'chat-complete',
+      'chat-complete': 'chat-complete',
+      'chat_error': 'chat-error',
+      'chat-error': 'chat-error',
+
+      // Progress events
+      'pdf_upload_progress': 'pdf-upload-progress',
+      'pdf-upload-progress': 'pdf-upload-progress',
+      'gm_prep_progress': 'gm-prep-progress',
+      'gm-prep-progress': 'gm-prep-progress',
+      'gm_prep_complete': 'gm-prep-complete',
+      'gm-prep-complete': 'gm-prep-complete',
+      'gm_prep_error': 'gm-prep-error',
+      'gm-prep-error': 'gm-prep-error',
+      'embedding_progress': 'embedding-progress',
+      'embedding-progress': 'embedding-progress',
+      'module_import_progress': 'module-import-progress',
+      'module-import-progress': 'module-import-progress',
+      'backup_progress': 'backup-progress',
+      'backup-progress': 'backup-progress',
+      'import_progress': 'import-progress',
+      'import-progress': 'import-progress'
+    };
+
+    const mappedType = eventMap[event];
+    if (mappedType) {
+      return {
+        type: mappedType,
+        ...payload
+      };
+    }
+
+    // Unknown event - log for debugging
+    console.log(`${MODULE_ID} | Unhandled Phoenix event: ${event}`, payload);
+    return null;
+  }
+
+  /**
+   * Handle Node.js raw WebSocket protocol message.
+   *
+   * @param {object} message - Raw message with {type, requestId, ...}.
+   * @private
+   */
+  _handleRawMessage(message) {
+    // Handle license-related errors specially
+    if (message.type === 'error' && message.error?.toLowerCase().includes('license')) {
+      console.error(`${MODULE_ID} | License error: ${message.error}`);
+      ui.notifications.error(`Loremaster: ${message.error}`, { permanent: true });
+
+      // Prompt GM to configure license
+      if (game.user.isGM) {
+        new Dialog({
+          title: 'Loremaster License Required',
+          content: `<p>${message.error}</p><p>Please configure a valid license key in Module Settings.</p>`,
+          buttons: {
+            settings: {
+              label: 'Open Settings',
+              callback: () => game.settings.sheet.render(true)
+            },
+            close: { label: 'Close' }
+          }
+        }).render(true);
+      }
+      return;
+    }
+
+    // Handle chat-complete events (async response from Phoenix server)
+    if (message.type === 'chat-complete') {
+      // Both chat-batch and veto use this event, with different ID fields
+      const batchId = message.batch_id || message.batchId || message.original_batch_id || message.originalBatchId;
+      if (batchId) {
+        const pending = this.pendingRequests.get(`batch_${batchId}`);
+        if (pending) {
+          console.log(`${MODULE_ID} | Chat complete received for batch: ${batchId}`);
+          this.pendingRequests.delete(`batch_${batchId}`);
+          pending.resolve({
+            success: true,
+            response: message.response,
+            conversationId: message.conversation_id || message.conversationId,
+            messageId: message.message_id || message.messageId,
+            usage: message.usage,
+            model: message.model
+          });
+          return;
+        }
+      }
+      // If no pending request, log it for debugging
+      console.log(`${MODULE_ID} | Chat complete received (no pending request):`, message);
+      return;
+    }
+
+    // Handle chat-error events (async error from Phoenix server)
+    if (message.type === 'chat-error') {
+      // Both chat-batch and veto use this event
+      const batchId = message.batch_id || message.batchId || message.original_batch_id || message.originalBatchId;
+      if (batchId) {
+        const pending = this.pendingRequests.get(`batch_${batchId}`);
+        if (pending) {
+          console.error(`${MODULE_ID} | Chat error for batch ${batchId}:`, message.error);
+          this.pendingRequests.delete(`batch_${batchId}`);
+          pending.reject(new Error(message.error || 'Chat request failed'));
+          return;
+        }
+      }
+      console.error(`${MODULE_ID} | Chat error (no pending request):`, message.error);
+      return;
+    }
+
+    // Handle tool execution requests from proxy
+    if (message.type === 'tool-execute') {
+      this._handleToolExecute(message);
+      return;
+    }
+
+    // Handle PDF upload progress updates
+    if (message.type === 'pdf-upload-progress') {
+      this._handlePDFProgress(message);
+      return;
+    }
+
+    // Handle GM Prep progress updates
+    if (message.type === 'gm-prep-progress') {
+      this._handleGMPrepProgress(message);
+      return;
+    }
+
+    // Handle GM Prep complete (async response from Phoenix server)
+    if (message.type === 'gm-prep-complete') {
+      const { scriptId, scriptContent, adventureName, usage } = message;
+      // Look up pending request by scriptId
+      const pendingKey = `script_${scriptId}`;
+      const pending = this.pendingRequests.get(pendingKey);
+      if (pending) {
+        console.log(`${MODULE_ID} | GM Prep complete received for script: ${scriptId}`);
+        this.pendingRequests.delete(pendingKey);
+        // Also clean up any progress callbacks
+        for (const [reqId, callback] of this.progressCallbacks) {
+          if (reqId.startsWith('req_')) {
+            this.progressCallbacks.delete(reqId);
+            break;
+          }
+        }
+        pending.resolve({
+          success: true,
+          scriptId,
+          scriptContent,
+          adventureName: adventureName || pending.adventureName,
+          usage
+        });
+        return;
+      }
+      console.log(`${MODULE_ID} | GM Prep complete received (no pending request):`, message);
+      return;
+    }
+
+    // Handle GM Prep error (async error from Phoenix server)
+    if (message.type === 'gm-prep-error') {
+      const { scriptId, error } = message;
+      // Look up pending request by scriptId
+      const pendingKey = `script_${scriptId}`;
+      const pending = this.pendingRequests.get(pendingKey);
+      if (pending) {
+        console.error(`${MODULE_ID} | GM Prep error for script ${scriptId}:`, error);
+        this.pendingRequests.delete(pendingKey);
+        // Also clean up any progress callbacks
+        for (const [reqId, callback] of this.progressCallbacks) {
+          if (reqId.startsWith('req_')) {
+            this.progressCallbacks.delete(reqId);
+            break;
+          }
+        }
+        pending.reject(new Error(error || 'GM Prep generation failed'));
+        return;
+      }
+      console.error(`${MODULE_ID} | GM Prep error (no pending request):`, error);
+      return;
+    }
+
+    // Handle embedding progress updates
+    if (message.type === 'embedding-progress') {
+      this._handleEmbeddingProgress(message);
+      return;
+    }
+
+    // Handle module import progress updates
+    if (message.type === 'module-import-progress') {
+      this._handleModuleImportProgress(message);
+      return;
+    }
+
+    // Handle backup progress updates
+    if (message.type === 'backup-progress') {
+      this._handleBackupProgress(message);
+      return;
+    }
+
+    // Handle import progress updates
+    if (message.type === 'import-progress') {
+      this._handleImportProgress(message);
+      return;
+    }
+
+    // Handle response to pending request
+    const { requestId, success, data: responseData, error } = message;
+
+    if (requestId && this.pendingRequests.has(requestId)) {
+      const pending = this.pendingRequests.get(requestId);
+
+      if (success) {
+        pending.resolve(responseData);
+      } else {
+        pending.reject(new Error(error || 'Unknown error'));
+      }
     }
   }
 
@@ -2143,6 +2700,7 @@ export class SocketClient {
 
   /**
    * Handle tool execution request from proxy.
+   * Sends tool results in appropriate protocol format.
    *
    * @param {object} message - Tool execution message.
    * @private
@@ -2153,28 +2711,53 @@ export class SocketClient {
     const handler = this.toolHandlers.get(toolName);
     if (!handler) {
       // Send error response
-      this.ws.send(JSON.stringify({
-        type: 'tool-result',
-        toolCallId,
-        error: `Unknown tool: ${toolName}`
-      }));
+      this._sendToolResult(toolCallId, null, `Unknown tool: ${toolName}`);
       return;
     }
 
     try {
       const result = await handler(toolInput);
-      this.ws.send(JSON.stringify({
-        type: 'tool-result',
-        toolCallId,
-        result
-      }));
+      this._sendToolResult(toolCallId, result, null);
     } catch (error) {
-      this.ws.send(JSON.stringify({
+      this._sendToolResult(toolCallId, null, error.message);
+    }
+  }
+
+  /**
+   * Send a tool result back to the server.
+   * Uses appropriate protocol format (Node.js or Phoenix).
+   *
+   * @param {string} toolCallId - The tool call ID.
+   * @param {object|null} result - The tool result (if success).
+   * @param {string|null} error - The error message (if failure).
+   * @private
+   */
+  _sendToolResult(toolCallId, result, error) {
+    let message;
+
+    if (this.isPhoenix) {
+      // Phoenix Channels format
+      message = {
+        topic: this.topic,
+        event: 'tool-result',
+        payload: {
+          toolCallId,
+          result,
+          error
+        },
+        ref: `tr_${++this.requestIdCounter}`
+      };
+    } else {
+      // Node.js raw WebSocket format
+      message = {
         type: 'tool-result',
         toolCallId,
-        error: error.message
-      }));
+        result,
+        error
+      };
     }
+
+    this.ws.send(JSON.stringify(message));
   }
 
   /**
