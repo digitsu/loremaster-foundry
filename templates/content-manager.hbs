@@ -726,26 +726,31 @@
             {{/if}}
 
             <div class="backup-controls">
-              <input type="text" class="backup-name-input"
-                     placeholder="{{localize 'LOREMASTER.Backup.NamePlaceholder'}}"
-                     value="{{worldName}} Backup - {{currentDate}}">
-              <button class="create-backup-btn" {{#if isBackingUp}}disabled{{/if}}>
-                {{#if isHostedMode}}
-                  <i class="fas fa-save"></i>
-                  {{#if isBackingUp}}
-                    {{localize "LOREMASTER.Backup.Creating"}}
+              <div class="backup-name-row">
+                <label for="backup-name">{{localize "LOREMASTER.Backup.NamePlaceholder"}}</label>
+                <input type="text" id="backup-name" class="backup-name-input"
+                       placeholder="{{worldName}} Backup - {{currentDate}}"
+                       value="{{worldName}} Backup - {{currentDate}}">
+              </div>
+              <div class="backup-button-row">
+                <button class="create-backup-btn" {{#if isBackingUp}}disabled{{/if}}>
+                  {{#if isHostedMode}}
+                    <i class="fas fa-save"></i>
+                    {{#if isBackingUp}}
+                      {{localize "LOREMASTER.Backup.Creating"}}
+                    {{else}}
+                      {{localize "LOREMASTER.Backup.CreateBackup"}}
+                    {{/if}}
                   {{else}}
-                    {{localize "LOREMASTER.Backup.CreateBackup"}}
+                    <i class="fas fa-download"></i>
+                    {{#if isBackingUp}}
+                      {{localize "LOREMASTER.Backup.Creating"}}
+                    {{else}}
+                      {{localize "LOREMASTER.Backup.CreateDownload"}}
+                    {{/if}}
                   {{/if}}
-                {{else}}
-                  <i class="fas fa-download"></i>
-                  {{#if isBackingUp}}
-                    {{localize "LOREMASTER.Backup.Creating"}}
-                  {{else}}
-                    {{localize "LOREMASTER.Backup.CreateDownload"}}
-                  {{/if}}
-                {{/if}}
-              </button>
+                </button>
+              </div>
             </div>
 
             {{#if isBackingUp}}

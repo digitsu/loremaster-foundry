@@ -4209,22 +4209,40 @@
 /* Backup Controls */
 .backup-controls {
   display: flex;
-  gap: 10px;
-  align-items: center;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.backup-name-row {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.backup-name-row label {
+  font-size: 0.85em;
+  font-weight: 500;
+  color: #4b4a44;
 }
 
 .backup-name-input {
-  flex: 1;
-  padding: 8px 12px;
+  width: 100%;
+  padding: 10px 12px;
   border: 1px solid rgba(0, 0, 0, 0.15);
   border-radius: 6px;
   font-size: 0.9em;
+  box-sizing: border-box;
 }
 
 .backup-name-input:focus {
   outline: none;
   border-color: #c9841a;
   box-shadow: 0 0 0 2px rgba(201, 132, 26, 0.1);
+}
+
+.backup-button-row {
+  display: flex;
+  justify-content: flex-start;
 }
 
 .create-backup-btn {
