@@ -52,7 +52,7 @@ export function registerSettings() {
   // Proxy server URL (only shown in self-hosted mode)
   game.settings.register(MODULE_ID, 'proxyUrl', {
     name: 'Proxy Server URL',
-    hint: 'URL of the Loremaster proxy server (e.g., http://localhost:3001).',
+    hint: 'URL of the Loremaster proxy server. Auto-configured in hosted mode.',
     scope: 'world',
     config: true,
     type: String,
@@ -62,7 +62,7 @@ export function registerSettings() {
   // API Key setting (only for self-hosted mode)
   game.settings.register(MODULE_ID, 'apiKey', {
     name: 'Claude API Key',
-    hint: 'Your Anthropic API key for Claude. This is sent to the proxy server and stored encrypted.',
+    hint: 'Your Anthropic API key (self-hosted only). Not needed for hosted mode.',
     scope: 'world',
     config: true,
     type: String,
@@ -72,7 +72,7 @@ export function registerSettings() {
   // License Key setting (only for self-hosted mode)
   game.settings.register(MODULE_ID, 'licenseKey', {
     name: 'License Key',
-    hint: 'Loremaster proxy license key (format: LM-XXXX-XXXX-XXXX-XXXX). Required for production servers.',
+    hint: 'Loremaster proxy license key (self-hosted only). Not needed for hosted mode.',
     scope: 'world',
     config: true,
     type: String,
@@ -236,6 +236,21 @@ export function registerSettings() {
     config: true,
     type: Number,
     default: 0
+  });
+
+  // Disable hosted-managed fields when in hosted mode
+  Hooks.on('renderSettingsConfig', (app, html) => {
+    const mode = game.settings.get(MODULE_ID, 'serverMode');
+    if (mode === 'hosted') {
+      const hostedOnlyFields = ['proxyUrl', 'apiKey', 'licenseKey'];
+      for (const field of hostedOnlyFields) {
+        const input = html[0].querySelector(`[name="loremaster.${field}"]`);
+        if (input) {
+          input.disabled = true;
+          input.style.opacity = '0.5';
+        }
+      }
+    }
   });
 
   console.log(`${MODULE_ID} | Settings registered`);
