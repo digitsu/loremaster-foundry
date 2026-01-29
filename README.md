@@ -85,6 +85,7 @@ Run your own Loremaster server with full control.
 3. **Open Module Settings** (Settings > Module Settings > Loremaster)
 4. **Set Server Mode** to "Hosted (Patreon)"
 5. **Enable Loremaster** and save settings
+   - *Note*: Proxy URL, Claude API Key, and License Key are auto-configured and disabled in hosted mode. These fields are only used for self-hosted setups.
 6. **Connect with Patreon**: A popup will appear asking you to authenticate
 7. **Authorize**: Log in to Patreon and grant Loremaster access
 8. **Done!** The module will automatically connect using your subscription
@@ -108,9 +109,9 @@ Your session stays connected until you log out. Quota resets monthly on your bil
 |---------|-------------|
 | **Enable Loremaster** | Turn the module on/off |
 | **Server Mode** | Hosted (Patreon) or Self-Hosted |
-| **Proxy URL** | Server URL (auto-set for hosted, configure for self-hosted) |
-| **Claude API Key** | Your Anthropic API key (self-hosted only) |
-| **License Key** | Your Gumroad license (self-hosted only) |
+| **Proxy URL** | Server URL — auto-configured and locked in hosted mode; user-configurable in self-hosted mode |
+| **Claude API Key** | Your Anthropic API key — self-hosted only (disabled in hosted mode) |
+| **License Key** | Your Gumroad license — self-hosted only (disabled in hosted mode) |
 | **Chat Trigger Prefix** | Prefix to activate Loremaster (default: `@lm`) |
 | **Response Visibility** | Who sees AI responses |
 | **Batching Mode** | Timer or Manual message batching |
