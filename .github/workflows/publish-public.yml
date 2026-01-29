@@ -61,6 +61,14 @@ jobs:
           git config user.name "GitHub Actions"
           git config user.email "actions@github.com"
 
+      - name: Scrub AI attribution from commit messages
+        run: |
+          # Remove Co-Authored-By lines and Claude Code generated lines from all commits
+          FILTER_BRANCH_SQUELCH_WARNING=1 git filter-branch --msg-filter '
+            sed "/^Co-Authored-By:.*$/d" | sed "/.*Generated with \[Claude Code\].*/d"
+          ' --force -- --all
+          rm -rf .git/refs/original
+
       - name: Commit and push to public repo
         run: |
           # Stage all changes (including deletions)
