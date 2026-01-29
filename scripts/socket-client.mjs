@@ -2212,7 +2212,7 @@ export class SocketClient {
   _handlePhoenixMessage(message) {
     const { event, payload, ref } = message;
 
-    // Handle phx_reply (response to our request)
+    // Handle phx_reply (response to our request, or heartbeat ack)
     if (event === 'phx_reply') {
       const pending = this.pendingRequests.get(ref);
       if (pending) {
@@ -2266,8 +2266,10 @@ export class SocketClient {
           const errorMsg = response?.reason || response?.message || response?.error || 'Unknown error';
           pending.reject(new Error(errorMsg));
         }
-        return;
       }
+      // Always return for phx_reply — replies without a pending request
+      // (e.g. heartbeat acks) are expected and should be silently ignored
+      return;
     }
 
     // Handle phx_error (channel error)
