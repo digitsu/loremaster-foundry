@@ -323,6 +323,8 @@ export class ContentManager extends Application {
         await this._loadHistoryData();
         await this._loadFoundryModules();
         await this._loadBackupData();
+        // Check RAG availability and gate the embeddings button
+        await this._checkRagAvailability();
       }
     }
   }
@@ -547,6 +549,41 @@ export class ContentManager extends Application {
   }
 
   /**
+   * Check RAG availability and update the embeddings button accordingly.
+   * Disables/hides the button if RAG is not available for the current user's tier
+   * or deployment mode.
+   *
+   * @private
+   */
+  async _checkRagAvailability() {
+    try {
+      const ragStatus = await this.socketClient.getRagStatus();
+      this._ragAvailable = ragStatus.ragAvailable;
+
+      const html = $(this.element);
+      const btn = html.find('.generate-embeddings-btn');
+
+      if (!ragStatus.ragAvailable) {
+        btn.prop('disabled', true);
+        btn.css('opacity', '0.5');
+
+        // Set tooltip based on reason
+        if (ragStatus.deploymentMode !== 'hosted') {
+          btn.attr('title', game.i18n.localize('LOREMASTER.ContentManager.RAGNotAvailableSelfHosted') || 'RAG not available in self-hosted mode');
+        } else {
+          const requiredTier = ragStatus.ragRequiredTier || 'Pro';
+          btn.attr('title', game.i18n.format('LOREMASTER.ContentManager.RAGRequiresTier', { tier: requiredTier }) || `RAG requires ${requiredTier} tier`);
+        }
+
+        console.log(`${MODULE_ID} | RAG not available: deploymentMode=${ragStatus.deploymentMode}, userTier=${ragStatus.userTier}`);
+      }
+    } catch (error) {
+      console.warn(`${MODULE_ID} | Failed to check RAG status:`, error);
+      // On error, leave button enabled (fail open for UX)
+    }
+  }
+
+  /**
    * Handle Generate Embeddings button click.
    * Rechunks PDFs and generates embeddings for all content.
    *
@@ -555,6 +592,12 @@ export class ContentManager extends Application {
    */
   async _onGenerateEmbeddings(event) {
     event.preventDefault();
+
+    // Check if RAG is available before proceeding
+    if (this._ragAvailable === false) {
+      ui.notifications.warn(game.i18n.localize('LOREMASTER.ContentManager.RAGNotAvailable') || 'RAG is not available for your current tier');
+      return;
+    }
 
     // Disable button during operation
     const html = $(this.element);

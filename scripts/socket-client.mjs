@@ -1818,6 +1818,18 @@ export class SocketClient {
   // ===== Embedding Methods =====
 
   /**
+   * Get the current RAG status including tier availability.
+   * Returns whether RAG is available for the current user based on deployment mode,
+   * subscription tier, and Voyage API configuration.
+   *
+   * @returns {Promise<object>} RAG status with ragAvailable, userTier, ragRequiredTier, deploymentMode, etc.
+   */
+  async getRagStatus() {
+    this._requireAuth();
+    return this._sendRequest('get-rag-status', {});
+  }
+
+  /**
    * Generate embeddings for existing content.
    * Rechunks PDFs that don't have chunks and generates embeddings via Voyage API.
    * GM only operation.
