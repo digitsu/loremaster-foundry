@@ -96,10 +96,19 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Notify Foundry Package Registry
-        if: ${{ env.HAS_FOUNDRY_TOKEN == 'true' }}
+      - name: Check Foundry token
+        id: foundry
+        run: |
+          if [ -n "$FOUNDRY_TOKEN" ]; then
+            echo "has_token=true" >> $GITHUB_OUTPUT
+          else
+            echo "has_token=false" >> $GITHUB_OUTPUT
+          fi
         env:
-          HAS_FOUNDRY_TOKEN: ${{ secrets.FOUNDRY_PACKAGE_RELEASE_TOKEN != '' }}
+          FOUNDRY_TOKEN: ${{ secrets.FOUNDRY_PACKAGE_RELEASE_TOKEN }}
+
+      - name: Notify Foundry Package Registry
+        if: steps.foundry.outputs.has_token == 'true'
         run: |
           # Notify Foundry of the new release
           RESPONSE=$(curl -s -w "\n%{http_code}" -X POST \
