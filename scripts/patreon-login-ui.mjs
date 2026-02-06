@@ -123,6 +123,12 @@ export class PatreonLoginUI extends Application {
     /** @type {boolean} Whether quota is being loaded */
     this.isLoadingQuota = false;
 
+    /** @type {Object|null} RAG status from server */
+    this.ragStatus = null;
+
+    /** @type {boolean} Whether tier is being refreshed */
+    this.isRefreshingTier = false;
+
     /** @type {Function|null} Unsubscribe function for auth state changes */
     this._unsubscribe = null;
 
@@ -199,6 +205,85 @@ export class PatreonLoginUI extends Application {
       this.isLoadingQuota = false;
       if (this.rendered) this.render(false);
     }
+
+    // Also fetch RAG status
+    this._fetchRagStatus();
+  }
+
+  /**
+   * Fetch RAG status from the server.
+   *
+   * @private
+   */
+  async _fetchRagStatus() {
+    try {
+      // Get socket client from Loremaster module
+      const loremaster = game.modules.get('loremaster');
+      const socketClient = loremaster?.api?.getSocketClient?.();
+
+      if (socketClient && socketClient.isAuthenticated) {
+        const ragStatus = await socketClient.getRagStatus();
+        this.ragStatus = ragStatus;
+        if (this.rendered) this.render(false);
+      }
+    } catch (err) {
+      console.error(`${MODULE_NAME} | Failed to fetch RAG status:`, err);
+    }
+  }
+
+  /**
+   * Refresh the user's tier from Patreon.
+   * Called when the Refresh Tier button is clicked.
+   *
+   * @private
+   */
+  async _refreshTier() {
+    if (this.isRefreshingTier) return;
+
+    this.isRefreshingTier = true;
+    if (this.rendered) this.render(false);
+
+    try {
+      // Get socket client from Loremaster module
+      const loremaster = game.modules.get('loremaster');
+      const socketClient = loremaster?.api?.getSocketClient?.();
+
+      if (!socketClient || !socketClient.isAuthenticated) {
+        ui.notifications.warn(`${MODULE_NAME}: Not connected to server`);
+        return;
+      }
+
+      const result = await socketClient.verifyMembership();
+
+      if (result.success) {
+        if (result.tierChanged) {
+          ui.notifications.info(
+            `${MODULE_NAME}: Tier updated from ${result.oldTier} to ${result.newTier}!`
+          );
+          // Refresh RAG status since tier changed
+          this.ragStatus = {
+            ragAvailable: result.ragAvailable,
+            ragRequiredTier: result.ragRequiredTier
+          };
+        } else {
+          ui.notifications.info(`${MODULE_NAME}: Tier verified (${result.newTier})`);
+        }
+
+        // Update auth manager user info
+        if (this.authManager.user) {
+          this.authManager.user.tierName = result.newTier;
+          this.authManager.user.patronStatus = result.patronStatus;
+        }
+      } else {
+        ui.notifications.error(`${MODULE_NAME}: ${result.error || 'Failed to verify tier'}`);
+      }
+    } catch (err) {
+      console.error(`${MODULE_NAME} | Tier refresh error:`, err);
+      ui.notifications.error(`${MODULE_NAME}: Failed to refresh tier`);
+    } finally {
+      this.isRefreshingTier = false;
+      if (this.rendered) this.render(false);
+    }
   }
 
   /**
@@ -243,6 +328,11 @@ export class PatreonLoginUI extends Application {
       tokensUsed: this.quota?.tokensUsed || 0,
       tokensLimit: this.quota?.tokensLimit || tierConfig.tokenLimit,
       quotaResetDate: this.quota?.resetDate ? new Date(this.quota.resetDate).toLocaleDateString() : null,
+
+      // RAG status
+      ragAvailable: this.ragStatus?.ragAvailable ?? false,
+      ragRequiredTier: this.ragStatus?.ragRequiredTier || 'Pro',
+      isRefreshingTier: this.isRefreshingTier,
 
       // Config
       isHostedMode: isHostedMode(),
@@ -322,6 +412,20 @@ export class PatreonLoginUI extends Application {
         this._quotaFetchAttempted = false;
         this._fetchQuota();
       });
+    }
+
+    // Refresh tier button
+    const refreshTierBtn = element.querySelector('.refresh-tier-btn');
+    if (refreshTierBtn) {
+      refreshTierBtn.addEventListener('click', (event) => {
+        event.preventDefault();
+        this._refreshTier();
+      });
+
+      // Add spinning class if currently refreshing
+      if (this.isRefreshingTier) {
+        refreshTierBtn.classList.add('refreshing');
+      }
     }
   }
 

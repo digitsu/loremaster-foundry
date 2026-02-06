@@ -1830,6 +1830,27 @@ export class SocketClient {
   }
 
   /**
+   * Verify and refresh the user's Patreon membership status.
+   * Re-checks the user's tier with Patreon without requiring re-authentication.
+   * Useful when a user upgrades their tier on Patreon and wants to immediately
+   * see the new tier reflected in the client.
+   *
+   * @returns {Promise<object>} Verification result with:
+   *   - success: boolean
+   *   - tierChanged: boolean - True if tier was different
+   *   - oldTier: string - Previous tier name
+   *   - newTier: string - Current tier name
+   *   - patronStatus: string - Patreon membership status
+   *   - ragAvailable: boolean - Whether RAG is available at new tier
+   *   - ragRequiredTier: string - Minimum tier required for RAG
+   *   - error: string - Error message if failed
+   */
+  async verifyMembership() {
+    this._requireAuth();
+    return this._sendRequest('verify-membership', {});
+  }
+
+  /**
    * Generate embeddings for existing content.
    * Rechunks PDFs that don't have chunks and generates embeddings via Voyage API.
    * GM only operation.

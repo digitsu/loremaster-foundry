@@ -77,6 +77,21 @@
     <div class="patreon-tier" style="border-color: {{tierColor}}">
       <span class="tier-icon">{{tierIcon}}</span>
       <span class="tier-name" style="color: {{tierColor}}">{{tierName}}</span>
+      <button type="button" class="refresh-tier-btn" title="Refresh tier from Patreon">
+        <i class="fas fa-sync-alt"></i>
+      </button>
+    </div>
+
+    {{!-- RAG Status Indicator --}}
+    <div class="patreon-rag-status {{#if ragAvailable}}rag-unlocked{{else}}rag-locked{{/if}}">
+      {{#if ragAvailable}}
+      <span class="rag-icon">🔓</span>
+      <span class="rag-text">Advanced RAG Enabled</span>
+      {{else}}
+      <span class="rag-icon">🔒</span>
+      <span class="rag-text">Advanced RAG Locked</span>
+      <span class="rag-hint">(Requires {{ragRequiredTier}} tier)</span>
+      {{/if}}
     </div>
 
     {{!-- Quota Section --}}
@@ -365,6 +380,67 @@
     font-size: 0.9rem;
     text-transform: uppercase;
     letter-spacing: 0.05em;
+  }
+
+  .refresh-tier-btn {
+    background: none;
+    border: none;
+    color: var(--color-text-dark-secondary, #4b4a44);
+    cursor: pointer;
+    padding: 0.25rem;
+    margin-left: 0.5rem;
+    transition: color 0.2s, transform 0.3s;
+  }
+
+  .refresh-tier-btn:hover {
+    color: #d4af37;
+  }
+
+  .refresh-tier-btn.refreshing {
+    animation: spin 1s linear infinite;
+  }
+
+  @keyframes spin {
+    from { transform: rotate(0deg); }
+    to { transform: rotate(360deg); }
+  }
+
+  /* RAG Status Indicator */
+  .patreon-rag-status {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    padding: 0.5rem 1rem;
+    border-radius: 6px;
+    font-size: 0.85rem;
+    width: 100%;
+  }
+
+  .patreon-rag-status.rag-unlocked {
+    background: rgba(74, 222, 128, 0.15);
+    border: 1px solid rgba(74, 222, 128, 0.3);
+    color: #4ade80;
+  }
+
+  .patreon-rag-status.rag-locked {
+    background: rgba(248, 113, 113, 0.1);
+    border: 1px solid rgba(248, 113, 113, 0.2);
+    color: var(--color-text-dark-secondary, #4b4a44);
+  }
+
+  .rag-icon {
+    font-size: 1rem;
+  }
+
+  .rag-text {
+    font-weight: 600;
+  }
+
+  .rag-hint {
+    font-size: 0.75rem;
+    color: var(--color-text-dark-tertiary, #7a7971);
+    font-style: italic;
   }
 
   /* Quota section */
