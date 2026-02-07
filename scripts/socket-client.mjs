@@ -199,13 +199,19 @@ export class SocketClient {
     const userName = game.user.name;
     const isGM = game.user.isGM;
 
+    // Include game system info for shared content library discovery
+    const systemId = game.system?.id || null;
+    const systemTitle = game.system?.title || null;
+
     // Build auth payload based on server mode
     const payload = {
       worldId,
       worldName,
       userId,
       userName,
-      isGM
+      isGM,
+      systemId,
+      systemTitle
     };
 
     if (isHostedMode()) {
@@ -333,7 +339,7 @@ export class SocketClient {
         isPhoenixJoin: true // Mark as topic join for special handling
       });
 
-      // Send phx_join with auth payload
+      // Send phx_join with auth payload (includes system info for shared content library)
       this.ws.send(JSON.stringify({
         topic: this.topic,
         event: 'phx_join',
@@ -344,7 +350,9 @@ export class SocketClient {
           isGM: payload.isGM,
           userId: payload.userId,
           userName: payload.userName,
-          worldName: payload.worldName
+          worldName: payload.worldName,
+          systemId: payload.systemId,
+          systemTitle: payload.systemTitle
         },
         ref: requestId
       }));
@@ -543,12 +551,13 @@ export class SocketClient {
         }
       });
 
-      // Send request in appropriate protocol format
+      // Send request in appropriate protocol format (includes systemId for shared library tagging)
       this._sendRawMessage('pdf-upload', requestId, {
         filename,
         category,
         displayName,
-        fileData
+        fileData,
+        systemId: game.system?.id || null
       });
     });
   }
@@ -1387,9 +1396,10 @@ export class SocketClient {
         }
       });
 
-      // Send request in appropriate protocol format
+      // Send request in appropriate protocol format (includes systemId for shared library tagging)
       this._sendRawMessage('import-foundry-module', requestId, {
-        moduleId
+        moduleId,
+        systemId: game.system?.id || null
       });
     });
   }
