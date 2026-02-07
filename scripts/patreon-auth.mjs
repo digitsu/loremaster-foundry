@@ -355,12 +355,12 @@ export class PatreonAuthManager {
     console.warn(`${MODULE_NAME} | OAuth popup was blocked`);
 
     this.state = AuthState.ERROR;
-    this.errorMessage = 'Popup blocked. Please allow popups for this site and try again.';
+    this.errorMessage = 'Popup blocked by your browser. Allow popups and try again, or use "Paste Token Manually" below.';
     this._emitStateChange();
 
-    // Show instructions
+    // Show instructions with the manual auth URL
     ui.notifications.warn(
-      `${MODULE_NAME}: Popup blocked. Please allow popups and try again, or open this URL manually: ${this.proxyUrl}/auth/patreon`,
+      `${MODULE_NAME}: Popup blocked. Allow popups and retry, or open this URL manually and paste the token: ${this.proxyUrl}/auth/patreon`,
       { permanent: true }
     );
   }
