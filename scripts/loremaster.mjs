@@ -77,7 +77,7 @@ Hooks.once('ready', async () => {
   // V13 may cache controls before our hook adds tools
   if (ui.controls) {
     console.log(`${MODULE_NAME} | Re-rendering scene controls`);
-    ui.controls.render();
+    ui.controls.render({reset: true});
   }
 });
 
@@ -333,59 +333,20 @@ async function initializeLoremaster() {
 }
 
 /**
- * Hook to add Loremaster controls to the scene controls.
- * Adds buttons for Content Manager, Conversation Manager, and Guide.
- * Compatible with Foundry V13.
+ * Hook to add a top-level Loremaster control group to the scene controls.
+ * Creates a dedicated "Loremaster" category with a wizard hat icon in the left toolbar,
+ * containing buttons for Content Manager, Conversations, House Rules, Usage, Guide, and Account.
+ * Compatible with Foundry V12 (array) and V13 (object/Record) control formats.
  */
 Hooks.on('getSceneControlButtons', (controls) => {
-  console.log(`${MODULE_NAME} | getSceneControlButtons hook fired`);
-  console.log(`${MODULE_NAME} | Controls type:`, typeof controls, Array.isArray(controls));
-  console.log(`${MODULE_NAME} | Controls:`, controls);
+  // Only show Loremaster controls for the GM
+  if (!game.user?.isGM) return;
 
-  // V13 might pass controls differently - let's inspect
-  if (Array.isArray(controls)) {
-    console.log(`${MODULE_NAME} | Control names:`, controls.map(c => c.name));
-  } else if (controls && typeof controls === 'object') {
-    console.log(`${MODULE_NAME} | Controls keys:`, Object.keys(controls));
-  }
-
-  // Try to find or access the notes control group
-  let notesControls;
-
-  if (Array.isArray(controls)) {
-    notesControls = controls.find(c => c.name === 'notes');
-  } else if (controls?.notes) {
-    notesControls = controls.notes;
-  }
-
-  console.log(`${MODULE_NAME} | Notes controls found:`, !!notesControls);
-
-  if (notesControls) {
-    console.log(`${MODULE_NAME} | Notes controls structure:`, notesControls);
-    console.log(`${MODULE_NAME} | Notes tools type:`, typeof notesControls.tools, Array.isArray(notesControls.tools));
-  }
-
-  if (!notesControls) {
-    console.warn(`${MODULE_NAME} | Could not find notes control group`);
-    return;
-  }
-
-  // Ensure tools is an array or Map we can add to
-  if (!notesControls.tools) {
-    console.warn(`${MODULE_NAME} | Notes controls has no tools property`);
-    return;
-  }
-
-  console.log(`${MODULE_NAME} | Adding buttons (isGM: ${game.user?.isGM})`);
-
-  // Define our tools - V13 tool structure (matching 'clear' button)
-  // V13 button tools use: name, title, icon, order, button: true, visible: true, onChange
-  const loremasterTools = [];
-
-  if (game.user?.isGM) {
-    loremasterTools.push({
+  // Build the tool definitions for our control group
+  const loremasterTools = {
+    'loremaster-content': {
       name: 'loremaster-content',
-      order: 5,
+      order: 1,
       title: game.i18n?.localize('LOREMASTER.ContentManager.Title') || 'Loremaster Content Manager',
       icon: 'fa-solid fa-brain',
       button: true,
@@ -397,11 +358,10 @@ Hooks.on('getSceneControlButtons', (controls) => {
           ui.notifications.warn('Loremaster not initialized');
         }
       }
-    });
-
-    loremasterTools.push({
+    },
+    'loremaster-conversations': {
       name: 'loremaster-conversations',
-      order: 6,
+      order: 2,
       title: game.i18n?.localize('LOREMASTER.ConversationManager.Title') || 'Loremaster Conversations',
       icon: 'fa-solid fa-comments',
       button: true,
@@ -413,11 +373,10 @@ Hooks.on('getSceneControlButtons', (controls) => {
           ui.notifications.warn('Loremaster not initialized');
         }
       }
-    });
-
-    loremasterTools.push({
+    },
+    'loremaster-house-rules': {
       name: 'loremaster-house-rules',
-      order: 7,
+      order: 3,
       title: game.i18n?.localize('LOREMASTER.HouseRules.Title') || 'Loremaster House Rules',
       icon: 'fa-solid fa-gavel',
       button: true,
@@ -429,11 +388,10 @@ Hooks.on('getSceneControlButtons', (controls) => {
           ui.notifications.warn('Loremaster not initialized');
         }
       }
-    });
-
-    loremasterTools.push({
+    },
+    'loremaster-usage': {
       name: 'loremaster-usage',
-      order: 8,
+      order: 4,
       title: game.i18n?.localize('LOREMASTER.UsageMonitor.Title') || 'API Usage Monitor',
       icon: 'fa-solid fa-chart-bar',
       button: true,
@@ -445,11 +403,10 @@ Hooks.on('getSceneControlButtons', (controls) => {
           ui.notifications.warn('Loremaster not initialized');
         }
       }
-    });
-
-    loremasterTools.push({
+    },
+    'loremaster-guide': {
       name: 'loremaster-guide',
-      order: 9,
+      order: 5,
       title: game.i18n?.localize('LOREMASTER.Guide.Title') || 'Loremaster Guide',
       icon: 'fa-solid fa-book',
       button: true,
@@ -461,41 +418,49 @@ Hooks.on('getSceneControlButtons', (controls) => {
           ui.notifications.warn('Loremaster not initialized');
         }
       }
-    });
-
-    // Account button (for hosted mode)
-    if (isHostedMode()) {
-      loremasterTools.push({
-        name: 'loremaster-account',
-        order: 10,
-        title: 'Loremaster Account',
-        icon: 'fa-solid fa-user-circle',
-        button: true,
-        visible: true,
-        onChange: () => {
-          if (game.loremaster?.openPatreonLogin) {
-            game.loremaster.openPatreonLogin();
-          } else {
-            openPatreonLogin();
-          }
-        }
-      });
     }
+  };
+
+  // Add Account button in hosted mode
+  if (isHostedMode()) {
+    loremasterTools['loremaster-account'] = {
+      name: 'loremaster-account',
+      order: 6,
+      title: game.i18n?.localize('LOREMASTER.Account.Title') || 'Loremaster Account',
+      icon: 'fa-solid fa-user-circle',
+      button: true,
+      visible: true,
+      onChange: () => {
+        if (game.loremaster?.openPatreonLogin) {
+          game.loremaster.openPatreonLogin();
+        } else {
+          openPatreonLogin();
+        }
+      }
+    };
   }
 
-  // Add tools based on the structure type
-  if (Array.isArray(notesControls.tools)) {
-    loremasterTools.forEach(tool => notesControls.tools.push(tool));
-    console.log(`${MODULE_NAME} | Added ${loremasterTools.length} tools via array push`);
-  } else if (notesControls.tools instanceof Map) {
-    loremasterTools.forEach(tool => notesControls.tools.set(tool.name, tool));
-    console.log(`${MODULE_NAME} | Added ${loremasterTools.length} tools via Map.set`);
-  } else if (typeof notesControls.tools === 'object') {
-    loremasterTools.forEach(tool => notesControls.tools[tool.name] = tool);
-    console.log(`${MODULE_NAME} | Added ${loremasterTools.length} tools via object property`);
-  }
+  // Define the top-level Loremaster control group
+  const loremasterControlGroup = {
+    name: 'loremaster',
+    order: 11,
+    title: game.i18n?.localize('LOREMASTER.SceneControls.Title') || 'Loremaster',
+    icon: 'fa-solid fa-hat-wizard',
+    visible: true,
+    activeTool: 'loremaster-content',
+    tools: loremasterTools
+  };
 
-  console.log(`${MODULE_NAME} | Final tools:`, notesControls.tools);
+  // V13: controls is a plain object (Record<string, SceneControl>)
+  // V12: controls is an array of SceneControl objects
+  if (Array.isArray(controls)) {
+    // V12 fallback — tools must be an array
+    loremasterControlGroup.tools = Object.values(loremasterTools);
+    controls.push(loremasterControlGroup);
+  } else if (controls && typeof controls === 'object') {
+    // V13 — assign as a keyed property
+    controls.loremaster = loremasterControlGroup;
+  }
 });
 
 /**

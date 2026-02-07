@@ -1,6 +1,12 @@
 {
   "LOREMASTER": {
     "Title": "Loremaster",
+    "SceneControls": {
+      "Title": "Loremaster"
+    },
+    "Account": {
+      "Title": "Loremaster Account"
+    },
     "Settings": {
       "Enabled": {
         "Name": "Enable Loremaster",

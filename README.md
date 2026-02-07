@@ -143,15 +143,16 @@ Your session stays connected until you log out. Quota resets monthly on your bil
 
 ## Scene Controls
 
-Access Loremaster features from the Notes scene controls:
+Loremaster has its own top-level control group in the left toolbar, identified by a **wizard hat** icon (🧙 `fa-hat-wizard`). Click it to reveal the Loremaster tools:
 
 | Icon | Feature |
 |------|---------|
-| Brain | Content Manager - PDFs, Adventures, Cast |
-| Comments | Conversation Manager |
-| Gavel | House Rules Journal |
-| Chart | API Usage Monitor |
-| Book | Loremaster Guide |
+| 🧠 Brain | Content Manager - PDFs, Adventures, Cast |
+| 💬 Comments | Conversation Manager |
+| ⚖️ Gavel | House Rules Journal |
+| 📊 Chart | API Usage Monitor |
+| 📖 Book | Loremaster Guide |
+| 👤 User *(hosted mode only)* | Loremaster Account |
 
 ## Support
 
