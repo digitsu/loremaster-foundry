@@ -61,6 +61,13 @@ jobs:
           git config user.name "GitHub Actions"
           git config user.email "actions@github.com"
 
+      - name: Commit file removals
+        run: |
+          # Commit the private file deletions so working tree is clean
+          # (required before git filter-branch can run)
+          git add -A
+          git diff --staged --quiet || git commit -m "Remove private files for public repo"
+
       - name: Scrub AI attribution from commit messages
         run: |
           # Remove Co-Authored-By lines and Claude Code generated lines from all commits
@@ -69,13 +76,8 @@ jobs:
           ' --force -- --all
           rm -rf .git/refs/original
 
-      - name: Commit and push to public repo
+      - name: Push to public repo
         run: |
-          # Stage all changes (including deletions)
-          git add -A
-
-          # Commit if there are changes
-          git diff --staged --quiet || git commit -m "Sync from private repo"
 
           # Push directly with token in URL
           git push --force "https://x-access-token:${{ secrets.PUBLIC_REPO_TOKEN }}@github.com/digitsu/loremaster-foundry.git" main
