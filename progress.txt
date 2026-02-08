@@ -160,3 +160,86 @@ The next priority story is US-5 (Login Window Shared Content Counter), which wil
 - Add [Manage] link that opens Content Manager
 - Fetch tier status during _fetchQuota() in patreon-login-ui.mjs
 - Add Handlebars helper 'sharedTierLevel'
+
+---
+
+## Session 3 - 2026-02-08 (continued)
+
+### Completed: US-5 - Login Window Shared Content Counter
+
+**Files Changed:**
+- scripts/patreon-login-ui.mjs (added ~60 lines)
+- templates/patreon-login.hbs (added ~80 lines)
+
+**What Was Done:**
+
+1. **Added shared tier state to PatreonLoginUI constructor:**
+   - this.sharedTier = null
+
+2. **Implemented _fetchSharedTierStatus() method:**
+   - Called alongside _fetchRagStatus() during _fetchQuota()
+   - Gets socket client from game.loremaster
+   - Calls socketClient.getSharedTierStatus()
+   - Stores result in this.sharedTier
+   - Re-renders on success
+   - Gracefully handles errors
+
+3. **Updated getData() to return shared tier data:**
+   - sharedTier - full tier object
+   - sharedTierCurrent - current activation count
+   - sharedTierMax - max activations (-1 for unlimited)
+   - sharedTierName - tier name (free/basic/pro/premium)
+   - sharedTierUnlimited - boolean flag for unlimited
+
+4. **Added _onManageSharedContent() handler:**
+   - Opens Content Manager via game.loremaster.openContentManager()
+   - Shows warning if Content Manager not available
+   - Bound to .manage-shared-link click event
+
+5. **Registered sharedTierLevel Handlebars helper:**
+   - Returns 'none' for max === 0 (free tier)
+   - Returns 'available' for max === -1 (unlimited) or current < max
+   - Returns 'at-limit' for current >= max
+
+6. **Updated patreon-login.hbs template:**
+   - Added Shared Resources section after RAG status, before quota
+   - Three display formats:
+     - Normal tiers: "n / m activated" with [Manage] link
+     - Premium tier: "n activated (unlimited)" with [Manage] link
+     - Free tier: "Upgrade to access" with Patreon subscribe link
+   - Uses sharedTierLevel helper to apply color class
+
+7. **Added CSS styles in template:**
+   - .patreon-shared-resources - container with flex layout
+   - .shared-available - green background/border for under limit
+   - .shared-at-limit - yellow/warning background/border for at limit
+   - .shared-none - grey background/border for free tier
+   - .shared-icon - book emoji
+   - .shared-text - "Shared Resources:" label
+   - .shared-count - activation count display
+   - .manage-shared-link - golden link with hover effect
+
+**Key Learnings:**
+- getData() provides all data to template via return object
+- Handlebars helpers registered in registerPatreonLoginHelpers() function
+- Template styles are inline in <style> block at bottom of .hbs file
+- Socket client accessed via game.modules.get('loremaster').api.getSocketClient()
+- Color-coded status indicators follow existing RAG status pattern
+- [Manage] link uses same styling as Patreon subscribe link
+
+**Acceptance Criteria Met:**
+✅ Shared Resources row appears in login window after RAG status, before quota
+✅ Shows 'n / m activated' format for basic/pro tiers
+✅ Shows 'n activated (unlimited)' for premium tier
+✅ Shows 'Upgrade to access' with Patreon link for free tier
+✅ Green indicator when under limit, yellow at limit, grey for free tier
+✅ [Manage] link opens Content Manager
+✅ Data fetched via getSharedTierStatus() during _fetchQuota()
+✅ Handlebars helper sharedTierLevel registered in loremaster.mjs
+
+**Next Steps:**
+The next priority story is US-2 (Submit Content for Sharing), which will:
+- Add a "Share" button to completed PDF tiles in "Your Documents"
+- Clicking opens a confirmation dialog with title, publisher, description fields
+- Submit calls submitToSharedLibrary() socket method
+- Handle success, already-exists, and error cases with appropriate notifications
