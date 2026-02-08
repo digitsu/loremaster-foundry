@@ -93,6 +93,14 @@ export function registerPatreonLoginHelpers() {
     if (percent >= 75) return 'warning';
     return 'normal';
   });
+
+  // Get shared tier level class
+  Handlebars.registerHelper('sharedTierLevel', (current, max) => {
+    if (max === 0) return 'none';
+    if (max === -1) return 'available'; // Unlimited
+    if (current >= max) return 'at-limit';
+    return 'available';
+  });
 }
 
 /**
@@ -125,6 +133,9 @@ export class PatreonLoginUI extends Application {
 
     /** @type {Object|null} RAG status from server */
     this.ragStatus = null;
+
+    /** @type {Object|null} Shared tier status from server */
+    this.sharedTier = null;
 
     /** @type {boolean} Whether tier is being refreshed */
     this.isRefreshingTier = false;
@@ -206,8 +217,9 @@ export class PatreonLoginUI extends Application {
       if (this.rendered) this.render(false);
     }
 
-    // Also fetch RAG status
+    // Also fetch RAG status and shared tier status
     this._fetchRagStatus();
+    this._fetchSharedTierStatus();
   }
 
   /**
@@ -228,6 +240,28 @@ export class PatreonLoginUI extends Application {
       }
     } catch (err) {
       console.error(`${MODULE_NAME} | Failed to fetch RAG status:`, err);
+    }
+  }
+
+  /**
+   * Fetch shared tier status from the server.
+   * Gets current activation count and tier limits for shared content.
+   *
+   * @private
+   */
+  async _fetchSharedTierStatus() {
+    try {
+      // Get socket client from Loremaster module
+      const loremaster = game.modules.get('loremaster');
+      const socketClient = loremaster?.api?.getSocketClient?.();
+
+      if (socketClient && socketClient.isAuthenticated) {
+        const sharedTier = await socketClient.getSharedTierStatus();
+        this.sharedTier = sharedTier;
+        if (this.rendered) this.render(false);
+      }
+    } catch (err) {
+      console.error(`${MODULE_NAME} | Failed to fetch shared tier status:`, err);
     }
   }
 
@@ -334,6 +368,13 @@ export class PatreonLoginUI extends Application {
       ragRequiredTier: this.ragStatus?.ragRequiredTier || 'Pro',
       isRefreshingTier: this.isRefreshingTier,
 
+      // Shared tier status
+      sharedTier: this.sharedTier,
+      sharedTierCurrent: this.sharedTier?.tier?.current || 0,
+      sharedTierMax: this.sharedTier?.tier?.max || 0,
+      sharedTierName: this.sharedTier?.tier?.name || 'free',
+      sharedTierUnlimited: this.sharedTier?.tier?.max === -1,
+
       // Config
       isHostedMode: isHostedMode(),
       patreonUrl: 'https://patreon.com/loremastervtt'
@@ -426,6 +467,15 @@ export class PatreonLoginUI extends Application {
       if (this.isRefreshingTier) {
         refreshTierBtn.classList.add('refreshing');
       }
+    }
+
+    // Manage shared content link
+    const manageSharedLink = element.querySelector('.manage-shared-link');
+    if (manageSharedLink) {
+      manageSharedLink.addEventListener('click', (event) => {
+        event.preventDefault();
+        this._onManageSharedContent();
+      });
     }
   }
 
@@ -534,6 +584,23 @@ export class PatreonLoginUI extends Application {
       console.error(`${MODULE_NAME} | Token validation error:`, err);
       await clearSessionToken();
       ui.notifications.error(`${MODULE_NAME}: Failed to validate token`);
+    }
+  }
+
+  /**
+   * Handle manage shared content link click.
+   * Opens Content Manager to the PDFs tab.
+   *
+   * @private
+   */
+  _onManageSharedContent() {
+    console.log(`${MODULE_NAME} | Manage shared content clicked`);
+
+    // Get Content Manager from game object
+    if (game.loremaster?.openContentManager) {
+      game.loremaster.openContentManager();
+    } else {
+      ui.notifications.warn(`${MODULE_NAME}: Content Manager not available`);
     }
   }
 

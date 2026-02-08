@@ -103,6 +103,24 @@
       {{/if}}
     </div>
 
+    {{!-- Shared Resources Section --}}
+    <div class="patreon-shared-resources shared-{{sharedTierLevel sharedTierCurrent sharedTierMax}}">
+      <span class="shared-icon">📚</span>
+      <span class="shared-text">Shared Resources:</span>
+      {{#if sharedTierUnlimited}}
+      <span class="shared-count">{{sharedTierCurrent}} activated (unlimited)</span>
+      <a href="#" class="manage-shared-link">[Manage]</a>
+      {{else}}
+        {{#if (eq sharedTierMax 0)}}
+        <span class="shared-count">Upgrade to access</span>
+        <a href="{{patreonUrl}}" target="_blank" class="patreon-subscribe-link">Subscribe →</a>
+        {{else}}
+        <span class="shared-count">{{sharedTierCurrent}} / {{sharedTierMax}} activated</span>
+        <a href="#" class="manage-shared-link">[Manage]</a>
+        {{/if}}
+      {{/if}}
+    </div>
+
     {{!-- Quota Section --}}
     <div class="patreon-quota">
       <div class="quota-header">
@@ -459,6 +477,63 @@
     font-size: 0.75rem;
     color: var(--color-text-dark-tertiary, #7a7971);
     font-style: italic;
+  }
+
+  /* Shared Resources Section */
+  .patreon-shared-resources {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    padding: 0.5rem 1rem;
+    border-radius: 6px;
+    font-size: 0.85rem;
+    width: 100%;
+    margin-top: 0.5rem;
+  }
+
+  .patreon-shared-resources.shared-available {
+    background: rgba(74, 222, 128, 0.15);
+    border: 1px solid rgba(74, 222, 128, 0.3);
+    color: #4ade80;
+  }
+
+  .patreon-shared-resources.shared-at-limit {
+    background: rgba(251, 191, 36, 0.15);
+    border: 1px solid rgba(251, 191, 36, 0.3);
+    color: #fbbf24;
+  }
+
+  .patreon-shared-resources.shared-none {
+    background: rgba(156, 163, 175, 0.15);
+    border: 1px solid rgba(156, 163, 175, 0.3);
+    color: var(--color-text-dark-secondary, #4b4a44);
+  }
+
+  .shared-icon {
+    font-size: 1rem;
+  }
+
+  .shared-text {
+    font-weight: 600;
+  }
+
+  .shared-count {
+    font-size: 0.85rem;
+  }
+
+  .manage-shared-link {
+    color: #d4af37;
+    text-decoration: none;
+    font-size: 0.85rem;
+    font-weight: 600;
+    margin-left: 0.25rem;
+    transition: color 0.2s;
+  }
+
+  .manage-shared-link:hover {
+    color: #f4d03f;
+    text-decoration: underline;
   }
 
   /* Quota section */
