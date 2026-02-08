@@ -500,8 +500,8 @@ export class PatreonLoginUI extends Application {
 
     // Confirm sign out
     const confirmed = await Dialog.confirm({
-      title: 'Sign Out',
-      content: '<p>Are you sure you want to sign out of Loremaster?</p>',
+      title: game.i18n?.localize('LOREMASTER.PatreonLogin.SignOutDialogTitle') || 'Sign Out',
+      content: `<p>${game.i18n?.localize('LOREMASTER.PatreonLogin.SignOutConfirm') || 'Are you sure you want to sign out of Loremaster?'}</p>`,
       yes: () => true,
       no: () => false,
       defaultYes: false
@@ -526,20 +526,20 @@ export class PatreonLoginUI extends Application {
     const content = `
       <form>
         <div class="form-group">
-          <label>Session Token</label>
-          <input type="text" name="token" placeholder="Paste your session token here..."
+          <label>${game.i18n?.localize('LOREMASTER.PatreonLogin.SessionTokenLabel') || 'Session Token'}</label>
+          <input type="text" name="token" placeholder="${game.i18n?.localize('LOREMASTER.PatreonLogin.SessionTokenPlaceholder') || 'Paste your session token here...'}"
             style="width: 100%; font-family: monospace;">
           <p class="notes" style="margin-top: 0.5rem;">
-            Copy the token from the Patreon authorization success page.
+            ${game.i18n?.localize('LOREMASTER.PatreonLogin.SessionTokenHint') || 'Copy the token from the Patreon authorization success page.'}
           </p>
         </div>
       </form>
     `;
 
     const token = await Dialog.prompt({
-      title: 'Enter Session Token',
+      title: game.i18n?.localize('LOREMASTER.PatreonLogin.EnterTokenTitle') || 'Enter Session Token',
       content,
-      label: 'Connect',
+      label: game.i18n?.localize('LOREMASTER.PatreonLogin.ConnectBtn') || 'Connect',
       callback: (html) => {
         return html.find('input[name="token"]').val()?.trim();
       },
@@ -570,7 +570,7 @@ export class PatreonLoginUI extends Application {
 
       if (status.authenticated) {
         console.log(`${MODULE_NAME} | Manual token valid!`);
-        ui.notifications.info(`${MODULE_NAME}: Connected successfully!`);
+        ui.notifications.info(`${MODULE_NAME}: ${game.i18n?.localize('LOREMASTER.PatreonLogin.ConnectedSuccess') || 'Connected successfully!'}`);
 
         // Update auth manager state
         this.authManager.state = AuthState.LOGGED_IN;
@@ -579,12 +579,12 @@ export class PatreonLoginUI extends Application {
         // Token invalid - clear it
         console.warn(`${MODULE_NAME} | Manual token invalid: ${status.reason}`);
         await clearSessionToken();
-        ui.notifications.error(`${MODULE_NAME}: Invalid token - ${status.reason}`);
+        ui.notifications.error(`${MODULE_NAME}: ${game.i18n?.format('LOREMASTER.PatreonLogin.InvalidToken', { reason: status.reason }) || `Invalid token - ${status.reason}`}`);
       }
     } catch (err) {
       console.error(`${MODULE_NAME} | Token validation error:`, err);
       await clearSessionToken();
-      ui.notifications.error(`${MODULE_NAME}: Failed to validate token`);
+      ui.notifications.error(`${MODULE_NAME}: ${game.i18n?.localize('LOREMASTER.PatreonLogin.ValidationFailed') || 'Failed to validate token'}`);
     }
   }
 
@@ -601,7 +601,7 @@ export class PatreonLoginUI extends Application {
     if (game.loremaster?.openContentManager) {
       game.loremaster.openContentManager();
     } else {
-      ui.notifications.warn(`${MODULE_NAME}: Content Manager not available`);
+      ui.notifications.warn(`${MODULE_NAME}: ${game.i18n?.localize('LOREMASTER.PatreonLogin.ContentManagerUnavailable') || 'Content Manager not available'}`);
     }
   }
 

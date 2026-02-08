@@ -514,3 +514,154 @@ The final priority story is US-3 (Admin Controls Dialog for Shared Content), whi
 
 All 6 user stories from the Shared Content UI PRD have been successfully implemented and pass acceptance criteria. The feature is complete and ready for testing.
 
+---
+
+# P2 Polish PRD Progress
+
+## Session 7 - 2026-02-08
+
+### Completed: US-0 - Add i18n Keys to lang/en.json
+
+**Files Changed:**
+- lang/en.json (added 92 i18n keys)
+
+**What Was Done:**
+Added 4 new key groups to lang/en.json under LOREMASTER:
+1. SharedContent (39 keys) - All shared content UI strings
+2. PatreonLogin (38 keys) - All login/account UI strings
+3. Connection (9 keys) - Connection status bar strings
+4. SettingsPanel (6 keys) - Section header strings
+
+**Key Learnings:**
+- Parameterized strings use {param} placeholder format (e.g., `{current} / {max}`)
+- JSON validated with Python json.load()
+
+---
+
+## Session 8 - 2026-02-08 (continued)
+
+### Completed: US-1 - Wire i18n Keys in Shared Content UI
+
+**Files Changed:**
+- templates/content-manager.hbs (13 string replacements)
+- scripts/content-manager.mjs (~30 string replacements)
+
+**What Was Done:**
+
+1. **Template (content-manager.hbs):**
+   - Replaced all 13 hardcoded shared content strings with {{localize}} calls
+   - Admin button title/label, Your Documents header, Share to Library title
+   - Shared Library header with tier unlimited localization
+   - Shared badge, publisher prefix, Active badge, Deactivate title
+   - Browse Shared Library button, Shared Adventure type, Shared Adventures optgroup
+
+2. **JavaScript (content-manager.mjs):**
+   - Share dialog: title, labels, placeholders, submit button, notifications
+   - Browse dialog: title (format with system), tier status (format with current/max),
+     empty state, publisher prefix, activate/deactivate buttons, at-limit error,
+     close button, success/error notifications
+   - Deactivate dialog: title, confirm text (format with title), hint, notifications
+   - All JS strings use `game.i18n?.localize()` / `game.i18n?.format()` with `||` fallback
+
+**Key Learnings:**
+- Template uses `{{localize 'KEY'}}` — Handlebars helper
+- JS uses `game.i18n?.localize('KEY') || 'fallback'` — with null safety + fallback
+- Parameterized strings: `game.i18n?.format('KEY', {param: value})`
+- XSS: user-provided strings in deactivate confirm must use `foundry.utils.escapeHtml()`
+
+---
+
+## Session 9 - 2026-02-08 (continued)
+
+### Completed: US-2 - Wire i18n Keys in Patreon Login UI and Settings Account Panel
+
+**Files Changed:**
+- templates/patreon-login.hbs (~30 string replacements across 4 states)
+- scripts/patreon-login-ui.mjs (~10 string replacements in dialogs + notifications)
+- scripts/config.mjs (~40 string replacements in panel builders + section headers)
+
+**What Was Done:**
+
+1. **Template (patreon-login.hbs):**
+   - Logged-out: ConnectAccount, SignInHint, SignInBtn, Or, PasteTokenBtn, NoSubscription, SubscribeLink
+   - Logging-in: SigningIn, SigningInHint, PopupBlockedHint, Or, PasteTokenBtn
+   - Logged-in: Connected, RAGEnabled/RAGLocked/RAGRequiresTier, SharedResources,
+     ActivatedUnlimited/ActivatedCount/UpgradeAccess, ManageLink, MonthlyUsage,
+     ResetsDate, TokensPerMonth, SignOut
+   - Error: AuthFailed, TryAgain, Or, PasteTokenBtn, SubscribeLink
+   - Parameterized: `{{localize "KEY" param=value}}` for RAGRequiresTier, ActivatedUnlimited, ActivatedCount, ResetsDate
+
+2. **JavaScript (patreon-login-ui.mjs):**
+   - Sign out dialog: title + content
+   - Paste token dialog: label, placeholder, hint, title, connect button
+   - Notifications: ConnectedSuccess, InvalidToken (format), ValidationFailed, ContentManagerUnavailable
+
+3. **Config (config.mjs):**
+   - SETTINGS_SECTIONS: Changed `label` to `labelKey`/`labelFallback` pattern
+   - `_insertSectionHeaders()`: Uses `game.i18n?.localize(section.labelKey)`
+   - Account section header: Uses SettingsPanel.AccountSection key
+   - 4 panel builders: All strings use PatreonLogin i18n keys + fallbacks
+   - `_handleSignOut()`: Dialog title/content localized
+   - `_handlePasteToken()`: All dialog strings + notifications localized
+   - Manage shared: ContentManagerUnavailable notification localized
+
+**Key Learnings:**
+- Foundry's `{{localize}}` helper supports named hash params: `{{localize "KEY" param=value}}`
+- In template literals, use `game.i18n?.format()` for parameterized strings
+- SETTINGS_SECTIONS refactored to `labelKey`/`labelFallback` pattern — cleaner than inline ternary
+
+---
+
+## Session 10 - 2026-02-08 (continued)
+
+### Completed: US-3 - Connection Status Header Bar Component
+
+**Files Changed:**
+- scripts/status-bar.mjs (new file, ~350 lines)
+- scripts/loremaster.mjs (added ~30 lines)
+- scripts/socket-client.mjs (added 4 lines)
+
+**What Was Done:**
+
+1. **Created StatusBar component (scripts/status-bar.mjs):**
+   - StatusBar class with singleton export `statusBar`
+   - STATE_CONFIG object maps 6 states to CSS class, icon, i18n key, expansion behavior
+   - initialize(): creates DOM element after #navigation, injects CSS
+   - setConnected(tierName, tokensUsed, tokensLimit): shows tier + quota, auto-collapses after 5s
+   - setConnecting(), setDisconnected(), setReconnecting(attempt, max), setAuthRequired(), setDisabled()
+   - Click handler: toggles expand/collapse (or opens settings if auth-required)
+   - _injectStyles(): inline CSS with loremaster-status- prefix, backdrop-filter, Foundry CSS vars
+   - _formatTokens(): K/M suffix formatter (mirrors Handlebars helper pattern)
+
+2. **Integrated in loremaster.mjs:**
+   - Import statusBar, initialize after progressBar
+   - setConnecting() before connection attempt
+   - setDisabled() when module disabled
+   - setConnected() after successful auth (fetches quota for display)
+   - setAuthRequired() in showPatreonLoginPrompt()
+   - setDisconnected() on permanent disconnect and init errors
+   - onReconnecting callback → setReconnecting()
+   - onReconnected callback → setConnected()
+
+3. **Extended socket-client.mjs:**
+   - Added onReconnecting and onReconnected callback properties
+   - Fires onReconnecting(attempt, max) at start of each reconnect attempt
+   - Fires onReconnected() after successful reconnect (before auth required check)
+
+**Key Learnings:**
+- StatusBar follows ProgressBar pattern: constructor → initialize() → state methods
+- Socket client uses callback properties (not events) for lifecycle hooks
+- Status bar positioned at top:32px (below Foundry nav) with fixed + z-index:90 (below dialogs)
+- Auto-collapse uses setTimeout pattern; cleared on state change
+- getUsage() may not exist on all socket client versions — wrapped in try/catch
+
+---
+
+**All User Stories Completed:**
+✅ US-0 - Add i18n Keys to lang/en.json (priority 1)
+✅ US-1 - Wire i18n Keys in Shared Content UI (priority 2)
+✅ US-2 - Wire i18n Keys in Patreon Login UI and Settings Account Panel (priority 3)
+✅ US-3 - Connection Status Header Bar Component (priority 4)
+
+All 4 user stories from the P2 Polish PRD have been successfully implemented and pass acceptance criteria. The feature is complete and ready for testing.
+

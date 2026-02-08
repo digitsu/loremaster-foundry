@@ -56,6 +56,8 @@ export class SocketClient {
     // Callbacks for reconnect lifecycle events
     this.onAuthRequired = null;          // Called when session expires during reconnect
     this.onPermanentDisconnect = null;   // Called when all reconnect attempts are exhausted
+    this.onReconnecting = null;          // Called on each reconnect attempt (attempt, max)
+    this.onReconnected = null;           // Called on successful reconnect
 
     // Hosted mode properties
     this.tier = null;           // User's subscription tier (basic, pro, premium)
@@ -3059,6 +3061,7 @@ export class SocketClient {
       this.reconnectAttempts++;
       const delay = this.reconnectDelay * this.reconnectAttempts;
       console.log(`${MODULE_ID} | Reconnecting in ${delay}ms (attempt ${this.reconnectAttempts})`);
+      this.onReconnecting?.(this.reconnectAttempts, this.maxReconnectAttempts);
 
       this.reconnectTimer = setTimeout(async () => {
         this.reconnectTimer = null;
@@ -3066,6 +3069,7 @@ export class SocketClient {
           await this.connect();
           await this.authenticate();
           ui.notifications.info('Loremaster reconnected to server');
+          this.onReconnected?.();
         } catch (error) {
           console.error(`${MODULE_ID} | Reconnect failed:`, error);
           if (error.message === 'PATREON_AUTH_REQUIRED') {

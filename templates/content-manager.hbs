@@ -41,8 +41,8 @@
     </div>
     <div class="header-actions">
       {{#if isAdmin}}
-        <button type="button" class="admin-shared-btn" title="Manage Shared Content">
-          <i class="fas fa-shield-alt"></i> Admin
+        <button type="button" class="admin-shared-btn" title="{{localize 'LOREMASTER.SharedContent.ManageSharedContent'}}">
+          <i class="fas fa-shield-alt"></i> {{localize "LOREMASTER.SharedContent.Admin"}}
         </button>
       {{/if}}
       {{#if isGM}}
@@ -85,7 +85,7 @@
     {{!-- PDFs List Tab --}}
     <div class="tab" data-tab="pdfs">
       {{!-- Your Documents Section --}}
-      <h3 class="documents-section-header">Your Documents</h3>
+      <h3 class="documents-section-header">{{localize "LOREMASTER.SharedContent.YourDocuments"}}</h3>
       {{#if pdfs.length}}
         <ul class="pdf-list">
           {{#each pdfs}}
@@ -156,7 +156,7 @@
                   <button type="button" class="share-pdf-btn"
                           data-pdf-id="{{id}}"
                           data-pdf-name="{{display_name}}"
-                          title="Share to Library">
+                          title="{{localize 'LOREMASTER.SharedContent.ShareToLibrary'}}">
                     <i class="fas fa-share-alt"></i>
                   </button>
                 {{/if}}
@@ -180,9 +180,9 @@
       {{#if hasActivatedSharedContent}}
         <div class="shared-library-section">
           <h3 class="shared-section-header">
-            Shared Library
+            {{localize "LOREMASTER.SharedContent.SharedLibrary"}}
             {{#if sharedTier}}
-              <span class="shared-tier-count">({{sharedTier.current}} / {{#if (eq sharedTier.max -1)}}∞{{else}}{{sharedTier.max}}{{/if}} activated)</span>
+              <span class="shared-tier-count">({{sharedTier.current}} / {{#if (eq sharedTier.max -1)}}{{localize "LOREMASTER.SharedContent.TierUnlimited"}}{{else}}{{sharedTier.max}}{{/if}} activated)</span>
             {{/if}}
           </h3>
           <ul class="shared-content-list">
@@ -194,22 +194,22 @@
                 <div class="pdf-info">
                   <div class="pdf-name">
                     {{this.title}}
-                    <span class="shared-badge">Shared</span>
+                    <span class="shared-badge">{{localize "LOREMASTER.SharedContent.SharedBadge"}}</span>
                   </div>
                   <div class="pdf-meta">
                     <span class="pdf-category">{{categoryLabel this.category}}</span>
-                    <span class="pdf-publisher">by {{this.publisher}}</span>
+                    <span class="pdf-publisher">{{localize "LOREMASTER.SharedContent.PublisherPrefix"}} {{this.publisher}}</span>
                     <span class="pdf-content-type">{{this.contentType}}</span>
                   </div>
                   <div class="pdf-status">
-                    <span class="status-badge status-completed">Active</span>
+                    <span class="status-badge status-completed">{{localize "LOREMASTER.SharedContent.Active"}}</span>
                   </div>
                 </div>
                 <div class="pdf-actions">
                   <button type="button" class="deactivate-shared-btn"
                           data-shared-id="{{this.id}}"
                           data-shared-title="{{this.title}}"
-                          title="Deactivate this shared content">
+                          title="{{localize 'LOREMASTER.SharedContent.DeactivateTitle'}}">
                     <i class="fas fa-times-circle"></i>
                   </button>
                 </div>
@@ -222,7 +222,7 @@
       {{!-- Browse Shared Library Button --}}
       <div class="browse-shared-section">
         <button type="button" class="browse-shared-btn">
-          <i class="fas fa-globe"></i> Browse Shared Library
+          <i class="fas fa-globe"></i> {{localize "LOREMASTER.SharedContent.BrowseLibrary"}}
         </button>
       </div>
     </div>
@@ -410,7 +410,7 @@
                     {{#if (eq activeAdventure.adventure_type "pdf")}}
                       <span class="pdf-id-badge" title="Use 'pdf:{{activeAdventure.pdf_id}}' for /lm commands">pdf:{{activeAdventure.pdf_id}}</span>
                     {{else if (eq activeAdventure.adventure_type "shared")}}
-                      <span class="shared-badge">Shared</span>
+                      <span class="shared-badge">{{localize "LOREMASTER.SharedContent.SharedBadge"}}</span>
                     {{else}}
                       <span class="module-id-badge" title="Use '{{activeAdventure.module_id}}' for /lm commands">{{activeAdventure.module_id}}</span>
                     {{/if}}
@@ -419,7 +419,7 @@
                     {{#if (eq activeAdventure.adventure_type "pdf")}}
                       {{localize "LOREMASTER.ActiveAdventure.TypePDF"}}
                     {{else if (eq activeAdventure.adventure_type "shared")}}
-                      Shared Adventure
+                      {{localize "LOREMASTER.SharedContent.SharedAdventure"}}
                     {{else}}
                       {{localize "LOREMASTER.ActiveAdventure.TypeModule"}}
                     {{/if}}
@@ -498,7 +498,7 @@
               {{/if}}
 
               {{#if sharedAdventures.length}}
-                <optgroup label="Shared Adventures">
+                <optgroup label="{{localize 'LOREMASTER.SharedContent.SharedAdventures'}}">
                   {{#each sharedAdventures}}
                     <option value="shared:{{this.id}}"
                       {{#if (eq ../activeAdventure.adventure_type "shared")}}

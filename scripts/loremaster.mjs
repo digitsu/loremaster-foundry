@@ -20,6 +20,7 @@ import { registerWelcomeSettings, checkAndShowWelcome, openWelcomeJournal } from
 import { createHouseRulesJournal } from './house-rules-journal.mjs';
 import { GMPrepJournalSync } from './gm-prep-journal.mjs';
 import { progressBar } from './progress-bar.mjs';
+import { statusBar } from './status-bar.mjs';
 import { getAuthManager, AuthState, AUTH_STATE_CHANGED_EVENT } from './patreon-auth.mjs';
 import { openPatreonLogin, registerPatreonLoginHelpers } from './patreon-login-ui.mjs';
 
@@ -63,14 +64,20 @@ Hooks.once('ready', async () => {
   // Initialize the progress bar UI
   progressBar.initialize();
 
+  // Initialize the status bar UI
+  statusBar.initialize();
+
   // Initialize the chat handler
   if (game.settings.get(MODULE_ID, 'enabled')) {
+    statusBar.setConnecting();
     // For hosted mode, check auth status first
     if (isHostedMode()) {
       await initializeHostedMode();
     } else {
       await initializeLoremaster();
     }
+  } else {
+    statusBar.setDisabled();
   }
 
   // Force re-render of scene controls to show our buttons
@@ -136,6 +143,9 @@ async function initializeHostedMode() {
  * Called when hosted mode requires authentication.
  */
 function showPatreonLoginPrompt() {
+  // Update status bar to auth-required state
+  statusBar.setAuthRequired();
+
   // Helper that shows login prompt when user tries to use a feature
   const requireAuth = () => {
     ui.notifications.warn(`${MODULE_NAME}: Please sign in with Patreon first.`);
@@ -198,7 +208,18 @@ async function initializeLoremaster() {
 
     socketClient.onPermanentDisconnect = () => {
       console.log(`${MODULE_NAME} | Permanently disconnected`);
+      statusBar.setDisconnected();
       // No additional action needed — user can use Account button to re-login
+    };
+
+    socketClient.onReconnecting = (attempt, max) => {
+      statusBar.setReconnecting(attempt, max);
+    };
+
+    socketClient.onReconnected = () => {
+      const user = isHostedMode() ? getAuthManager()?.getUser() : null;
+      const tier = user?.tierName || 'Active';
+      statusBar.setConnected(tier, 0, 0);
     };
 
     // Register tool handlers for Claude tool use
@@ -308,6 +329,20 @@ async function initializeLoremaster() {
 
     ui.notifications.info(`${MODULE_NAME} is now active`);
 
+    // Update status bar to connected state
+    // Retrieve tier and quota info for the status display
+    const authManager = isHostedMode() ? getAuthManager() : null;
+    const tierName = authManager?.getUser()?.tierName || 'Active';
+    try {
+      const quotaResult = await socketClient.getUsage?.();
+      const tokensUsed = quotaResult?.tokensUsed || 0;
+      const tokensLimit = quotaResult?.tokensLimit || 0;
+      statusBar.setConnected(tierName, tokensUsed, tokensLimit);
+    } catch {
+      // Quota fetch is optional — show connected without quota details
+      statusBar.setConnected(tierName, 0, 0);
+    }
+
     // Show welcome journal on first run or version update
     await checkAndShowWelcome();
 
@@ -322,6 +357,7 @@ async function initializeLoremaster() {
     }
 
     // Generic error handling
+    statusBar.setDisconnected();
     ui.notifications.error(`${MODULE_NAME} failed to start: ${error.message}`);
 
     // Store reference even on failure for debugging
