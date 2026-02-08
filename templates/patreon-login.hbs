@@ -19,27 +19,27 @@
     </div>
 
     <div class="patreon-message">
-      <h3>Connect Your Account</h3>
-      <p>Sign in with Patreon to use the Loremaster hosted service.</p>
+      <h3>{{localize "LOREMASTER.PatreonLogin.ConnectAccount"}}</h3>
+      <p>{{localize "LOREMASTER.PatreonLogin.SignInHint"}}</p>
     </div>
 
     <button type="button" class="patreon-login-btn">
       <span class="patreon-icon">🅿️</span>
-      Sign in with Patreon
+      {{localize "LOREMASTER.PatreonLogin.SignInBtn"}}
     </button>
 
     <div class="patreon-divider">
-      <span>or</span>
+      <span>{{localize "LOREMASTER.PatreonLogin.Or"}}</span>
     </div>
 
     <button type="button" class="patreon-paste-token-btn">
       <i class="fas fa-paste"></i>
-      Paste Token Manually
+      {{localize "LOREMASTER.PatreonLogin.PasteTokenBtn"}}
     </button>
 
     <div class="patreon-footer">
-      <p class="patreon-footer-text">Don't have a subscription?</p>
-      <a href="#" class="patreon-subscribe-link">Subscribe on Patreon →</a>
+      <p class="patreon-footer-text">{{localize "LOREMASTER.PatreonLogin.NoSubscription"}}</p>
+      <a href="#" class="patreon-subscribe-link">{{localize "LOREMASTER.PatreonLogin.SubscribeLink"}}</a>
     </div>
   </div>
   {{/if}}
@@ -52,18 +52,18 @@
     </div>
 
     <div class="patreon-message">
-      <h3>Signing In...</h3>
-      <p>Complete the authorization in the popup window.</p>
-      <p class="patreon-hint">If the popup was blocked, please allow popups and try again.</p>
+      <h3>{{localize "LOREMASTER.PatreonLogin.SigningIn"}}</h3>
+      <p>{{localize "LOREMASTER.PatreonLogin.SigningInHint"}}</p>
+      <p class="patreon-hint">{{localize "LOREMASTER.PatreonLogin.PopupBlockedHint"}}</p>
     </div>
 
     <div class="patreon-divider">
-      <span>or</span>
+      <span>{{localize "LOREMASTER.PatreonLogin.Or"}}</span>
     </div>
 
     <button type="button" class="patreon-paste-token-btn">
       <i class="fas fa-paste"></i>
-      Paste Token Manually
+      {{localize "LOREMASTER.PatreonLogin.PasteTokenBtn"}}
     </button>
   </div>
   {{/if}}
@@ -73,7 +73,7 @@
   <div class="patreon-state patreon-state--logged-in">
     <div class="patreon-header">
       <div class="patreon-status-icon">✓</div>
-      <span class="patreon-status-text">Connected</span>
+      <span class="patreon-status-text">{{localize "LOREMASTER.PatreonLogin.Connected"}}</span>
     </div>
 
     <div class="patreon-user-info">
@@ -95,28 +95,28 @@
     <div class="patreon-rag-status {{#if ragAvailable}}rag-unlocked{{else}}rag-locked{{/if}}">
       {{#if ragAvailable}}
       <span class="rag-icon">🔓</span>
-      <span class="rag-text">Advanced RAG Enabled</span>
+      <span class="rag-text">{{localize "LOREMASTER.PatreonLogin.RAGEnabled"}}</span>
       {{else}}
       <span class="rag-icon">🔒</span>
-      <span class="rag-text">Advanced RAG Locked</span>
-      <span class="rag-hint">(Requires {{ragRequiredTier}} tier)</span>
+      <span class="rag-text">{{localize "LOREMASTER.PatreonLogin.RAGLocked"}}</span>
+      <span class="rag-hint">({{localize "LOREMASTER.PatreonLogin.RAGRequiresTier" tier=ragRequiredTier}})</span>
       {{/if}}
     </div>
 
     {{!-- Shared Resources Section --}}
     <div class="patreon-shared-resources shared-{{sharedTierLevel sharedTierCurrent sharedTierMax}}">
       <span class="shared-icon">📚</span>
-      <span class="shared-text">Shared Resources:</span>
+      <span class="shared-text">{{localize "LOREMASTER.PatreonLogin.SharedResources"}}:</span>
       {{#if sharedTierUnlimited}}
-      <span class="shared-count">{{sharedTierCurrent}} activated (unlimited)</span>
-      <a href="#" class="manage-shared-link">[Manage]</a>
+      <span class="shared-count">{{localize "LOREMASTER.PatreonLogin.ActivatedUnlimited" count=sharedTierCurrent}}</span>
+      <a href="#" class="manage-shared-link">[{{localize "LOREMASTER.PatreonLogin.ManageLink"}}]</a>
       {{else}}
         {{#if (eq sharedTierMax 0)}}
-        <span class="shared-count">Upgrade to access</span>
-        <a href="{{patreonUrl}}" target="_blank" class="patreon-subscribe-link">Subscribe →</a>
+        <span class="shared-count">{{localize "LOREMASTER.PatreonLogin.UpgradeAccess"}}</span>
+        <a href="{{patreonUrl}}" target="_blank" class="patreon-subscribe-link">{{localize "LOREMASTER.PatreonLogin.SubscribeLink"}}</a>
         {{else}}
-        <span class="shared-count">{{sharedTierCurrent}} / {{sharedTierMax}} activated</span>
-        <a href="#" class="manage-shared-link">[Manage]</a>
+        <span class="shared-count">{{localize "LOREMASTER.PatreonLogin.ActivatedCount" current=sharedTierCurrent max=sharedTierMax}}</span>
+        <a href="#" class="manage-shared-link">[{{localize "LOREMASTER.PatreonLogin.ManageLink"}}]</a>
         {{/if}}
       {{/if}}
     </div>
@@ -124,7 +124,7 @@
     {{!-- Quota Section --}}
     <div class="patreon-quota">
       <div class="quota-header">
-        <span class="quota-title">Monthly Usage</span>
+        <span class="quota-title">{{localize "LOREMASTER.PatreonLogin.MonthlyUsage"}}</span>
         {{#if isLoadingQuota}}
         <i class="fas fa-spinner fa-spin"></i>
         {{else}}
@@ -150,7 +150,7 @@
 
       {{#if quotaResetDate}}
       <div class="quota-reset">
-        Resets: {{quotaResetDate}}
+        {{localize "LOREMASTER.PatreonLogin.ResetsDate" date=quotaResetDate}}
       </div>
       {{/if}}
       {{else}}
@@ -158,7 +158,7 @@
         <div class="quota-bar" style="width: 0%"></div>
       </div>
       <div class="quota-details">
-        <span class="quota-limit">{{formatTokens tokenLimit}} tokens/month</span>
+        <span class="quota-limit">{{formatTokens tokenLimit}} {{localize "LOREMASTER.PatreonLogin.TokensPerMonth"}}</span>
       </div>
       {{/if}}
     </div>
@@ -166,7 +166,7 @@
     <div class="patreon-actions">
       <button type="button" class="patreon-logout-btn">
         <i class="fas fa-sign-out-alt"></i>
-        Sign Out
+        {{localize "LOREMASTER.PatreonLogin.SignOut"}}
       </button>
     </div>
   </div>
@@ -180,26 +180,26 @@
     </div>
 
     <div class="patreon-message">
-      <h3>Authentication Failed</h3>
+      <h3>{{localize "LOREMASTER.PatreonLogin.AuthFailed"}}</h3>
       <p class="patreon-error-text">{{errorMessage}}</p>
     </div>
 
     <button type="button" class="patreon-retry-btn">
       <i class="fas fa-redo"></i>
-      Try Again
+      {{localize "LOREMASTER.PatreonLogin.TryAgain"}}
     </button>
 
     <div class="patreon-divider">
-      <span>or</span>
+      <span>{{localize "LOREMASTER.PatreonLogin.Or"}}</span>
     </div>
 
     <button type="button" class="patreon-paste-token-btn">
       <i class="fas fa-paste"></i>
-      Paste Token Manually
+      {{localize "LOREMASTER.PatreonLogin.PasteTokenBtn"}}
     </button>
 
     <div class="patreon-footer">
-      <a href="#" class="patreon-subscribe-link">Subscribe on Patreon →</a>
+      <a href="#" class="patreon-subscribe-link">{{localize "LOREMASTER.PatreonLogin.SubscribeLink"}}</a>
     </div>
   </div>
   {{/if}}

@@ -406,23 +406,28 @@ let _accountPanelState = {
  */
 const SETTINGS_SECTIONS = [
   {
-    label: 'Connection',
+    labelKey: 'LOREMASTER.SettingsPanel.ConnectionSection',
+    labelFallback: 'Connection',
     keys: ['serverMode', 'proxyUrl', 'apiKey', 'licenseKey']
   },
   {
-    label: 'Chat',
+    labelKey: 'LOREMASTER.SettingsPanel.ChatSection',
+    labelFallback: 'Chat',
     keys: ['triggerPrefix', 'responseVisibility', 'gmMode']
   },
   {
-    label: 'Context',
+    labelKey: 'LOREMASTER.SettingsPanel.ContextSection',
+    labelFallback: 'Context',
     keys: ['includeGameContext', 'systemIntegration']
   },
   {
-    label: 'Multi-Player',
+    labelKey: 'LOREMASTER.SettingsPanel.MultiPlayerSection',
+    labelFallback: 'Multi-Player',
     keys: ['batchingMode', 'batchTimerDuration', 'playerMessageVisibility', 'gmRulingPrefix', 'showBatchIndicator', 'gmSendKeyword']
   },
   {
-    label: 'Usage',
+    labelKey: 'LOREMASTER.SettingsPanel.UsageSection',
+    labelFallback: 'Usage',
     keys: ['maxTokensPerMonth'],
     selfHostedOnly: true
   }
@@ -574,7 +579,8 @@ function _insertSectionHeaders(root, isHosted) {
     // Create section header
     const header = document.createElement('div');
     header.classList.add('loremaster-settings-section');
-    header.innerHTML = `<span class="loremaster-section-label">${section.label}</span>`;
+    const sectionLabel = game.i18n?.localize(section.labelKey) || section.labelFallback;
+    header.innerHTML = `<span class="loremaster-section-label">${sectionLabel}</span>`;
 
     formGroup.parentElement.insertBefore(header, formGroup);
   }
@@ -608,7 +614,8 @@ function _injectAccountPanel(root, section) {
   // Add section header for Account
   const accountHeader = document.createElement('div');
   accountHeader.classList.add('loremaster-settings-section');
-  accountHeader.innerHTML = '<span class="loremaster-section-label">Account</span>';
+  const accountLabel = game.i18n?.localize('LOREMASTER.SettingsPanel.AccountSection') || 'Account';
+  accountHeader.innerHTML = `<span class="loremaster-section-label">${accountLabel}</span>`;
   panelContainer.parentElement.insertBefore(accountHeader, panelContainer);
 
   // Render initial state
@@ -668,21 +675,21 @@ function _buildLoggedOutPanel() {
         <i class="fas fa-book-open fa-2x"></i>
       </div>
       <div class="lm-account-message">
-        <h3>Connect Your Account</h3>
-        <p>Sign in with Patreon to use the Loremaster hosted service.</p>
+        <h3>${game.i18n?.localize('LOREMASTER.PatreonLogin.ConnectAccount') || 'Connect Your Account'}</h3>
+        <p>${game.i18n?.localize('LOREMASTER.PatreonLogin.SignInHint') || 'Sign in with Patreon to use the Loremaster hosted service.'}</p>
       </div>
       <button type="button" class="lm-signin-btn" data-action="signin">
         <span class="lm-patreon-icon">&#127359;&#65039;</span>
-        Sign in with Patreon
+        ${game.i18n?.localize('LOREMASTER.PatreonLogin.SignInBtn') || 'Sign in with Patreon'}
       </button>
-      <div class="lm-account-divider"><span>or</span></div>
+      <div class="lm-account-divider"><span>${game.i18n?.localize('LOREMASTER.PatreonLogin.Or') || 'or'}</span></div>
       <button type="button" class="lm-paste-token-btn" data-action="paste-token">
         <i class="fas fa-paste"></i>
-        Paste Token Manually
+        ${game.i18n?.localize('LOREMASTER.PatreonLogin.PasteTokenBtn') || 'Paste Token Manually'}
       </button>
       <div class="lm-account-footer">
-        <p class="lm-footer-text">Don't have a subscription?</p>
-        <a href="https://patreon.com/loremastervtt" target="_blank" class="lm-subscribe-link">Subscribe on Patreon &rarr;</a>
+        <p class="lm-footer-text">${game.i18n?.localize('LOREMASTER.PatreonLogin.NoSubscription') || "Don't have a subscription?"}</p>
+        <a href="https://patreon.com/loremastervtt" target="_blank" class="lm-subscribe-link">${game.i18n?.localize('LOREMASTER.PatreonLogin.SubscribeLink') || 'Subscribe on Patreon →'}</a>
       </div>
     </div>
   `;
@@ -701,14 +708,14 @@ function _buildLoggingInPanel() {
         <i class="fas fa-spinner fa-spin fa-2x"></i>
       </div>
       <div class="lm-account-message">
-        <h3>Signing In...</h3>
-        <p>Complete the authorization in the popup window.</p>
-        <p class="lm-account-hint">If the popup was blocked, allow popups and try again.</p>
+        <h3>${game.i18n?.localize('LOREMASTER.PatreonLogin.SigningIn') || 'Signing In...'}</h3>
+        <p>${game.i18n?.localize('LOREMASTER.PatreonLogin.SigningInHint') || 'Complete the authorization in the popup window.'}</p>
+        <p class="lm-account-hint">${game.i18n?.localize('LOREMASTER.PatreonLogin.PopupBlockedHint') || 'If the popup was blocked, allow popups and try again.'}</p>
       </div>
-      <div class="lm-account-divider"><span>or</span></div>
+      <div class="lm-account-divider"><span>${game.i18n?.localize('LOREMASTER.PatreonLogin.Or') || 'or'}</span></div>
       <button type="button" class="lm-paste-token-btn" data-action="paste-token">
         <i class="fas fa-paste"></i>
-        Paste Token Manually
+        ${game.i18n?.localize('LOREMASTER.PatreonLogin.PasteTokenBtn') || 'Paste Token Manually'}
       </button>
     </div>
   `;
@@ -750,14 +757,14 @@ function _buildLoggedInPanel(user) {
 
   let sharedHtml = '';
   if (sharedUnlimited) {
-    sharedHtml = `<span class="lm-shared-count">${sharedCurrent} activated (unlimited)</span>
-      <a href="#" class="lm-manage-shared-link" data-action="manage-shared">[Manage]</a>`;
+    sharedHtml = `<span class="lm-shared-count">${game.i18n?.format('LOREMASTER.PatreonLogin.ActivatedUnlimited', { count: sharedCurrent }) || `${sharedCurrent} activated (unlimited)`}</span>
+      <a href="#" class="lm-manage-shared-link" data-action="manage-shared">[${game.i18n?.localize('LOREMASTER.PatreonLogin.ManageLink') || 'Manage'}]</a>`;
   } else if (sharedMax === 0) {
-    sharedHtml = `<span class="lm-shared-count">Upgrade to access</span>
-      <a href="https://patreon.com/loremastervtt" target="_blank" class="lm-subscribe-link">Subscribe &rarr;</a>`;
+    sharedHtml = `<span class="lm-shared-count">${game.i18n?.localize('LOREMASTER.PatreonLogin.UpgradeAccess') || 'Upgrade to access'}</span>
+      <a href="https://patreon.com/loremastervtt" target="_blank" class="lm-subscribe-link">${game.i18n?.localize('LOREMASTER.PatreonLogin.SubscribeLink') || 'Subscribe →'}</a>`;
   } else {
-    sharedHtml = `<span class="lm-shared-count">${sharedCurrent} / ${sharedMax} activated</span>
-      <a href="#" class="lm-manage-shared-link" data-action="manage-shared">[Manage]</a>`;
+    sharedHtml = `<span class="lm-shared-count">${game.i18n?.format('LOREMASTER.PatreonLogin.ActivatedCount', { current: sharedCurrent, max: sharedMax }) || `${sharedCurrent} / ${sharedMax} activated`}</span>
+      <a href="#" class="lm-manage-shared-link" data-action="manage-shared">[${game.i18n?.localize('LOREMASTER.PatreonLogin.ManageLink') || 'Manage'}]</a>`;
   }
 
   let quotaBarHtml = '';
@@ -772,7 +779,7 @@ function _buildLoggedInPanel(user) {
         <span class="lm-quota-limit">${_formatTokens(tokensLimit)}</span>
         <span class="lm-quota-percent">(${quotaPercent}%)</span>
       </div>
-      ${quotaResetDate ? `<div class="lm-quota-reset">Resets: ${quotaResetDate}</div>` : ''}
+      ${quotaResetDate ? `<div class="lm-quota-reset">${game.i18n?.format('LOREMASTER.PatreonLogin.ResetsDate', { date: quotaResetDate }) || `Resets: ${quotaResetDate}`}</div>` : ''}
     `;
   } else {
     quotaBarHtml = `
@@ -780,7 +787,7 @@ function _buildLoggedInPanel(user) {
         <div class="lm-quota-bar" style="width: 0%"></div>
       </div>
       <div class="lm-quota-details">
-        <span class="lm-quota-limit">${_formatTokens(tierCfg.tokenLimit)} tokens/month</span>
+        <span class="lm-quota-limit">${_formatTokens(tierCfg.tokenLimit)} ${game.i18n?.localize('LOREMASTER.PatreonLogin.TokensPerMonth') || 'tokens/month'}</span>
       </div>
     `;
   }
@@ -789,7 +796,7 @@ function _buildLoggedInPanel(user) {
     <div class="lm-account-state lm-account-state--logged-in">
       <div class="lm-account-header">
         <div class="lm-status-icon">&#10003;</div>
-        <span class="lm-status-text">Connected</span>
+        <span class="lm-status-text">${game.i18n?.localize('LOREMASTER.PatreonLogin.Connected') || 'Connected'}</span>
       </div>
 
       <div class="lm-user-info">
@@ -807,20 +814,20 @@ function _buildLoggedInPanel(user) {
 
       <div class="lm-rag-status ${ragAvailable ? 'rag-unlocked' : 'rag-locked'}">
         ${ragAvailable
-          ? '<span class="lm-rag-icon">&#128275;</span><span class="lm-rag-text">Advanced RAG Enabled</span>'
-          : `<span class="lm-rag-icon">&#128274;</span><span class="lm-rag-text">Advanced RAG Locked</span><span class="lm-rag-hint">(Requires ${ragRequiredTier} tier)</span>`
+          ? `<span class="lm-rag-icon">&#128275;</span><span class="lm-rag-text">${game.i18n?.localize('LOREMASTER.PatreonLogin.RAGEnabled') || 'Advanced RAG Enabled'}</span>`
+          : `<span class="lm-rag-icon">&#128274;</span><span class="lm-rag-text">${game.i18n?.localize('LOREMASTER.PatreonLogin.RAGLocked') || 'Advanced RAG Locked'}</span><span class="lm-rag-hint">(${game.i18n?.format('LOREMASTER.PatreonLogin.RAGRequiresTier', { tier: ragRequiredTier }) || `Requires ${ragRequiredTier} tier`})</span>`
         }
       </div>
 
       <div class="lm-shared-resources shared-${sharedLevel}">
         <span class="lm-shared-icon">&#128218;</span>
-        <span class="lm-shared-text">Shared Resources:</span>
+        <span class="lm-shared-text">${game.i18n?.localize('LOREMASTER.PatreonLogin.SharedResources') || 'Shared Resources'}:</span>
         ${sharedHtml}
       </div>
 
       <div class="lm-quota">
         <div class="lm-quota-header">
-          <span class="lm-quota-title">Monthly Usage</span>
+          <span class="lm-quota-title">${game.i18n?.localize('LOREMASTER.PatreonLogin.MonthlyUsage') || 'Monthly Usage'}</span>
           ${isLoadingQuota
             ? '<i class="fas fa-spinner fa-spin"></i>'
             : '<button type="button" class="lm-refresh-quota-btn" data-action="refresh-quota" title="Refresh"><i class="fas fa-sync-alt"></i></button>'
@@ -832,7 +839,7 @@ function _buildLoggedInPanel(user) {
       <div class="lm-account-actions">
         <button type="button" class="lm-signout-btn" data-action="signout">
           <i class="fas fa-sign-out-alt"></i>
-          Sign Out
+          ${game.i18n?.localize('LOREMASTER.PatreonLogin.SignOut') || 'Sign Out'}
         </button>
       </div>
     </div>
@@ -853,20 +860,20 @@ function _buildErrorPanel(errorMessage) {
         <i class="fas fa-exclamation-triangle fa-2x"></i>
       </div>
       <div class="lm-account-message">
-        <h3>Authentication Failed</h3>
+        <h3>${game.i18n?.localize('LOREMASTER.PatreonLogin.AuthFailed') || 'Authentication Failed'}</h3>
         <p class="lm-error-text">${errorMessage || 'Unknown error'}</p>
       </div>
       <button type="button" class="lm-retry-btn" data-action="signin">
         <i class="fas fa-redo"></i>
-        Try Again
+        ${game.i18n?.localize('LOREMASTER.PatreonLogin.TryAgain') || 'Try Again'}
       </button>
-      <div class="lm-account-divider"><span>or</span></div>
+      <div class="lm-account-divider"><span>${game.i18n?.localize('LOREMASTER.PatreonLogin.Or') || 'or'}</span></div>
       <button type="button" class="lm-paste-token-btn" data-action="paste-token">
         <i class="fas fa-paste"></i>
-        Paste Token Manually
+        ${game.i18n?.localize('LOREMASTER.PatreonLogin.PasteTokenBtn') || 'Paste Token Manually'}
       </button>
       <div class="lm-account-footer">
-        <a href="https://patreon.com/loremastervtt" target="_blank" class="lm-subscribe-link">Subscribe on Patreon &rarr;</a>
+        <a href="https://patreon.com/loremastervtt" target="_blank" class="lm-subscribe-link">${game.i18n?.localize('LOREMASTER.PatreonLogin.SubscribeLink') || 'Subscribe on Patreon →'}</a>
       </div>
     </div>
   `;
@@ -914,7 +921,7 @@ function _attachAccountPanelListeners(container, authManager) {
         if (game.loremaster?.openContentManager) {
           game.loremaster.openContentManager();
         } else {
-          ui.notifications.warn(`${MODULE_NAME}: Content Manager not available`);
+          ui.notifications.warn(`${MODULE_NAME}: ${game.i18n?.localize('LOREMASTER.PatreonLogin.ContentManagerUnavailable') || 'Content Manager not available'}`);
         }
         break;
     }
@@ -929,8 +936,8 @@ function _attachAccountPanelListeners(container, authManager) {
  */
 async function _handleSignOut(authManager) {
   const confirmed = await Dialog.confirm({
-    title: 'Sign Out',
-    content: '<p>Are you sure you want to sign out of Loremaster?</p>',
+    title: game.i18n?.localize('LOREMASTER.PatreonLogin.SignOutDialogTitle') || 'Sign Out',
+    content: `<p>${game.i18n?.localize('LOREMASTER.PatreonLogin.SignOutConfirm') || 'Are you sure you want to sign out of Loremaster?'}</p>`,
     yes: () => true,
     no: () => false,
     defaultYes: false
@@ -955,20 +962,20 @@ async function _handlePasteToken(authManager) {
   const content = `
     <form>
       <div class="form-group">
-        <label>Session Token</label>
-        <input type="text" name="token" placeholder="Paste your session token here..."
+        <label>${game.i18n?.localize('LOREMASTER.PatreonLogin.SessionTokenLabel') || 'Session Token'}</label>
+        <input type="text" name="token" placeholder="${game.i18n?.localize('LOREMASTER.PatreonLogin.SessionTokenPlaceholder') || 'Paste your session token here...'}"
           style="width: 100%; font-family: monospace;">
         <p class="notes" style="margin-top: 0.5rem;">
-          Copy the token from the Patreon authorization success page.
+          ${game.i18n?.localize('LOREMASTER.PatreonLogin.SessionTokenHint') || 'Copy the token from the Patreon authorization success page.'}
         </p>
       </div>
     </form>
   `;
 
   const token = await Dialog.prompt({
-    title: 'Enter Session Token',
+    title: game.i18n?.localize('LOREMASTER.PatreonLogin.EnterTokenTitle') || 'Enter Session Token',
     content,
-    label: 'Connect',
+    label: game.i18n?.localize('LOREMASTER.PatreonLogin.ConnectBtn') || 'Connect',
     callback: (html) => {
       return html.find('input[name="token"]').val()?.trim();
     },
@@ -982,17 +989,17 @@ async function _handlePasteToken(authManager) {
     try {
       const status = await authManager.checkAuthStatus();
       if (status.authenticated) {
-        ui.notifications.info(`${MODULE_NAME}: Connected successfully!`);
+        ui.notifications.info(`${MODULE_NAME}: ${game.i18n?.localize('LOREMASTER.PatreonLogin.ConnectedSuccess') || 'Connected successfully!'}`);
         authManager.state = AuthState.LOGGED_IN;
         authManager._emitStateChange();
       } else {
         await clearSessionToken();
-        ui.notifications.error(`${MODULE_NAME}: Invalid token - ${status.reason}`);
+        ui.notifications.error(`${MODULE_NAME}: ${game.i18n?.format('LOREMASTER.PatreonLogin.InvalidToken', { reason: status.reason }) || `Invalid token - ${status.reason}`}`);
       }
     } catch (err) {
       console.error(`${MODULE_NAME} | Token validation error:`, err);
       await clearSessionToken();
-      ui.notifications.error(`${MODULE_NAME}: Failed to validate token`);
+      ui.notifications.error(`${MODULE_NAME}: ${game.i18n?.localize('LOREMASTER.PatreonLogin.ValidationFailed') || 'Failed to validate token'}`);
     }
   }
 }
