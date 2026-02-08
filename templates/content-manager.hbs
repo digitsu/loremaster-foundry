@@ -79,6 +79,8 @@
   <section class="content">
     {{!-- PDFs List Tab --}}
     <div class="tab" data-tab="pdfs">
+      {{!-- Your Documents Section --}}
+      <h3 class="documents-section-header">Your Documents</h3>
       {{#if pdfs.length}}
         <ul class="pdf-list">
           {{#each pdfs}}
@@ -159,6 +161,56 @@
           <p class="empty-hint">{{localize "LOREMASTER.ContentManager.EmptyHint"}}</p>
         </div>
       {{/if}}
+
+      {{!-- Shared Library Section --}}
+      {{#if hasActivatedSharedContent}}
+        <div class="shared-library-section">
+          <h3 class="shared-section-header">
+            Shared Library
+            {{#if sharedTier}}
+              <span class="shared-tier-count">({{sharedTier.current}} / {{#if (eq sharedTier.max -1)}}∞{{else}}{{sharedTier.max}}{{/if}} activated)</span>
+            {{/if}}
+          </h3>
+          <ul class="shared-content-list">
+            {{#each activatedSharedContent}}
+              <li class="shared-content-tile">
+                <div class="pdf-icon shared-icon">
+                  <i class="fas fa-cloud"></i>
+                </div>
+                <div class="pdf-info">
+                  <div class="pdf-name">
+                    {{this.title}}
+                    <span class="shared-badge">Shared</span>
+                  </div>
+                  <div class="pdf-meta">
+                    <span class="pdf-category">{{categoryLabel this.category}}</span>
+                    <span class="pdf-publisher">by {{this.publisher}}</span>
+                    <span class="pdf-content-type">{{this.contentType}}</span>
+                  </div>
+                  <div class="pdf-status">
+                    <span class="status-badge status-completed">Active</span>
+                  </div>
+                </div>
+                <div class="pdf-actions">
+                  <button type="button" class="deactivate-shared-btn"
+                          data-shared-id="{{this.id}}"
+                          data-shared-title="{{this.title}}"
+                          title="Deactivate this shared content">
+                    <i class="fas fa-times-circle"></i>
+                  </button>
+                </div>
+              </li>
+            {{/each}}
+          </ul>
+        </div>
+      {{/if}}
+
+      {{!-- Browse Shared Library Button --}}
+      <div class="browse-shared-section">
+        <button type="button" class="browse-shared-btn">
+          <i class="fas fa-globe"></i> Browse Shared Library
+        </button>
+      </div>
     </div>
 
     {{!-- Upload Tab --}}

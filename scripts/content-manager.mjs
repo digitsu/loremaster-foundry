@@ -99,6 +99,10 @@ export class ContentManager extends Application {
     this.importProgress = { stage: '', progress: 0, message: '' };
     // Saved backups (hosted mode only)
     this.savedBackups = [];
+    // Shared content data
+    this.sharedContent = [];
+    this.sharedTier = null;
+    this.activatedSharedContent = [];
   }
 
   /**
@@ -176,7 +180,12 @@ export class ContentManager extends Application {
       currentDate: new Date().toISOString().split('T')[0],
       // Hosted mode detection and saved backups
       isHostedMode: isHostedMode(),
-      savedBackups: this.savedBackups
+      savedBackups: this.savedBackups,
+      // Shared content data
+      sharedContent: this.sharedContent,
+      sharedTier: this.sharedTier,
+      activatedSharedContent: this.activatedSharedContent,
+      hasActivatedSharedContent: this.activatedSharedContent.length > 0
     };
   }
 
@@ -301,6 +310,13 @@ export class ContentManager extends Application {
     // Saved backups (hosted mode) - restore and delete buttons
     html.find('.restore-backup-btn').on('click', this._onRestoreSavedBackup.bind(this));
     html.find('.delete-backup-btn').on('click', this._onDeleteSavedBackup.bind(this));
+
+    // ===== Shared Content =====
+    // Browse shared library button
+    html.find('.browse-shared-btn').on('click', this._onBrowseSharedLibrary.bind(this));
+
+    // Deactivate shared content button
+    html.find('.deactivate-shared-btn').on('click', this._onDeactivateSharedContent.bind(this));
   }
 
   /**
@@ -316,6 +332,8 @@ export class ContentManager extends Application {
     if (!this._loaded) {
       this._loaded = true;
       await this._loadPDFs();
+      // Load shared content data
+      await this._loadSharedContentData();
       // Load adventure data, cast, history, Foundry modules, and backup data for GMs
       if (game.user.isGM) {
         await this._loadAdventureData();
@@ -361,6 +379,34 @@ export class ContentManager extends Application {
     } catch (error) {
       console.error(`${MODULE_ID} | Failed to load PDFs:`, error);
       ui.notifications.error(game.i18n.localize('LOREMASTER.ContentManager.LoadError'));
+    }
+  }
+
+  /**
+   * Load shared content data from the server.
+   * Fetches available shared content for the current game system and tier status.
+   *
+   * @private
+   */
+  async _loadSharedContentData() {
+    try {
+      const result = await this.socketClient.listSharedContent();
+      this.sharedContent = result.content || [];
+      this.sharedTier = result.tier || { current: 0, max: 0 };
+
+      const tierStatus = await this.socketClient.getSharedTierStatus();
+      this.sharedTier = tierStatus.tier || this.sharedTier;
+
+      // Filter activated shared content
+      this.activatedSharedContent = this.sharedContent.filter(item => item.isActivated);
+
+      this.render(false);
+    } catch (error) {
+      console.warn(`${MODULE_ID} | Failed to load shared content:`, error);
+      // Non-critical error - don't show notification, just log
+      this.sharedContent = [];
+      this.sharedTier = { current: 0, max: 0 };
+      this.activatedSharedContent = [];
     }
   }
 
@@ -2619,6 +2665,215 @@ export class ContentManager extends Application {
       ui.notifications.error(game.i18n.format('LOREMASTER.Backup.DeleteError', {
         error: error.message
       }));
+      button.prop('disabled', false);
+    }
+  }
+
+  // ===== Shared Content Handlers =====
+
+  /**
+   * Handle browse shared library button click.
+   * Opens a Foundry Dialog displaying all available shared content as cards.
+   *
+   * @param {Event} event - The click event.
+   * @private
+   */
+  async _onBrowseSharedLibrary(event) {
+    event.preventDefault();
+
+    // Build the dialog content
+    const categories = [
+      'core_rules',
+      'rules_supplement',
+      'adventure',
+      'adventure_supplement',
+      'reference'
+    ];
+
+    const categoryLabels = {
+      core_rules: game.i18n.localize('LOREMASTER.ContentManager.Category.CoreRules'),
+      rules_supplement: game.i18n.localize('LOREMASTER.ContentManager.Category.RulesSupplement'),
+      adventure: game.i18n.localize('LOREMASTER.ContentManager.Category.Adventure'),
+      adventure_supplement: game.i18n.localize('LOREMASTER.ContentManager.Category.AdventureSupplement'),
+      reference: game.i18n.localize('LOREMASTER.ContentManager.Category.Reference')
+    };
+
+    const typeIcons = {
+      pdf: 'fa-file-pdf',
+      module: 'fa-cube'
+    };
+
+    // Build category filter buttons
+    let filterButtons = '<div class="shared-category-filters">';
+    filterButtons += '<button class="shared-category-filter active" data-category="all">All</button>';
+    for (const cat of categories) {
+      filterButtons += `<button class="shared-category-filter" data-category="${cat}">${categoryLabels[cat]}</button>`;
+    }
+    filterButtons += '</div>';
+
+    // Tier status display
+    const tierStatus = `<div class="shared-tier-status">
+      <i class="fas fa-layer-group"></i>
+      <span>${this.sharedTier.current} / ${this.sharedTier.max === -1 ? '∞' : this.sharedTier.max} shared resources activated</span>
+    </div>`;
+
+    // Build card grid
+    let cardGrid = '<div class="shared-library-grid">';
+
+    if (this.sharedContent.length === 0) {
+      cardGrid += '<div class="empty-state"><i class="fas fa-box-open"></i><p>No shared content available for this game system.</p></div>';
+    } else {
+      for (const item of this.sharedContent) {
+        const isActivated = item.isActivated;
+        const canActivate = !isActivated && (this.sharedTier.max === -1 || this.sharedTier.current < this.sharedTier.max);
+        const description = item.description || 'No description provided.';
+        const truncatedDesc = description.length > 120 ? description.substring(0, 120) + '...' : description;
+
+        cardGrid += `
+          <div class="shared-content-card" data-category="${item.category}" data-shared-id="${item.id}">
+            <div class="card-header">
+              <i class="fas ${typeIcons[item.contentType] || 'fa-file'}"></i>
+              <span class="category-badge">${categoryLabels[item.category] || item.category}</span>
+            </div>
+            <div class="card-body">
+              <h4 class="card-title">${item.title}</h4>
+              <p class="card-publisher">by ${item.publisher || 'Unknown'}</p>
+              <p class="card-description">${truncatedDesc}</p>
+            </div>
+            <div class="card-footer">
+              ${isActivated
+                ? '<button class="deactivate-card-btn" data-shared-id="' + item.id + '"><i class="fas fa-times-circle"></i> Deactivate</button>'
+                : canActivate
+                  ? '<button class="activate-card-btn" data-shared-id="' + item.id + '"><i class="fas fa-plus-circle"></i> Activate</button>'
+                  : '<button class="activate-card-btn" disabled title="Tier limit reached"><i class="fas fa-lock"></i> Tier Limit Reached</button>'
+              }
+            </div>
+          </div>
+        `;
+      }
+    }
+    cardGrid += '</div>';
+
+    const dialogContent = tierStatus + filterButtons + cardGrid;
+
+    // Create the dialog
+    const dialog = new Dialog({
+      title: `Shared Library — ${game.system.title}`,
+      content: dialogContent,
+      buttons: {
+        close: {
+          icon: '<i class="fas fa-times"></i>',
+          label: 'Close'
+        }
+      },
+      default: 'close',
+      render: (html) => {
+        // Category filter handlers
+        html.find('.shared-category-filter').on('click', (e) => {
+          const filterBtn = $(e.currentTarget);
+          const category = filterBtn.data('category');
+
+          // Update active filter button
+          html.find('.shared-category-filter').removeClass('active');
+          filterBtn.addClass('active');
+
+          // Filter cards
+          if (category === 'all') {
+            html.find('.shared-content-card').show();
+          } else {
+            html.find('.shared-content-card').hide();
+            html.find(`.shared-content-card[data-category="${category}"]`).show();
+          }
+        });
+
+        // Activate button handlers
+        html.find('.activate-card-btn').on('click', async (e) => {
+          const btn = $(e.currentTarget);
+          const sharedId = btn.data('shared-id');
+          if (!sharedId) return;
+
+          try {
+            btn.prop('disabled', true);
+            await this.socketClient.activateSharedContent(sharedId);
+            ui.notifications.info('Shared content activated successfully.');
+
+            // Refresh data and close dialog
+            await this._loadSharedContentData();
+            dialog.close();
+          } catch (error) {
+            console.error(`${MODULE_ID} | Failed to activate shared content:`, error);
+            ui.notifications.error(`Failed to activate: ${error.message}`);
+            btn.prop('disabled', false);
+          }
+        });
+
+        // Deactivate button handlers
+        html.find('.deactivate-card-btn').on('click', async (e) => {
+          const btn = $(e.currentTarget);
+          const sharedId = btn.data('shared-id');
+          if (!sharedId) return;
+
+          try {
+            btn.prop('disabled', true);
+            await this.socketClient.deactivateSharedContent(sharedId);
+            ui.notifications.info('Shared content deactivated.');
+
+            // Refresh data and close dialog
+            await this._loadSharedContentData();
+            dialog.close();
+          } catch (error) {
+            console.error(`${MODULE_ID} | Failed to deactivate shared content:`, error);
+            ui.notifications.error(`Failed to deactivate: ${error.message}`);
+            btn.prop('disabled', false);
+          }
+        });
+      },
+      close: () => {}
+    }, {
+      width: 800,
+      height: 600,
+      classes: ['loremaster', 'shared-library-dialog']
+    });
+
+    dialog.render(true);
+  }
+
+  /**
+   * Handle deactivate shared content button click.
+   * Deactivates a shared content item from the user's world.
+   *
+   * @param {Event} event - The click event.
+   * @private
+   */
+  async _onDeactivateSharedContent(event) {
+    event.preventDefault();
+
+    const button = $(event.currentTarget);
+    const sharedId = button.data('shared-id');
+    const sharedTitle = button.data('shared-title');
+
+    if (!sharedId) return;
+
+    // Confirm deactivation
+    const confirmed = await Dialog.confirm({
+      title: 'Deactivate Shared Content',
+      content: `<p>Deactivate <strong>${sharedTitle}</strong>?</p><p>This will remove it from your active documents.</p>`,
+      yes: () => true,
+      no: () => false
+    });
+
+    if (!confirmed) return;
+
+    try {
+      button.prop('disabled', true);
+      await this.socketClient.deactivateSharedContent(sharedId);
+      ui.notifications.info('Shared content deactivated.');
+
+      // Refresh shared content data
+      await this._loadSharedContentData();
+    } catch (error) {
+      console.error(`${MODULE_ID} | Failed to deactivate shared content:`, error);
+      ui.notifications.error(`Failed to deactivate: ${error.message}`);
       button.prop('disabled', false);
     }
   }
