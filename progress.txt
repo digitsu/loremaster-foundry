@@ -571,3 +571,44 @@ Added 4 new key groups to lang/en.json under LOREMASTER:
 
 ---
 
+## Session 9 - 2026-02-08 (continued)
+
+### Completed: US-2 - Wire i18n Keys in Patreon Login UI and Settings Account Panel
+
+**Files Changed:**
+- templates/patreon-login.hbs (~30 string replacements across 4 states)
+- scripts/patreon-login-ui.mjs (~10 string replacements in dialogs + notifications)
+- scripts/config.mjs (~40 string replacements in panel builders + section headers)
+
+**What Was Done:**
+
+1. **Template (patreon-login.hbs):**
+   - Logged-out: ConnectAccount, SignInHint, SignInBtn, Or, PasteTokenBtn, NoSubscription, SubscribeLink
+   - Logging-in: SigningIn, SigningInHint, PopupBlockedHint, Or, PasteTokenBtn
+   - Logged-in: Connected, RAGEnabled/RAGLocked/RAGRequiresTier, SharedResources,
+     ActivatedUnlimited/ActivatedCount/UpgradeAccess, ManageLink, MonthlyUsage,
+     ResetsDate, TokensPerMonth, SignOut
+   - Error: AuthFailed, TryAgain, Or, PasteTokenBtn, SubscribeLink
+   - Parameterized: `{{localize "KEY" param=value}}` for RAGRequiresTier, ActivatedUnlimited, ActivatedCount, ResetsDate
+
+2. **JavaScript (patreon-login-ui.mjs):**
+   - Sign out dialog: title + content
+   - Paste token dialog: label, placeholder, hint, title, connect button
+   - Notifications: ConnectedSuccess, InvalidToken (format), ValidationFailed, ContentManagerUnavailable
+
+3. **Config (config.mjs):**
+   - SETTINGS_SECTIONS: Changed `label` to `labelKey`/`labelFallback` pattern
+   - `_insertSectionHeaders()`: Uses `game.i18n?.localize(section.labelKey)`
+   - Account section header: Uses SettingsPanel.AccountSection key
+   - 4 panel builders: All strings use PatreonLogin i18n keys + fallbacks
+   - `_handleSignOut()`: Dialog title/content localized
+   - `_handlePasteToken()`: All dialog strings + notifications localized
+   - Manage shared: ContentManagerUnavailable notification localized
+
+**Key Learnings:**
+- Foundry's `{{localize}}` helper supports named hash params: `{{localize "KEY" param=value}}`
+- In template literals, use `game.i18n?.format()` for parameterized strings
+- SETTINGS_SECTIONS refactored to `labelKey`/`labelFallback` pattern — cleaner than inline ternary
+
+---
+
