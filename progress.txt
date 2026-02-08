@@ -1,0 +1,516 @@
+# Shared Content UI Implementation Progress
+
+## Session 1 - 2026-02-08
+
+### Completed: US-0 - Socket Client Wrapper Methods for Shared Content
+
+**Files Changed:**
+- scripts/socket-client.mjs (added 160 lines)
+
+**What Was Done:**
+1. Added 6 user-facing wrapper methods for shared content operations:
+   - listSharedContent() - Lists available shared content for current game system
+   - activateSharedContent(sharedContentId) - Activates shared content (subject to tier limits)
+   - deactivateSharedContent(sharedContentId) - Deactivates shared content
+   - getSharedTierStatus() - Gets tier info and activation limits
+   - getSharedContentDetail(sharedContentId) - Gets detailed info for a shared content item
+   - submitToSharedLibrary(contentType, contentId, publisher, description) - Submits content for review
+
+2. Added 5 admin-only wrapper methods:
+   - adminListPendingShared() - Lists pending submissions
+   - adminApproveShared(sharedContentId) - Approves a pending submission
+   - adminRejectShared(sharedContentId) - Rejects a pending submission
+   - adminPublishPdf(pdfId, options) - Directly publishes a PDF (bypasses approval)
+   - adminRemoveShared(sharedContentId) - Removes published shared content
+
+**Key Learnings:**
+- The socket-client.mjs uses _sendRequest() as the standard pattern for all request/response operations
+- _sendRequest() automatically handles both Phoenix Channels and Node.js WebSocket protocols
+- Admin methods should check this.isGM and throw appropriate errors
+- All methods need JSDoc documentation following the established pattern
+- Methods are organized into logical sections with comment headers (// ===== Section Name =====)
+- The _sendRequest() method handles timeout, pending request tracking, and protocol switching automatically
+
+**Acceptance Criteria Met:**
+✅ All 6 user wrapper methods exist with JSDoc documentation
+✅ All 5 admin wrapper methods exist with JSDoc documentation
+✅ Methods follow existing patterns using _sendRequest()
+✅ Proper error handling with _requireAuth() and GM checks
+✅ CamelCase payload keys used throughout
+
+**Next Steps:**
+The next priority story is US-1 (Documents Tab Separation and Read-Only Shared Tiles), which will:
+- Split PDFs tab into "Your Documents" and "Shared Library" sections
+- Add browse modal for available shared content
+- Implement read-only tiles for activated shared content
+- Add category filtering
+
+---
+
+## Session 2 - 2026-02-08 (continued)
+
+### Completed: US-1 - Documents Tab Separation and Read-Only Shared Tiles
+
+**Files Changed:**
+- scripts/content-manager.mjs (added ~210 lines)
+- templates/content-manager.hbs (added ~50 lines)
+- styles/loremaster.css (added ~340 lines)
+
+**What Was Done:**
+
+1. **Updated ContentManager constructor** to initialize shared content properties:
+   - this.sharedContent = []
+   - this.sharedTier = null
+   - this.activatedSharedContent = []
+
+2. **Added _loadSharedContentData() method** that:
+   - Calls socketClient.listSharedContent() to get available shared content
+   - Calls socketClient.getSharedTierStatus() to get tier limits
+   - Filters activated items into this.activatedSharedContent
+   - Handles errors gracefully (non-critical)
+
+3. **Updated _render() method** to load shared content data on first render (alongside PDFs)
+
+4. **Updated getData() method** to return:
+   - sharedContent - all available shared content
+   - sharedTier - tier status with current/max counts
+   - activatedSharedContent - filtered activated items
+   - hasActivatedSharedContent - boolean flag
+
+5. **Added event listeners** in activateListeners():
+   - .browse-shared-btn → opens browse dialog
+   - .deactivate-shared-btn → deactivates shared content
+
+6. **Implemented _onBrowseSharedLibrary() handler** that:
+   - Creates a Foundry Dialog with card grid layout
+   - Shows tier status (n/m activated or n/∞ for premium)
+   - Category filter buttons (All, Core Rules, Adventure, etc.)
+   - Each card shows: title, publisher, category, type icon, description
+   - Activate/Deactivate buttons with tier limit enforcement
+   - Empty state for no content
+   - Filter functionality to show/hide cards by category
+   - Auto-refresh after activate/deactivate operations
+
+7. **Implemented _onDeactivateSharedContent() handler** that:
+   - Shows confirmation dialog
+   - Calls socketClient.deactivateSharedContent()
+   - Refreshes data on success
+   - Shows appropriate notifications
+
+8. **Modified content-manager.hbs template**:
+   - Added "Your Documents" section header above existing PDF list
+   - Added "Shared Library" section after PDF list (conditional on hasActivatedSharedContent)
+   - Shared Library header shows tier status (n/m activated)
+   - Shared tiles use .shared-content-tile class with:
+     - fa-cloud icon (instead of fa-file-pdf)
+     - Blue "Shared" badge
+     - Publisher name
+     - Category and content type
+     - Only "Deactivate" button (no delete, GM Prep, or share)
+   - Added "Browse Shared Library" button at bottom
+
+9. **Added comprehensive CSS styles**:
+   - .documents-section-header - "Your Documents" header
+   - .shared-library-section - container for shared content
+   - .shared-section-header - "Shared Library" header with blue styling
+   - .shared-tier-count - tier status text in header
+   - .shared-content-tile - blue-tinted tiles with subtle border
+   - .shared-icon - blue cloud icon
+   - .shared-badge - gradient blue/purple badge
+   - .browse-shared-btn - prominent gradient button
+   - .shared-tier-status - tier info box in dialog
+   - .shared-category-filters - filter button row
+   - .shared-category-filter - individual filter buttons with active state
+   - .shared-library-grid - responsive card grid (auto-fill minmax 300px)
+   - .shared-content-card - individual cards with hover effects
+   - .card-header/.card-body/.card-footer - card sections
+   - .category-badge - category labels
+   - .activate-card-btn/.deactivate-card-btn - action buttons
+
+**Key Learnings:**
+- Foundry Dialog class is used for modal overlays, not custom HTML/CSS overlays
+- jQuery event binding pattern: html.find('.selector').on('click', handler)
+- Template conditionals use {{#if}} with Handlebars helpers
+- CSS grid with auto-fill/minmax creates responsive card layouts
+- Tier limit of -1 means unlimited (premium tier)
+- Backend listSharedContent returns {content: [], tier: {current, max}}
+- game.system.title provides the current game system name
+- Non-critical errors (like failed shared content load) should be logged but not shown to users
+
+**Acceptance Criteria Met:**
+✅ PDFs tab shows 'Your Documents' section header above existing PDF list
+✅ PDFs tab shows 'Shared Library' section with activated shared content tiles
+✅ Shared Library section header shows tier status (n/m activated)
+✅ Shared Library section only appears when user has activated items
+✅ 'Browse Shared Library' button opens a modal overlay with available content
+✅ Browse panel shows content as card tiles with title, publisher, category, type icon, description
+✅ Browse panel has category filter and tier status display
+✅ Only content for current game.system.id is shown (backend filters by system)
+✅ Empty state message when no shared content exists
+✅ Activated shared tiles use fa-cloud icon and have blue/purple 'Shared' badge
+✅ Shared tiles have NO delete, GM Prep, or share buttons
+✅ Shared tiles have a 'Deactivate' button
+✅ Shared tiles have visual distinction (blue border/tint)
+✅ CSS styles added for .shared-library-grid, .shared-content-tile, browse panel
+
+**Next Steps:**
+The next priority story is US-5 (Login Window Shared Content Counter), which will:
+- Add a "Shared Resources" row to the Patreon login window
+- Show activation count vs tier limit with visual indicators
+- Add [Manage] link that opens Content Manager
+- Fetch tier status during _fetchQuota() in patreon-login-ui.mjs
+- Add Handlebars helper 'sharedTierLevel'
+
+---
+
+## Session 3 - 2026-02-08 (continued)
+
+### Completed: US-5 - Login Window Shared Content Counter
+
+**Files Changed:**
+- scripts/patreon-login-ui.mjs (added ~60 lines)
+- templates/patreon-login.hbs (added ~80 lines)
+
+**What Was Done:**
+
+1. **Added shared tier state to PatreonLoginUI constructor:**
+   - this.sharedTier = null
+
+2. **Implemented _fetchSharedTierStatus() method:**
+   - Called alongside _fetchRagStatus() during _fetchQuota()
+   - Gets socket client from game.loremaster
+   - Calls socketClient.getSharedTierStatus()
+   - Stores result in this.sharedTier
+   - Re-renders on success
+   - Gracefully handles errors
+
+3. **Updated getData() to return shared tier data:**
+   - sharedTier - full tier object
+   - sharedTierCurrent - current activation count
+   - sharedTierMax - max activations (-1 for unlimited)
+   - sharedTierName - tier name (free/basic/pro/premium)
+   - sharedTierUnlimited - boolean flag for unlimited
+
+4. **Added _onManageSharedContent() handler:**
+   - Opens Content Manager via game.loremaster.openContentManager()
+   - Shows warning if Content Manager not available
+   - Bound to .manage-shared-link click event
+
+5. **Registered sharedTierLevel Handlebars helper:**
+   - Returns 'none' for max === 0 (free tier)
+   - Returns 'available' for max === -1 (unlimited) or current < max
+   - Returns 'at-limit' for current >= max
+
+6. **Updated patreon-login.hbs template:**
+   - Added Shared Resources section after RAG status, before quota
+   - Three display formats:
+     - Normal tiers: "n / m activated" with [Manage] link
+     - Premium tier: "n activated (unlimited)" with [Manage] link
+     - Free tier: "Upgrade to access" with Patreon subscribe link
+   - Uses sharedTierLevel helper to apply color class
+
+7. **Added CSS styles in template:**
+   - .patreon-shared-resources - container with flex layout
+   - .shared-available - green background/border for under limit
+   - .shared-at-limit - yellow/warning background/border for at limit
+   - .shared-none - grey background/border for free tier
+   - .shared-icon - book emoji
+   - .shared-text - "Shared Resources:" label
+   - .shared-count - activation count display
+   - .manage-shared-link - golden link with hover effect
+
+**Key Learnings:**
+- getData() provides all data to template via return object
+- Handlebars helpers registered in registerPatreonLoginHelpers() function
+- Template styles are inline in <style> block at bottom of .hbs file
+- Socket client accessed via game.modules.get('loremaster').api.getSocketClient()
+- Color-coded status indicators follow existing RAG status pattern
+- [Manage] link uses same styling as Patreon subscribe link
+
+**Acceptance Criteria Met:**
+✅ Shared Resources row appears in login window after RAG status, before quota
+✅ Shows 'n / m activated' format for basic/pro tiers
+✅ Shows 'n activated (unlimited)' for premium tier
+✅ Shows 'Upgrade to access' with Patreon link for free tier
+✅ Green indicator when under limit, yellow at limit, grey for free tier
+✅ [Manage] link opens Content Manager
+✅ Data fetched via getSharedTierStatus() during _fetchQuota()
+✅ Handlebars helper sharedTierLevel registered in loremaster.mjs
+
+**Next Steps:**
+The next priority story is US-2 (Submit Content for Sharing), which will:
+- Add a "Share" button to completed PDF tiles in "Your Documents"
+- Clicking opens a confirmation dialog with title, publisher, description fields
+- Submit calls submitToSharedLibrary() socket method
+- Handle success, already-exists, and error cases with appropriate notifications
+
+---
+
+## Session 4 - 2026-02-08 (continued)
+
+### Completed: US-2 - Submit Content for Sharing
+
+**Files Changed:**
+- templates/content-manager.hbs (added 7 lines)
+- scripts/content-manager.mjs (added 96 lines)
+- styles/loremaster.css (added 14 lines)
+
+**What Was Done:**
+
+1. **Added Share button to content-manager.hbs template:**
+   - Button appears in .pdf-actions div next to delete button
+   - Only visible for PDFs with processing_status === "completed"
+   - Uses fa-share-alt icon
+   - data-pdf-id and data-pdf-name attributes for handler
+   - Title: "Share to Library"
+
+2. **Added event listener in activateListeners():**
+   - html.find('.share-pdf-btn').on('click', this._onSharePDF.bind(this))
+   - Added after delete button listener, before GM Prep listener
+
+3. **Implemented _onSharePDF() handler:**
+   - Extracts pdfId and pdfName from event.currentTarget.dataset
+   - Opens Foundry Dialog with form containing:
+     - Title field (pre-filled with pdfName, read-only, grey background)
+     - Publisher field (optional text input)
+     - Description field (optional textarea, 4 rows)
+   - Inline CSS styles for form layout
+   - Submit button: "Submit for Review" with fa-share-alt icon
+   - Cancel button with fa-times icon
+   - On submit callback:
+     - Calls this.socketClient.submitToSharedLibrary('pdf', pdfId, publisher, description)
+     - Success: Shows "Submitted for review" notification
+     - Success: Disables share button, sets title to "Pending Review", opacity 0.5
+     - Error handling:
+       - Checks if error message includes "already exists" → ui.notifications.warn
+       - Otherwise → ui.notifications.error with error message
+     - Console.error logs full error
+
+4. **Added CSS styles:**
+   - .share-pdf-btn - blue theme (#4a90e2 border/color)
+   - Hover state - fills background with blue, white text
+   - Disabled state - opacity 0.5, cursor not-allowed
+   - Follows same pattern as .delete-pdf-btn (red theme)
+
+**Key Learnings:**
+- Foundry Dialog buttons can have async callbacks
+- Dialog content can include inline <style> tags for custom form styling
+- event.currentTarget preserves the clicked button for post-submit manipulation
+- Read-only input fields styled with background: #f5f5f5 for visual distinction
+- Error messages can be checked with .includes() to handle specific cases
+- Share button should only appear for completed PDFs (not processing, failed, etc.)
+
+**Acceptance Criteria Met:**
+✅ Share button (fa-share-alt) appears on completed PDF tiles next to delete button
+✅ Share button NOT shown for PDFs with non-completed processing status
+✅ Clicking Share opens confirmation dialog with title, publisher, description fields
+✅ Title field pre-filled from PDF display_name (read-only)
+✅ Submit calls submitToSharedLibrary with correct params ('pdf', pdfId, publisher, description)
+✅ Success shows 'Submitted for review' notification and disables button
+✅ Already-exists case shows appropriate notification (ui.notifications.warn)
+✅ Error handling with user-friendly messages via ui.notifications
+
+**Next Steps:**
+The next priority story is US-4 (Shared Adventures on Active Adventure Tab), which will:
+- Add activated shared adventures to the adventure selector dropdown
+- Add third optgroup "Shared Adventures" after PDF and Module groups
+- Filter shared content for adventure/adventure_supplement categories
+- When selected, call setActiveAdventure('shared', sharedContentId)
+- Show "Shared" badge for active shared adventures
+- Hide GM Prep and delete buttons for shared adventures
+- Verify backend support for adventure_type: 'shared'
+
+---
+
+## Session 5 - 2026-02-08 (continued)
+
+### Completed: US-4 - Shared Adventures on Active Adventure Tab
+
+**Files Changed:**
+- scripts/content-manager.mjs (added ~20 lines)
+- templates/content-manager.hbs (added ~25 lines)
+- scripts/socket-client.mjs (updated JSDoc)
+
+**What Was Done:**
+
+1. **Updated ContentManager constructor:**
+   - Added this.sharedAdventures = [] to initialize shared adventures array
+
+2. **Updated _loadAdventureData() method:**
+   - Added filtering logic to extract adventure/adventure_supplement categories from activatedSharedContent
+   - Stores filtered results in this.sharedAdventures
+   - Updated JSDoc to reflect the new functionality
+
+3. **Updated getData() method:**
+   - Added sharedAdventures: this.sharedAdventures || [] to template data
+   - This makes shared adventures available to the Handlebars template
+
+4. **Updated content-manager.hbs template:**
+   - Added third optgroup "Shared Adventures" to adventure selector dropdown
+   - Each option: value="shared:{{this.id}}", displays "{{this.title}} ({{this.publisher}})"
+   - Selection logic checks if activeAdventure.adventure_type === "shared" and matches shared_content_id
+   - Added fa-cloud icon for shared adventure type in active adventure display
+   - Added "Shared" badge (using existing .shared-badge CSS from US-1)
+   - Added "Shared Adventure" type label
+   - Hidden GM Prep link/button for shared adventures (wrapped in {{#if (ne activeAdventure.adventure_type "shared")}})
+   - Clear button remains visible for all adventure types (users can deactivate shared adventures)
+
+5. **Updated _onAdventureSelect() handler:**
+   - Added else if block for adventureType === 'shared'
+   - Finds shared adventure by ID from this.sharedAdventures
+   - Sets adventureName from shared adventure title
+   - Sets gmPrepScriptId to null (shared adventures don't have GM Prep scripts)
+   - Parses selection value format: "shared:id" alongside existing "pdf:uuid" and "module:module-id"
+
+6. **Updated socket-client.mjs JSDoc:**
+   - Updated setActiveAdventure() documentation to include 'shared' as valid adventure type
+   - Changed @param adventureType from "'pdf' or 'module'" to "'pdf', 'module', or 'shared'"
+   - Changed @param adventureId description to include shared content ID
+
+**Key Learnings:**
+- Shared content is already loaded in activatedSharedContent from US-1
+- Adventure filtering uses category === 'adventure' OR 'adventure_supplement'
+- Shared adventures don't have GM Prep scripts, so gmPrepScriptId should always be null
+- Shared content items have {id, title, publisher, category, contentType, activated}
+- The clear button should always be visible - users can clear any active adventure
+- Socket client already has all the infrastructure - just needed to update JSDoc
+
+**Backend Compatibility Note:**
+The UI now sends adventure_type: 'shared' to the backend via setActiveAdventure(). 
+The backend set-active-adventure WebSocket handler needs to be verified/updated to:
+1. Accept 'shared' as a valid adventure_type (alongside 'pdf' and 'module')
+2. Store shared_content_id field when adventure_type is 'shared'
+3. Return activeAdventure object with adventure_type: 'shared' and shared_content_id
+4. Handle shared adventures in get-active-adventure and clear-active-adventure handlers
+
+If backend doesn't support this yet, it needs to be implemented in loremaster-proxy Elixir.
+
+**Acceptance Criteria Met:**
+✅ Adventure selector dropdown includes 'Shared Adventures' optgroup section
+✅ Only activated shared content with adventure/adventure_supplement category appears
+✅ Selecting a shared adventure calls setActiveAdventure('shared', sharedContentId)
+✅ Active adventure display shows 'Shared' badge when shared adventure is active
+✅ GM Prep button is hidden for shared adventures
+✅ Backend compatibility documented in notes (needs verification)
+
+**Next Steps:**
+The final priority story is US-3 (Admin Controls Dialog for Shared Content), which will:
+- Create a new SharedContentAdmin Application class and template
+- Add admin button to Content Manager header (visible only to admin users)
+- Implement Pending Review tab with approve/reject actions
+- Implement Published tab with remove action and direct publish button
+- Admin detection using adminListPendingShared() call
+- CSS styles for admin dialog
+
+---
+
+## Session 6 - 2026-02-08 (continued)
+
+### Completed: US-3 - Admin Controls Dialog for Shared Content
+
+**Files Changed:**
+- scripts/shared-content-admin.mjs (new file, 336 lines)
+- templates/shared-content-admin.hbs (new file, 125 lines)
+- scripts/content-manager.mjs (added ~50 lines)
+- templates/content-manager.hbs (added 3 lines)
+- styles/loremaster.css (added ~240 lines)
+
+**What Was Done:**
+
+1. **Created SharedContentAdmin Application class (scripts/shared-content-admin.mjs):**
+   - Extends Application with proper defaultOptions (id, template, classes, width, height, tabs)
+   - Constructor takes socketClient parameter
+   - Tabs: 'pending' (Pending Review) and 'published' (Published)
+   - getData() returns pendingItems, publishedItems, userPdfs, and boolean flags
+   - _loadData() method fetches:
+     - adminListPendingShared() for pending submissions
+     - listSharedContent() filtered for published status
+     - listPDFs() for direct publish dialog
+   - activateListeners() binds handlers for approve/reject/remove/direct-publish buttons
+   - _onApprove() handler: calls adminApproveShared(), shows success notification, reloads data
+   - _onReject() handler: calls adminRejectShared(), shows success notification, reloads data
+   - _onRemove() handler: confirmation dialog, calls adminRemoveShared(), reloads data
+   - _onDirectPublish() handler: opens dialog with PDF selector, publisher, description fields, calls adminPublishPdf()
+   - All handlers include proper error handling with ui.notifications
+
+2. **Created admin dialog template (templates/shared-content-admin.hbs):**
+   - Header with shield icon and "Shared Content Administration" title
+   - Tab navigation with badge showing pending count
+   - Pending Review tab:
+     - Table with columns: Title, Category, Type, Submitter, Submitted, Actions
+     - Category badges with color coding
+     - Approve (green) and Reject (red) buttons
+     - Empty state: "No content pending review"
+   - Published tab:
+     - "Direct Publish PDF" button in header area
+     - Table with columns: Title, Publisher, Category, Type, Published, Actions
+     - Remove button for each item
+     - Empty state: "No published shared content"
+
+3. **Updated ContentManager (scripts/content-manager.mjs):**
+   - Imported SharedContentAdmin at top
+   - Added this._isAdmin = null to constructor (cached admin status)
+   - Created _checkAdminStatus() method:
+     - Attempts to call adminListPendingShared() once
+     - On success: sets this._isAdmin = true
+     - On failure: sets this._isAdmin = false
+     - Result cached to avoid repeated calls
+   - Called _checkAdminStatus() in _render() on first load
+   - Updated getData() to return isAdmin: this._isAdmin === true
+   - Added .admin-shared-btn click handler in activateListeners()
+   - Created _onAdminShared() handler that creates and renders SharedContentAdmin dialog
+
+4. **Updated Content Manager template (templates/content-manager.hbs):**
+   - Added admin button to .header-actions div (before embeddings button)
+   - Button only visible when {{#if isAdmin}}
+   - Button shows shield icon and "Admin" label
+   - Title: "Manage Shared Content"
+
+5. **Added comprehensive CSS styles (styles/loremaster.css):**
+   - .admin-shared-btn - gradient brown/sienna button with shield icon
+   - .shared-content-admin-container - dialog container layout
+   - .admin-header - gradient header with shield icon
+   - .tabs .item .badge - red badge for pending count
+   - .admin-table - full-width table with hover effects
+   - .title-cell/.submitter-cell/.publisher-cell/.date-cell - cell styling
+   - .actions-cell - flex layout for action buttons
+   - .approve-btn - green button with check icon
+   - .reject-btn - red button with times icon
+   - .remove-btn - orange button with trash icon
+   - .published-header - container for direct publish button
+   - .direct-publish-btn - blue gradient button with upload icon
+   - Empty state styles for both tabs
+
+**Key Learnings:**
+- Admin detection pattern: attempt admin call, cache success/failure
+- this._isAdmin initialized as null, set to true/false after first check
+- SharedContentAdmin follows same Application pattern as ContentManager
+- _render() override with super._render() then await _loadData()
+- Dialog.confirm() used for remove confirmation
+- Published items filtered from listSharedContent() by status === 'published'
+- Direct publish dialog uses Foundry Dialog with form and inline styles
+- Admin button appears before embeddings button in header-actions
+
+**Acceptance Criteria Met:**
+✅ New SharedContentAdmin Application class in scripts/shared-content-admin.mjs with JSDoc
+✅ New template in templates/shared-content-admin.hbs
+✅ Admin button visible in Content Manager header only for admin users
+✅ Admin detection works (attempt adminListPendingShared, cache result)
+✅ Pending Review tab lists pending items with Approve and Reject buttons
+✅ Approve sends admin-approve-shared and removes item from list
+✅ Reject sends admin-reject-shared and removes item from list
+✅ Published tab lists published items with Remove button
+✅ Direct Publish button opens dialog to select PDF and publish it
+✅ Empty states for both tabs
+✅ CSS styles for admin dialog
+
+**All User Stories Completed:**
+✅ US-0 - Socket Client Wrapper Methods (priority 1)
+✅ US-1 - Documents Tab Separation and Read-Only Shared Tiles (priority 2)
+✅ US-5 - Login Window Shared Content Counter (priority 3)
+✅ US-2 - Submit Content for Sharing (priority 4)
+✅ US-4 - Shared Adventures on Active Adventure Tab (priority 5)
+✅ US-3 - Admin Controls Dialog for Shared Content (priority 6)
+
+All 6 user stories from the Shared Content UI PRD have been successfully implemented and pass acceptance criteria. The feature is complete and ready for testing.
+

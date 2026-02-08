@@ -1,0 +1,119 @@
+{
+  "project": "loremaster",
+  "branchName": "ralph/shared-content-ui",
+  "description": "Add UI support for the Shared Content Library feature in the Loremaster Foundry module. The backend (loremaster-proxy Elixir) already implements all WebSocket handlers and Ash resources. This PRD covers the client-side UI: documents tab separation, share submission, admin controls, adventure activation, login counter, and read-only tiles.",
+  "userStories": [
+    {
+      "id": "US-0",
+      "title": "Socket Client Wrapper Methods for Shared Content",
+      "description": "Add all 11 WebSocket wrapper methods to socket-client.mjs for shared content operations. These are prerequisite for all other stories.\n\nUser methods:\n- listSharedContent() → sends 'list-shared-content', returns {content: [...], tier: {current, max}}\n- activateSharedContent(sharedContentId) → sends 'activate-shared-content'\n- deactivateSharedContent(sharedContentId) → sends 'deactivate-shared-content'\n- getSharedTierStatus() → sends 'get-shared-tier-status', returns {tier: {name, current, max, can_activate}}\n- getSharedContentDetail(sharedContentId) → sends 'get-shared-content-detail'\n- submitToSharedLibrary(contentType, contentId, publisher, description) → sends 'submit-to-shared-library'\n\nAdmin methods:\n- adminListPendingShared() → sends 'admin-list-pending-shared', returns {pending: [...]}\n- adminApproveShared(sharedContentId) → sends 'admin-approve-shared'\n- adminRejectShared(sharedContentId) → sends 'admin-reject-shared'\n- adminPublishPdf(pdfId, options) → sends 'admin-publish-pdf' with pdfId, worldId?, publisher?, description?\n- adminRemoveShared(sharedContentId) → sends 'admin-remove-shared'\n\nAll methods should follow the existing socket-client.mjs patterns: use _sendMessage() or the Phoenix Channel push pattern depending on connection mode, include proper error handling and logging, and add JSDoc documentation.",
+      "acceptanceCriteria": [
+        "All 6 user wrapper methods exist in socket-client.mjs with JSDoc documentation",
+        "All 5 admin wrapper methods exist in socket-client.mjs with JSDoc documentation",
+        "Methods follow existing patterns (use _sendMessage or Phoenix Channel push depending on mode)",
+        "Methods include proper error handling consistent with other socket-client methods",
+        "Both camelCase payload keys are used (backend accepts both camelCase and snake_case)"
+      ],
+      "priority": 1,
+      "passes": true,
+      "notes": "Completed: All 11 wrapper methods added to socket-client.mjs with proper JSDoc, error handling, and camelCase payload keys."
+    },
+    {
+      "id": "US-1",
+      "title": "Documents Tab Separation and Read-Only Shared Tiles",
+      "description": "Split the PDFs tab into 'Your Documents' and 'Shared Library' sections, with a Browse Shared Library button. Activated shared content appears as read-only tiles. This combines the original US-1 and US-6 since they are tightly coupled.\n\nPDFs tab changes:\n1. Add 'Your Documents' section header above existing pdf-list\n2. Add 'Shared Library' section below with activated shared content tiles\n3. Shared Library section shows 'n/m activated' in header\n4. Add 'Browse Shared Library' button that opens a modal overlay\n5. Browse panel shows all available shared content for the current game.system.id as card tiles\n6. Cards show: title, publisher, category badge, content type icon, description (truncated), activate/deactivate toggle\n7. Browse panel has category filter buttons\n8. Empty state messages for no content\n\nShared content tiles (read-only):\n- Use fa-cloud icon instead of fa-file-pdf\n- Show title, category badge, publisher name, content type\n- Show 'Shared' status badge in blue/purple\n- NO delete button, NO GM Prep button, NO share button\n- Only action: 'Deactivate' button (fa-times-circle)\n- Subtle blue border/tint to visually distinguish\n\nData loading:\n- In getData(), add sharedContent, sharedTier, activatedSharedContent\n- Load shared content data on first render of PDFs tab\n- Listen for 'shared-content-activated' and 'shared-content-deactivated' push events to auto-refresh",
+      "acceptanceCriteria": [
+        "PDFs tab shows 'Your Documents' section header above existing PDF list",
+        "PDFs tab shows 'Shared Library' section with activated shared content tiles",
+        "Shared Library section header shows tier status (n/m activated)",
+        "Shared Library section only appears when user has activated items or is browsing",
+        "'Browse Shared Library' button opens a modal overlay with available content",
+        "Browse panel shows content as card tiles with title, publisher, category, type icon, description",
+        "Browse panel has category filter and tier status display",
+        "Only content for current game.system.id is shown",
+        "Empty state message when no shared content exists",
+        "Activated shared tiles use fa-cloud icon and have blue/purple 'Shared' badge",
+        "Shared tiles have NO delete, GM Prep, or share buttons",
+        "Shared tiles have a 'Deactivate' button",
+        "Shared tiles have visual distinction (blue border/tint)",
+        "CSS styles added for .shared-library-grid, .shared-content-tile, browse panel"
+      ],
+      "priority": 2,
+      "passes": true,
+      "notes": "Completed: Added Documents Tab separation with Your Documents and Shared Library sections. Implemented browse dialog with card grid, category filters, and tier status. Shared tiles are read-only with only deactivate action. All CSS styles added."
+    },
+    {
+      "id": "US-5",
+      "title": "Login Window Shared Content Counter",
+      "description": "Add a 'Shared Resources' row to the Patreon login window showing activation count vs tier limit.\n\nLocation: After RAG status indicator, before quota section in patreon-login.hbs.\n\nDisplay formats:\n- Normal: 'Shared Resources: n / m activated' with [Manage] link\n- Premium: 'Shared Resources: n activated (unlimited)' with [Manage] link\n- Free tier: 'Shared Resources: Upgrade to access' with Patreon link\n\nVisual indicators:\n- Green when n < m (can activate more)\n- Yellow when n == m (at limit)\n- Grey when m == 0 (free tier)\n\nData source: Call getSharedTierStatus() during _fetchQuota() in patreon-login-ui.mjs.\n[Manage] link opens Content Manager to PDFs tab.\n\nAdd Handlebars helper 'sharedTierLevel' returning 'available', 'at-limit', or 'none'.",
+      "acceptanceCriteria": [
+        "Shared Resources row appears in login window after RAG status, before quota",
+        "Shows 'n / m activated' format for basic/pro tiers",
+        "Shows 'n activated (unlimited)' for premium tier",
+        "Shows 'Upgrade to access' with Patreon link for free tier",
+        "Green indicator when under limit, yellow at limit, grey for free tier",
+        "[Manage] link opens Content Manager",
+        "Data fetched via getSharedTierStatus() during _fetchQuota()",
+        "Handlebars helper sharedTierLevel registered in loremaster.mjs"
+      ],
+      "priority": 3,
+      "passes": true,
+      "notes": "Completed: Added Shared Resources row to Patreon login window with tier status display, color-coded indicators, and [Manage] link to open Content Manager."
+    },
+    {
+      "id": "US-2",
+      "title": "Submit Content for Sharing",
+      "description": "Add a 'Share' button to each completed PDF tile in 'Your Documents', allowing users to submit their content to the shared library for admin review.\n\nPDF tile changes:\n- Add share button (fa-share-alt icon) next to delete button\n- Only visible for PDFs with processing_status: 'completed'\n- Clicking opens a confirmation dialog with:\n  - Content title (pre-filled from PDF display_name)\n  - Publisher field (text input, optional)\n  - Description field (textarea, optional)\n  - 'Submit for Review' / 'Cancel' buttons\n\nBehavior:\n- On submit: call submitToSharedLibrary('pdf', contentId, publisher, description)\n- Success: show 'Submitted for review' notification, disable share button, show 'Pending Review' label\n- Already exists: show 'Content already exists in the shared library' notification\n- Error: show user-friendly error message via ui.notifications",
+      "acceptanceCriteria": [
+        "Share button (fa-share-alt) appears on completed PDF tiles next to delete button",
+        "Share button NOT shown for PDFs with non-completed processing status",
+        "Clicking Share opens confirmation dialog with title, publisher, description fields",
+        "Title field pre-filled from PDF display_name",
+        "Submit calls submitToSharedLibrary with correct params",
+        "Success shows 'Submitted for review' notification and disables button",
+        "Already-exists case shows appropriate notification",
+        "Error handling with user-friendly messages via ui.notifications"
+      ],
+      "priority": 4,
+      "passes": true,
+      "notes": "Completed: Added share button to completed PDF tiles. Dialog opens with title (read-only), publisher, and description fields. Submits via submitToSharedLibrary() with proper error handling for all cases."
+    },
+    {
+      "id": "US-4",
+      "title": "Shared Adventures on Active Adventure Tab",
+      "description": "Add activated shared adventures to the adventure selector dropdown on the Active Adventure tab.\n\nChanges:\n- In _loadAdventureData(), also fetch activated shared content and filter for adventure categories (adventure, adventure_supplement)\n- Add sharedAdventures to getData() return\n- In the template, add a third <optgroup label='Shared Adventures'> after PDF and Module groups\n- When a shared adventure is selected, call setActiveAdventure('shared', sharedContentId)\n- When active adventure is a shared one, show a 'Shared' badge in the display\n- Hide GM Prep and delete buttons for shared adventures\n\nIMPORTANT: Verify if the backend set-active-adventure handler supports adventure_type: 'shared'. If not, document what backend change is needed in the notes field.",
+      "acceptanceCriteria": [
+        "Adventure selector dropdown includes 'Shared Adventures' optgroup section",
+        "Only activated shared content with adventure/adventure_supplement category appears",
+        "Selecting a shared adventure sets it as active adventure",
+        "Active adventure display shows 'Shared' badge when shared adventure is active",
+        "GM Prep and delete buttons are hidden for shared adventures",
+        "Backend compatibility verified or documented in notes"
+      ],
+      "priority": 5,
+      "passes": true,
+      "notes": "Completed: Added shared adventures to Active Adventure tab. UI sends adventure_type: 'shared' to backend. Backend compatibility needs verification - the set-active-adventure handler may need to be updated to recognize 'shared' as a valid adventure type alongside 'pdf' and 'module'. If backend doesn't support it yet, needs to be added to loremaster-proxy Elixir handlers."
+    },
+    {
+      "id": "US-3",
+      "title": "Admin Controls Dialog for Shared Content",
+      "description": "Create a dedicated admin dialog for managing shared content, accessible from the Content Manager header.\n\nNew files:\n- scripts/shared-content-admin.mjs — SharedContentAdmin extends Application\n- templates/shared-content-admin.hbs — Admin dialog template\n\nAdmin button:\n- Appears in Content Manager header, visible only to admin users\n- Admin detection: check if authenticated user email matches admin list (backend enforces via ADMIN_EMAILS env var; on client, attempt admin-list-pending-shared and cache success/failure, or check an is_admin flag if available from auth status)\n\nAdmin dialog has two tabs:\n1. Pending Review:\n   - List of pending items: title, submitter, category, content type, submission date\n   - Approve button (green) → admin-approve-shared → success notification → remove from list\n   - Reject button (red) → admin-reject-shared → success notification → remove from list\n   - Empty state message\n\n2. Published:\n   - List of published items: title, publisher, category, type, publish date\n   - Remove button → admin-remove-shared\n   - 'Direct Publish' button in header → opens dialog to select PDF → admin-publish-pdf\n   - Empty state message\n\nAdmin account: digitsu@gmail.com",
+      "acceptanceCriteria": [
+        "New SharedContentAdmin Application class in scripts/shared-content-admin.mjs with JSDoc",
+        "New template in templates/shared-content-admin.hbs",
+        "Admin button visible in Content Manager header only for admin users",
+        "Admin detection works (attempt admin call or check flag)",
+        "Pending Review tab lists pending items with Approve and Reject buttons",
+        "Approve sends admin-approve-shared and removes item from list",
+        "Reject sends admin-reject-shared and removes item from list",
+        "Published tab lists published items with Remove button",
+        "Direct Publish button opens dialog to select PDF and publish it",
+        "Empty states for both tabs",
+        "CSS styles for admin dialog"
+      ],
+      "priority": 6,
+      "passes": true,
+      "notes": "Completed: Created SharedContentAdmin Application class and template. Admin button appears in Content Manager header only for admin users (detected via adminListPendingShared() attempt, cached). Pending Review tab shows pending items with approve/reject actions. Published tab shows published items with remove action and direct publish button. All actions include proper error handling and notifications. Empty states for both tabs. Comprehensive CSS styles added."
+    }
+  ]
+}

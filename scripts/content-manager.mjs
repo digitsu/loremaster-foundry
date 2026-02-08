@@ -9,6 +9,7 @@
 import { showCastSelectionIfNeeded } from './cast-selection-dialog.mjs';
 import { progressBar } from './progress-bar.mjs';
 import { isHostedMode } from './config.mjs';
+import { SharedContentAdmin } from './shared-content-admin.mjs';
 
 const MODULE_ID = 'loremaster';
 
@@ -75,6 +76,7 @@ export class ContentManager extends Application {
     // Active Adventure data
     this.activeAdventure = null;
     this.availableAdventures = { pdfAdventures: [], moduleAdventures: [] };
+    this.sharedAdventures = [];
     this.transitionState = null;
     this.linkedGMPrepScript = null;
     // History tab data
@@ -99,6 +101,12 @@ export class ContentManager extends Application {
     this.importProgress = { stage: '', progress: 0, message: '' };
     // Saved backups (hosted mode only)
     this.savedBackups = [];
+    // Shared content data
+    this.sharedContent = [];
+    this.sharedTier = null;
+    this.activatedSharedContent = [];
+    // Admin detection (cached after first check)
+    this._isAdmin = null;
   }
 
   /**
@@ -147,6 +155,7 @@ export class ContentManager extends Application {
       // Active Adventure data
       activeAdventure: this.activeAdventure,
       availableAdventures: this.availableAdventures,
+      sharedAdventures: this.sharedAdventures || [],
       transitionState: this.transitionState,
       linkedGMPrepScript: this.linkedGMPrepScript,
       // History tab data
@@ -176,7 +185,14 @@ export class ContentManager extends Application {
       currentDate: new Date().toISOString().split('T')[0],
       // Hosted mode detection and saved backups
       isHostedMode: isHostedMode(),
-      savedBackups: this.savedBackups
+      savedBackups: this.savedBackups,
+      // Shared content data
+      sharedContent: this.sharedContent,
+      sharedTier: this.sharedTier,
+      activatedSharedContent: this.activatedSharedContent,
+      hasActivatedSharedContent: this.activatedSharedContent.length > 0,
+      // Admin status
+      isAdmin: this._isAdmin === true
     };
   }
 
@@ -206,6 +222,9 @@ export class ContentManager extends Application {
 
     // Delete buttons
     html.find('.delete-pdf-btn').on('click', this._onDeletePDF.bind(this));
+
+    // Share buttons
+    html.find('.share-pdf-btn').on('click', this._onSharePDF.bind(this));
 
     // GM Prep buttons
     html.find('.gm-prep-btn').on('click', this._onGMPrep.bind(this));
@@ -301,6 +320,16 @@ export class ContentManager extends Application {
     // Saved backups (hosted mode) - restore and delete buttons
     html.find('.restore-backup-btn').on('click', this._onRestoreSavedBackup.bind(this));
     html.find('.delete-backup-btn').on('click', this._onDeleteSavedBackup.bind(this));
+
+    // ===== Shared Content =====
+    // Browse shared library button
+    html.find('.browse-shared-btn').on('click', this._onBrowseSharedLibrary.bind(this));
+
+    // Deactivate shared content button
+    html.find('.deactivate-shared-btn').on('click', this._onDeactivateSharedContent.bind(this));
+
+    // Admin button
+    html.find('.admin-shared-btn').on('click', this._onAdminShared.bind(this));
   }
 
   /**
@@ -316,6 +345,10 @@ export class ContentManager extends Application {
     if (!this._loaded) {
       this._loaded = true;
       await this._loadPDFs();
+      // Load shared content data
+      await this._loadSharedContentData();
+      // Check admin status
+      await this._checkAdminStatus();
       // Load adventure data, cast, history, Foundry modules, and backup data for GMs
       if (game.user.isGM) {
         await this._loadAdventureData();
@@ -361,6 +394,58 @@ export class ContentManager extends Application {
     } catch (error) {
       console.error(`${MODULE_ID} | Failed to load PDFs:`, error);
       ui.notifications.error(game.i18n.localize('LOREMASTER.ContentManager.LoadError'));
+    }
+  }
+
+  /**
+   * Load shared content data from the server.
+   * Fetches available shared content for the current game system and tier status.
+   *
+   * @private
+   */
+  async _loadSharedContentData() {
+    try {
+      const [contentResult, tierResult] = await Promise.all([
+        this.socketClient.listSharedContent(),
+        this.socketClient.getSharedTierStatus()
+      ]);
+      this.sharedContent = contentResult.content || [];
+      // Prefer dedicated tier endpoint; fall back to tier info from list response
+      this.sharedTier = tierResult.tier || contentResult.tier || { current: 0, max: 0 };
+
+      // Filter activated shared content
+      this.activatedSharedContent = this.sharedContent.filter(item => item.isActivated);
+
+      this.render(false);
+    } catch (error) {
+      console.warn(`${MODULE_ID} | Failed to load shared content:`, error);
+      // Non-critical error - don't show notification, just log
+      this.sharedContent = [];
+      this.sharedTier = { current: 0, max: 0 };
+      this.activatedSharedContent = [];
+    }
+  }
+
+  /**
+   * Check if the current user has admin privileges for shared content.
+   * Admin status is determined by attempting to call adminListPendingShared().
+   * Result is cached in this._isAdmin.
+   *
+   * @private
+   */
+  async _checkAdminStatus() {
+    // Skip if already checked
+    if (this._isAdmin !== null) return;
+
+    try {
+      // Attempt to list pending shared content (admin-only operation)
+      await this.socketClient.adminListPendingShared();
+      // If successful, user is an admin
+      this._isAdmin = true;
+      this.render(false);
+    } catch (error) {
+      // If fails, user is not an admin
+      this._isAdmin = false;
     }
   }
 
@@ -535,6 +620,102 @@ export class ContentManager extends Application {
         error: error.message
       }));
     }
+  }
+
+  /**
+   * Handle PDF share button click.
+   * Opens a dialog to submit the PDF to the shared library for admin review.
+   *
+   * @param {Event} event - The click event.
+   * @private
+   */
+  async _onSharePDF(event) {
+    event.preventDefault();
+
+    const pdfId = event.currentTarget.dataset.pdfId;
+    const pdfName = event.currentTarget.dataset.pdfName;
+    const shareButton = event.currentTarget;
+
+    // Escape user-provided strings to prevent XSS
+    const escapedName = foundry.utils.escapeHtml(pdfName);
+
+    // Create submission dialog
+    new Dialog({
+      title: 'Share to Library',
+      content: `
+        <form class="share-dialog-form">
+          <div class="form-group">
+            <label for="share-title">Title</label>
+            <input type="text" id="share-title" name="title" value="${escapedName}" readonly style="background: #f5f5f5;">
+          </div>
+          <div class="form-group">
+            <label for="share-publisher">Publisher (optional)</label>
+            <input type="text" id="share-publisher" name="publisher" placeholder="Your name or organization">
+          </div>
+          <div class="form-group">
+            <label for="share-description">Description (optional)</label>
+            <textarea id="share-description" name="description" rows="4" placeholder="Briefly describe this content..."></textarea>
+          </div>
+        </form>
+        <style>
+          .share-dialog-form .form-group {
+            margin-bottom: 12px;
+          }
+          .share-dialog-form label {
+            display: block;
+            margin-bottom: 4px;
+            font-weight: bold;
+          }
+          .share-dialog-form input[type="text"],
+          .share-dialog-form textarea {
+            width: 100%;
+            padding: 6px;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            box-sizing: border-box;
+          }
+          .share-dialog-form textarea {
+            resize: vertical;
+            font-family: inherit;
+          }
+        </style>
+      `,
+      buttons: {
+        submit: {
+          icon: '<i class="fas fa-share-alt"></i>',
+          label: 'Submit for Review',
+          callback: async (html) => {
+            const publisher = html.find('#share-publisher').val().trim() || null;
+            const description = html.find('#share-description').val().trim() || null;
+
+            try {
+              await this.socketClient.submitToSharedLibrary('pdf', pdfId, publisher, description);
+              ui.notifications.info('Submitted for review');
+
+              // Disable the share button and show pending status
+              shareButton.disabled = true;
+              shareButton.title = 'Pending Review';
+              shareButton.style.opacity = '0.5';
+
+            } catch (error) {
+              console.error(`${MODULE_ID} | Share submission failed:`, error);
+
+              // Check for specific error messages
+              if (error.message && error.message.includes('already exists')) {
+                ui.notifications.warn('Content already exists in the shared library');
+              } else {
+                ui.notifications.error(`Failed to submit: ${error.message}`);
+              }
+            }
+          }
+        },
+        cancel: {
+          icon: '<i class="fas fa-times"></i>',
+          label: 'Cancel'
+        }
+      },
+      default: 'submit'
+    }).render(true);
   }
 
   /**
@@ -1067,7 +1248,7 @@ export class ContentManager extends Application {
 
   /**
    * Load active adventure data from the server.
-   * Fetches current adventure, available adventures, and transition state.
+   * Fetches current adventure, available adventures, transition state, and shared adventures.
    *
    * @private
    */
@@ -1084,6 +1265,12 @@ export class ContentManager extends Application {
       this.activeAdventure = activeResult?.activeAdventure || null;
       this.availableAdventures = adventuresResult || { pdfAdventures: [], moduleAdventures: [] };
       this.transitionState = transitionResult?.transitionState || null;
+
+      // Filter shared adventures from activated shared content
+      // Only include adventure and adventure_supplement categories
+      this.sharedAdventures = this.activatedSharedContent.filter(item =>
+        item.category === 'adventure' || item.category === 'adventure_supplement'
+      );
 
       // If there's an active adventure with a GM Prep script, load its details
       if (this.activeAdventure?.gm_prep_script_id) {
@@ -1109,7 +1296,7 @@ export class ContentManager extends Application {
     const value = event.target.value;
     if (!value) return;
 
-    // Parse selection value (format: "pdf:uuid" or "module:module-id")
+    // Parse selection value (format: "pdf:uuid", "module:module-id", or "shared:id")
     const [type, id] = value.split(':');
     const adventureType = type;
     // Keep ID as string - Elixir uses UUIDs, Node.js uses integers
@@ -1207,6 +1394,11 @@ export class ContentManager extends Application {
         }
         // If 'keep', continue with existing script
       }
+    } else if (adventureType === 'shared') {
+      // Shared adventures don't have GM Prep scripts
+      const sharedAdventure = this.sharedAdventures.find(s => String(s.id) === adventureId);
+      adventureName = sharedAdventure?.title || 'Unknown Shared Adventure';
+      gmPrepScriptId = null; // Shared adventures don't have GM Prep scripts
     } else {
       const module = this.availableAdventures.moduleAdventures.find(m => m.module_id === adventureId);
       adventureName = module?.module_name || adventureId;
@@ -2621,5 +2813,239 @@ export class ContentManager extends Application {
       }));
       button.prop('disabled', false);
     }
+  }
+
+  // ===== Shared Content Handlers =====
+
+  /**
+   * Handle browse shared library button click.
+   * Opens a Foundry Dialog displaying all available shared content as cards.
+   *
+   * @param {Event} event - The click event.
+   * @private
+   */
+  async _onBrowseSharedLibrary(event) {
+    event.preventDefault();
+
+    // Build the dialog content
+    const categories = [
+      'core_rules',
+      'rules_supplement',
+      'adventure',
+      'adventure_supplement',
+      'reference'
+    ];
+
+    const categoryLabels = {
+      core_rules: game.i18n.localize('LOREMASTER.ContentManager.Category.CoreRules'),
+      rules_supplement: game.i18n.localize('LOREMASTER.ContentManager.Category.RulesSupplement'),
+      adventure: game.i18n.localize('LOREMASTER.ContentManager.Category.Adventure'),
+      adventure_supplement: game.i18n.localize('LOREMASTER.ContentManager.Category.AdventureSupplement'),
+      reference: game.i18n.localize('LOREMASTER.ContentManager.Category.Reference')
+    };
+
+    const typeIcons = {
+      pdf: 'fa-file-pdf',
+      module: 'fa-cube'
+    };
+
+    // Build category filter buttons
+    let filterButtons = '<div class="shared-category-filters">';
+    filterButtons += '<button class="shared-category-filter active" data-category="all">All</button>';
+    for (const cat of categories) {
+      filterButtons += `<button class="shared-category-filter" data-category="${cat}">${categoryLabels[cat]}</button>`;
+    }
+    filterButtons += '</div>';
+
+    // Tier status display (with null safety)
+    const tierCurrent = this.sharedTier?.current ?? 0;
+    const tierMax = this.sharedTier?.max ?? 0;
+    const tierStatus = `<div class="shared-tier-status">
+      <i class="fas fa-layer-group"></i>
+      <span>${tierCurrent} / ${tierMax === -1 ? '∞' : tierMax} shared resources activated</span>
+    </div>`;
+
+    // Build card grid
+    let cardGrid = '<div class="shared-library-grid">';
+
+    if (this.sharedContent.length === 0) {
+      cardGrid += '<div class="empty-state"><i class="fas fa-box-open"></i><p>No shared content available for this game system.</p></div>';
+    } else {
+      for (const item of this.sharedContent) {
+        const isActivated = item.isActivated;
+        const canActivate = !isActivated && (this.sharedTier.max === -1 || this.sharedTier.current < this.sharedTier.max);
+        const rawDesc = item.description || 'No description provided.';
+        const truncatedDesc = rawDesc.length > 120 ? rawDesc.substring(0, 120) + '...' : rawDesc;
+
+        // Escape all user-provided strings to prevent XSS
+        const esc = foundry.utils.escapeHtml;
+        const safeTitle = esc(item.title);
+        const safePublisher = esc(item.publisher || 'Unknown');
+        const safeDesc = esc(truncatedDesc);
+        const safeCategory = esc(item.category);
+        const safeId = esc(String(item.id));
+
+        cardGrid += `
+          <div class="shared-content-card" data-category="${safeCategory}" data-shared-id="${safeId}">
+            <div class="card-header">
+              <i class="fas ${typeIcons[item.contentType] || 'fa-file'}"></i>
+              <span class="category-badge">${categoryLabels[item.category] || safeCategory}</span>
+            </div>
+            <div class="card-body">
+              <h4 class="card-title">${safeTitle}</h4>
+              <p class="card-publisher">by ${safePublisher}</p>
+              <p class="card-description">${safeDesc}</p>
+            </div>
+            <div class="card-footer">
+              ${isActivated
+                ? '<button class="deactivate-card-btn" data-shared-id="' + safeId + '"><i class="fas fa-times-circle"></i> Deactivate</button>'
+                : canActivate
+                  ? '<button class="activate-card-btn" data-shared-id="' + safeId + '"><i class="fas fa-plus-circle"></i> Activate</button>'
+                  : '<button class="activate-card-btn" disabled title="Tier limit reached"><i class="fas fa-lock"></i> Tier Limit Reached</button>'
+              }
+            </div>
+          </div>
+        `;
+      }
+    }
+    cardGrid += '</div>';
+
+    const dialogContent = tierStatus + filterButtons + cardGrid;
+
+    // Create the dialog
+    const dialog = new Dialog({
+      title: `Shared Library — ${game.system.title}`,
+      content: dialogContent,
+      buttons: {
+        close: {
+          icon: '<i class="fas fa-times"></i>',
+          label: 'Close'
+        }
+      },
+      default: 'close',
+      render: (html) => {
+        // Category filter handlers
+        html.find('.shared-category-filter').on('click', (e) => {
+          const filterBtn = $(e.currentTarget);
+          const category = filterBtn.data('category');
+
+          // Update active filter button
+          html.find('.shared-category-filter').removeClass('active');
+          filterBtn.addClass('active');
+
+          // Filter cards
+          if (category === 'all') {
+            html.find('.shared-content-card').show();
+          } else {
+            html.find('.shared-content-card').hide();
+            html.find(`.shared-content-card[data-category="${category}"]`).show();
+          }
+        });
+
+        // Activate button handlers
+        html.find('.activate-card-btn').on('click', async (e) => {
+          const btn = $(e.currentTarget);
+          const sharedId = btn.data('shared-id');
+          if (!sharedId) return;
+
+          try {
+            btn.prop('disabled', true);
+            await this.socketClient.activateSharedContent(sharedId);
+            ui.notifications.info('Shared content activated successfully.');
+
+            // Refresh data and close dialog
+            await this._loadSharedContentData();
+            dialog.close();
+          } catch (error) {
+            console.error(`${MODULE_ID} | Failed to activate shared content:`, error);
+            ui.notifications.error(`Failed to activate: ${error.message}`);
+            btn.prop('disabled', false);
+          }
+        });
+
+        // Deactivate button handlers
+        html.find('.deactivate-card-btn').on('click', async (e) => {
+          const btn = $(e.currentTarget);
+          const sharedId = btn.data('shared-id');
+          if (!sharedId) return;
+
+          try {
+            btn.prop('disabled', true);
+            await this.socketClient.deactivateSharedContent(sharedId);
+            ui.notifications.info('Shared content deactivated.');
+
+            // Refresh data and close dialog
+            await this._loadSharedContentData();
+            dialog.close();
+          } catch (error) {
+            console.error(`${MODULE_ID} | Failed to deactivate shared content:`, error);
+            ui.notifications.error(`Failed to deactivate: ${error.message}`);
+            btn.prop('disabled', false);
+          }
+        });
+      },
+      close: () => {}
+    }, {
+      width: 800,
+      height: 600,
+      classes: ['loremaster', 'shared-library-dialog']
+    });
+
+    dialog.render(true);
+  }
+
+  /**
+   * Handle deactivate shared content button click.
+   * Deactivates a shared content item from the user's world.
+   *
+   * @param {Event} event - The click event.
+   * @private
+   */
+  async _onDeactivateSharedContent(event) {
+    event.preventDefault();
+
+    const button = $(event.currentTarget);
+    const sharedId = button.data('shared-id');
+    const sharedTitle = button.data('shared-title');
+
+    if (!sharedId) return;
+
+    // Confirm deactivation
+    const confirmed = await Dialog.confirm({
+      title: 'Deactivate Shared Content',
+      content: `<p>Deactivate <strong>${sharedTitle}</strong>?</p><p>This will remove it from your active documents.</p>`,
+      yes: () => true,
+      no: () => false
+    });
+
+    if (!confirmed) return;
+
+    try {
+      button.prop('disabled', true);
+      await this.socketClient.deactivateSharedContent(sharedId);
+      ui.notifications.info('Shared content deactivated.');
+
+      // Refresh shared content data
+      await this._loadSharedContentData();
+    } catch (error) {
+      console.error(`${MODULE_ID} | Failed to deactivate shared content:`, error);
+      ui.notifications.error(`Failed to deactivate: ${error.message}`);
+      button.prop('disabled', false);
+    }
+  }
+
+  /**
+   * Handle admin shared content button click.
+   * Opens the SharedContentAdmin dialog for managing shared content.
+   *
+   * @param {Event} event - The click event.
+   * @private
+   */
+  _onAdminShared(event) {
+    event.preventDefault();
+
+    // Create and render SharedContentAdmin dialog
+    const adminDialog = new SharedContentAdmin(this.socketClient);
+    adminDialog.render(true);
   }
 }

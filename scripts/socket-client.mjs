@@ -1060,8 +1060,8 @@ export class SocketClient {
    * Set the active adventure.
    * GM only. Optionally includes transition handling.
    *
-   * @param {string} adventureType - 'pdf' or 'module'.
-   * @param {number|string} adventureId - PDF ID or module ID.
+   * @param {string} adventureType - 'pdf', 'module', or 'shared'.
+   * @param {number|string} adventureId - PDF ID, module ID, or shared content ID.
    * @param {object} options - Optional transition options.
    * @param {string} options.transitionType - 'immediate' or 'narrative'.
    * @param {string} options.transitionPrompt - GM instructions for narrative bridge.
@@ -1159,6 +1159,166 @@ export class SocketClient {
       throw new Error('Completing transition requires GM permissions');
     }
     return this._sendRequest('complete-transition', {});
+  }
+
+  // ===== Shared Content Library Methods =====
+
+  /**
+   * List all shared content available for the current game system.
+   * Returns shared content items and tier information.
+   *
+   * @returns {Promise<object>} Object with content array and tier info.
+   */
+  async listSharedContent() {
+    this._requireAuth();
+    return this._sendRequest('list-shared-content', {});
+  }
+
+  /**
+   * Activate a shared content item for use in the current world.
+   * Subject to tier limits (basic: 3, pro: 10, premium: unlimited).
+   *
+   * @param {string} sharedContentId - The shared content UUID to activate.
+   * @returns {Promise<object>} Activation result.
+   */
+  async activateSharedContent(sharedContentId) {
+    this._requireAuth();
+    return this._sendRequest('activate-shared-content', { sharedContentId });
+  }
+
+  /**
+   * Deactivate a shared content item from the current world.
+   *
+   * @param {string} sharedContentId - The shared content UUID to deactivate.
+   * @returns {Promise<object>} Deactivation result.
+   */
+  async deactivateSharedContent(sharedContentId) {
+    this._requireAuth();
+    return this._sendRequest('deactivate-shared-content', { sharedContentId });
+  }
+
+  /**
+   * Get shared content tier status for the authenticated user.
+   * Returns current tier, activation count, and limits.
+   *
+   * @returns {Promise<object>} Tier status object.
+   */
+  async getSharedTierStatus() {
+    this._requireAuth();
+    return this._sendRequest('get-shared-tier-status', {});
+  }
+
+  /**
+   * Get detailed information about a specific shared content item.
+   *
+   * @param {string} sharedContentId - The shared content UUID.
+   * @returns {Promise<object>} Detailed shared content record.
+   */
+  async getSharedContentDetail(sharedContentId) {
+    this._requireAuth();
+    return this._sendRequest('get-shared-content-detail', { sharedContentId });
+  }
+
+  /**
+   * Submit content to the shared library for admin review.
+   * Users can share their completed PDFs with the community.
+   *
+   * @param {string} contentType - Content type ('pdf' or 'module').
+   * @param {string} contentId - Content UUID (PDF or module ID).
+   * @param {string} publisher - Optional publisher name.
+   * @param {string} description - Optional content description.
+   * @returns {Promise<object>} Submission result.
+   */
+  async submitToSharedLibrary(contentType, contentId, publisher = null, description = null) {
+    this._requireAuth();
+    return this._sendRequest('submit-to-shared-library', {
+      contentType,
+      contentId,
+      publisher,
+      description
+    });
+  }
+
+  /**
+   * List all pending shared content submissions (admin only).
+   *
+   * @returns {Promise<object>} Object with pending submissions array.
+   */
+  async adminListPendingShared() {
+    this._requireAuth();
+    if (!this.isGM) {
+      throw new Error('Admin operations require GM permissions');
+    }
+    return this._sendRequest('admin-list-pending-shared', {});
+  }
+
+  /**
+   * Approve a pending shared content submission (admin only).
+   * Moves content from pending to published state.
+   *
+   * @param {string} sharedContentId - The shared content UUID to approve.
+   * @returns {Promise<object>} Approval result.
+   */
+  async adminApproveShared(sharedContentId) {
+    this._requireAuth();
+    if (!this.isGM) {
+      throw new Error('Admin operations require GM permissions');
+    }
+    return this._sendRequest('admin-approve-shared', { sharedContentId });
+  }
+
+  /**
+   * Reject a pending shared content submission (admin only).
+   * Removes content from pending state.
+   *
+   * @param {string} sharedContentId - The shared content UUID to reject.
+   * @returns {Promise<object>} Rejection result.
+   */
+  async adminRejectShared(sharedContentId) {
+    this._requireAuth();
+    if (!this.isGM) {
+      throw new Error('Admin operations require GM permissions');
+    }
+    return this._sendRequest('admin-reject-shared', { sharedContentId });
+  }
+
+  /**
+   * Directly publish a PDF to the shared library (admin only).
+   * Bypasses the submission/approval workflow.
+   *
+   * @param {string} pdfId - The PDF UUID to publish.
+   * @param {object} options - Publishing options.
+   * @param {string} options.worldId - Optional world ID (server defaults to current world if null).
+   * @param {string} options.publisher - Optional publisher name.
+   * @param {string} options.description - Optional content description.
+   * @returns {Promise<object>} Publishing result.
+   */
+  async adminPublishPdf(pdfId, options = {}) {
+    this._requireAuth();
+    if (!this.isGM) {
+      throw new Error('Admin operations require GM permissions');
+    }
+    return this._sendRequest('admin-publish-pdf', {
+      pdfId,
+      worldId: options.worldId || null,
+      publisher: options.publisher || null,
+      description: options.description || null
+    });
+  }
+
+  /**
+   * Remove a published shared content item (admin only).
+   * Removes content from the shared library entirely.
+   *
+   * @param {string} sharedContentId - The shared content UUID to remove.
+   * @returns {Promise<object>} Removal result.
+   */
+  async adminRemoveShared(sharedContentId) {
+    this._requireAuth();
+    if (!this.isGM) {
+      throw new Error('Admin operations require GM permissions');
+    }
+    return this._sendRequest('admin-remove-shared', { sharedContentId });
   }
 
   // ===== Usage Monitoring Methods =====

@@ -16,6 +16,13 @@ An AI-powered Game Master assistant for Foundry VTT. Loremaster uses Claude AI t
 - **World Data Sync** - Share actors, items, and journals with Loremaster
 - **Active Adventures** - Set the current adventure for focused AI assistance
 
+### Shared Content Library
+- **Browse Shared Adventures** - Explore community-published adventures and rulebooks for your game system
+- **One-Click Activation** - Activate shared content to give the AI instant access — no uploading required
+- **Tier-Gated Access** - Activation slots scale with your subscription (Basic: 2, Pro: 5, Premium: unlimited)
+- **Submit Content** - Share your processed PDFs with other Loremaster users for review and publication
+- **RAG Integration** - Activated shared content is seamlessly included in the AI's semantic search context
+
 ### GM Prep System
 - **Script Generation** - AI generates comprehensive adventure preparation scripts
 - **Character Extraction** - Automatically parses NPCs and playable characters

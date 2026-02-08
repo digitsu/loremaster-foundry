@@ -40,6 +40,11 @@
       {{/if}}
     </div>
     <div class="header-actions">
+      {{#if isAdmin}}
+        <button type="button" class="admin-shared-btn" title="Manage Shared Content">
+          <i class="fas fa-shield-alt"></i> Admin
+        </button>
+      {{/if}}
       {{#if isGM}}
         <button type="button" class="generate-embeddings-btn" title="{{localize 'LOREMASTER.ContentManager.GenerateEmbeddings'}}">
           <i class="fas fa-brain"></i>
@@ -79,6 +84,8 @@
   <section class="content">
     {{!-- PDFs List Tab --}}
     <div class="tab" data-tab="pdfs">
+      {{!-- Your Documents Section --}}
+      <h3 class="documents-section-header">Your Documents</h3>
       {{#if pdfs.length}}
         <ul class="pdf-list">
           {{#each pdfs}}
@@ -144,6 +151,15 @@
                     {{/if}}
                   {{/if}}
                 {{/if}}
+                {{!-- Share button for completed PDFs --}}
+                {{#if (eq processing_status "completed")}}
+                  <button type="button" class="share-pdf-btn"
+                          data-pdf-id="{{id}}"
+                          data-pdf-name="{{display_name}}"
+                          title="Share to Library">
+                    <i class="fas fa-share-alt"></i>
+                  </button>
+                {{/if}}
                 <button type="button" class="delete-pdf-btn" data-pdf-id="{{id}}" data-pdf-name="{{display_name}}"
                         title="{{localize 'LOREMASTER.ContentManager.Delete'}}">
                   <i class="fas fa-trash"></i>
@@ -159,6 +175,56 @@
           <p class="empty-hint">{{localize "LOREMASTER.ContentManager.EmptyHint"}}</p>
         </div>
       {{/if}}
+
+      {{!-- Shared Library Section --}}
+      {{#if hasActivatedSharedContent}}
+        <div class="shared-library-section">
+          <h3 class="shared-section-header">
+            Shared Library
+            {{#if sharedTier}}
+              <span class="shared-tier-count">({{sharedTier.current}} / {{#if (eq sharedTier.max -1)}}∞{{else}}{{sharedTier.max}}{{/if}} activated)</span>
+            {{/if}}
+          </h3>
+          <ul class="shared-content-list">
+            {{#each activatedSharedContent}}
+              <li class="shared-content-tile">
+                <div class="pdf-icon shared-icon">
+                  <i class="fas fa-cloud"></i>
+                </div>
+                <div class="pdf-info">
+                  <div class="pdf-name">
+                    {{this.title}}
+                    <span class="shared-badge">Shared</span>
+                  </div>
+                  <div class="pdf-meta">
+                    <span class="pdf-category">{{categoryLabel this.category}}</span>
+                    <span class="pdf-publisher">by {{this.publisher}}</span>
+                    <span class="pdf-content-type">{{this.contentType}}</span>
+                  </div>
+                  <div class="pdf-status">
+                    <span class="status-badge status-completed">Active</span>
+                  </div>
+                </div>
+                <div class="pdf-actions">
+                  <button type="button" class="deactivate-shared-btn"
+                          data-shared-id="{{this.id}}"
+                          data-shared-title="{{this.title}}"
+                          title="Deactivate this shared content">
+                    <i class="fas fa-times-circle"></i>
+                  </button>
+                </div>
+              </li>
+            {{/each}}
+          </ul>
+        </div>
+      {{/if}}
+
+      {{!-- Browse Shared Library Button --}}
+      <div class="browse-shared-section">
+        <button type="button" class="browse-shared-btn">
+          <i class="fas fa-globe"></i> Browse Shared Library
+        </button>
+      </div>
     </div>
 
     {{!-- Upload Tab --}}
@@ -332,6 +398,8 @@
                 <div class="adventure-icon">
                   {{#if (eq activeAdventure.adventure_type "pdf")}}
                     <i class="fas fa-file-pdf"></i>
+                  {{else if (eq activeAdventure.adventure_type "shared")}}
+                    <i class="fas fa-cloud"></i>
                   {{else}}
                     <i class="fas fa-cube"></i>
                   {{/if}}
@@ -341,6 +409,8 @@
                     {{activeAdventure.adventure_name}}
                     {{#if (eq activeAdventure.adventure_type "pdf")}}
                       <span class="pdf-id-badge" title="Use 'pdf:{{activeAdventure.pdf_id}}' for /lm commands">pdf:{{activeAdventure.pdf_id}}</span>
+                    {{else if (eq activeAdventure.adventure_type "shared")}}
+                      <span class="shared-badge">Shared</span>
                     {{else}}
                       <span class="module-id-badge" title="Use '{{activeAdventure.module_id}}' for /lm commands">{{activeAdventure.module_id}}</span>
                     {{/if}}
@@ -348,19 +418,23 @@
                   <div class="adventure-type-badge">
                     {{#if (eq activeAdventure.adventure_type "pdf")}}
                       {{localize "LOREMASTER.ActiveAdventure.TypePDF"}}
+                    {{else if (eq activeAdventure.adventure_type "shared")}}
+                      Shared Adventure
                     {{else}}
                       {{localize "LOREMASTER.ActiveAdventure.TypeModule"}}
                     {{/if}}
                   </div>
                   {{#if linkedGMPrepScript}}
-                    <div class="gm-prep-link">
-                      <span class="gm-prep-status gm-prep-ready">
-                        <i class="fas fa-check"></i> {{localize "LOREMASTER.GMPrep.ScriptReady"}}
-                      </span>
-                      <button type="button" class="view-gm-prep-btn" data-script-id="{{linkedGMPrepScript.id}}">
-                        <i class="fas fa-eye"></i> {{localize "LOREMASTER.ActiveAdventure.ViewScript"}}
-                      </button>
-                    </div>
+                    {{#if (ne activeAdventure.adventure_type "shared")}}
+                      <div class="gm-prep-link">
+                        <span class="gm-prep-status gm-prep-ready">
+                          <i class="fas fa-check"></i> {{localize "LOREMASTER.GMPrep.ScriptReady"}}
+                        </span>
+                        <button type="button" class="view-gm-prep-btn" data-script-id="{{linkedGMPrepScript.id}}">
+                          <i class="fas fa-eye"></i> {{localize "LOREMASTER.ActiveAdventure.ViewScript"}}
+                        </button>
+                      </div>
+                    {{/if}}
                   {{/if}}
                 </div>
                 <button type="button" class="clear-adventure-btn" title="{{localize 'LOREMASTER.ActiveAdventure.Clear'}}">
@@ -418,6 +492,19 @@
                         {{#if (eq ../activeAdventure.module_id this.module_id)}}selected{{/if}}
                       {{/if}}>
                       {{this.module_name}}
+                    </option>
+                  {{/each}}
+                </optgroup>
+              {{/if}}
+
+              {{#if sharedAdventures.length}}
+                <optgroup label="Shared Adventures">
+                  {{#each sharedAdventures}}
+                    <option value="shared:{{this.id}}"
+                      {{#if (eq ../activeAdventure.adventure_type "shared")}}
+                        {{#if (eq ../activeAdventure.shared_content_id this.id)}}selected{{/if}}
+                      {{/if}}>
+                      {{this.title}} ({{this.publisher}})
                     </option>
                   {{/each}}
                 </optgroup>
