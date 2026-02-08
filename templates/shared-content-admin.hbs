@@ -1,0 +1,129 @@
+{{!--
+  Loremaster Shared Content Admin Template
+
+  Template for the SharedContentAdmin Application window.
+  Allows admins to review, approve, reject, and manage shared content.
+--}}
+<div class="shared-content-admin-container">
+  {{!-- Header --}}
+  <header class="admin-header">
+    <h2><i class="fas fa-shield-alt"></i> Shared Content Administration</h2>
+  </header>
+
+  {{!-- Tab Navigation --}}
+  <nav class="tabs">
+    <a class="item" data-tab="pending">
+      <i class="fas fa-clock"></i> Pending Review
+      {{#if hasPending}}
+        <span class="badge">{{pendingItems.length}}</span>
+      {{/if}}
+    </a>
+    <a class="item" data-tab="published">
+      <i class="fas fa-check-circle"></i> Published
+    </a>
+  </nav>
+
+  {{!-- Tab Content --}}
+  <section class="content">
+    {{!-- Pending Review Tab --}}
+    <div class="tab" data-tab="pending">
+      {{#if hasPending}}
+        <table class="admin-table">
+          <thead>
+            <tr>
+              <th>Title</th>
+              <th>Category</th>
+              <th>Type</th>
+              <th>Submitter</th>
+              <th>Submitted</th>
+              <th>Actions</th>
+            </tr>
+          </thead>
+          <tbody>
+            {{#each pendingItems}}
+              <tr>
+                <td class="title-cell">{{this.title}}</td>
+                <td>
+                  <span class="category-badge category-{{this.category}}">
+                    {{this.category}}
+                  </span>
+                </td>
+                <td>
+                  <i class="fas fa-{{#if (eq this.contentType 'pdf')}}file-pdf{{else}}book{{/if}}"></i>
+                  {{this.contentType}}
+                </td>
+                <td class="submitter-cell">{{this.submitter}}</td>
+                <td class="date-cell">{{this.submittedAt}}</td>
+                <td class="actions-cell">
+                  <button type="button" class="approve-btn" data-shared-content-id="{{this.id}}" title="Approve and publish">
+                    <i class="fas fa-check"></i> Approve
+                  </button>
+                  <button type="button" class="reject-btn" data-shared-content-id="{{this.id}}" title="Reject and remove">
+                    <i class="fas fa-times"></i> Reject
+                  </button>
+                </td>
+              </tr>
+            {{/each}}
+          </tbody>
+        </table>
+      {{else}}
+        <div class="empty-state">
+          <i class="fas fa-inbox"></i>
+          <p>No content pending review</p>
+        </div>
+      {{/if}}
+    </div>
+
+    {{!-- Published Tab --}}
+    <div class="tab" data-tab="published">
+      <div class="published-header">
+        <button type="button" class="direct-publish-btn">
+          <i class="fas fa-upload"></i> Direct Publish PDF
+        </button>
+      </div>
+
+      {{#if hasPublished}}
+        <table class="admin-table">
+          <thead>
+            <tr>
+              <th>Title</th>
+              <th>Publisher</th>
+              <th>Category</th>
+              <th>Type</th>
+              <th>Published</th>
+              <th>Actions</th>
+            </tr>
+          </thead>
+          <tbody>
+            {{#each publishedItems}}
+              <tr>
+                <td class="title-cell">{{this.title}}</td>
+                <td class="publisher-cell">{{this.publisher}}</td>
+                <td>
+                  <span class="category-badge category-{{this.category}}">
+                    {{this.category}}
+                  </span>
+                </td>
+                <td>
+                  <i class="fas fa-{{#if (eq this.contentType 'pdf')}}file-pdf{{else}}book{{/if}}"></i>
+                  {{this.contentType}}
+                </td>
+                <td class="date-cell">{{this.publishedAt}}</td>
+                <td class="actions-cell">
+                  <button type="button" class="remove-btn" data-shared-content-id="{{this.id}}" data-title="{{this.title}}" title="Remove from shared library">
+                    <i class="fas fa-trash"></i> Remove
+                  </button>
+                </td>
+              </tr>
+            {{/each}}
+          </tbody>
+        </table>
+      {{else}}
+        <div class="empty-state">
+          <i class="fas fa-inbox"></i>
+          <p>No published shared content</p>
+        </div>
+      {{/if}}
+    </div>
+  </section>
+</div>

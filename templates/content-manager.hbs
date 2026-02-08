@@ -40,6 +40,11 @@
       {{/if}}
     </div>
     <div class="header-actions">
+      {{#if isAdmin}}
+        <button type="button" class="admin-shared-btn" title="Manage Shared Content">
+          <i class="fas fa-shield-alt"></i> Admin
+        </button>
+      {{/if}}
       {{#if isGM}}
         <button type="button" class="generate-embeddings-btn" title="{{localize 'LOREMASTER.ContentManager.GenerateEmbeddings'}}">
           <i class="fas fa-brain"></i>

@@ -9,6 +9,7 @@
 import { showCastSelectionIfNeeded } from './cast-selection-dialog.mjs';
 import { progressBar } from './progress-bar.mjs';
 import { isHostedMode } from './config.mjs';
+import { SharedContentAdmin } from './shared-content-admin.mjs';
 
 const MODULE_ID = 'loremaster';
 
@@ -104,6 +105,8 @@ export class ContentManager extends Application {
     this.sharedContent = [];
     this.sharedTier = null;
     this.activatedSharedContent = [];
+    // Admin detection (cached after first check)
+    this._isAdmin = null;
   }
 
   /**
@@ -187,7 +190,9 @@ export class ContentManager extends Application {
       sharedContent: this.sharedContent,
       sharedTier: this.sharedTier,
       activatedSharedContent: this.activatedSharedContent,
-      hasActivatedSharedContent: this.activatedSharedContent.length > 0
+      hasActivatedSharedContent: this.activatedSharedContent.length > 0,
+      // Admin status
+      isAdmin: this._isAdmin === true
     };
   }
 
@@ -322,6 +327,9 @@ export class ContentManager extends Application {
 
     // Deactivate shared content button
     html.find('.deactivate-shared-btn').on('click', this._onDeactivateSharedContent.bind(this));
+
+    // Admin button
+    html.find('.admin-shared-btn').on('click', this._onAdminShared.bind(this));
   }
 
   /**
@@ -339,6 +347,8 @@ export class ContentManager extends Application {
       await this._loadPDFs();
       // Load shared content data
       await this._loadSharedContentData();
+      // Check admin status
+      await this._checkAdminStatus();
       // Load adventure data, cast, history, Foundry modules, and backup data for GMs
       if (game.user.isGM) {
         await this._loadAdventureData();
@@ -412,6 +422,29 @@ export class ContentManager extends Application {
       this.sharedContent = [];
       this.sharedTier = { current: 0, max: 0 };
       this.activatedSharedContent = [];
+    }
+  }
+
+  /**
+   * Check if the current user has admin privileges for shared content.
+   * Admin status is determined by attempting to call adminListPendingShared().
+   * Result is cached in this._isAdmin.
+   *
+   * @private
+   */
+  async _checkAdminStatus() {
+    // Skip if already checked
+    if (this._isAdmin !== null) return;
+
+    try {
+      // Attempt to list pending shared content (admin-only operation)
+      await this.socketClient.adminListPendingShared();
+      // If successful, user is an admin
+      this._isAdmin = true;
+      this.render(false);
+    } catch (error) {
+      // If fails, user is not an admin
+      this._isAdmin = false;
     }
   }
 
@@ -2985,5 +3018,20 @@ export class ContentManager extends Application {
       ui.notifications.error(`Failed to deactivate: ${error.message}`);
       button.prop('disabled', false);
     }
+  }
+
+  /**
+   * Handle admin shared content button click.
+   * Opens the SharedContentAdmin dialog for managing shared content.
+   *
+   * @param {Event} event - The click event.
+   * @private
+   */
+  _onAdminShared(event) {
+    event.preventDefault();
+
+    // Create and render SharedContentAdmin dialog
+    const adminDialog = new SharedContentAdmin(this.socketClient);
+    adminDialog.render(true);
   }
 }

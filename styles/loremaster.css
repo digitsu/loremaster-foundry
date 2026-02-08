@@ -5031,3 +5031,223 @@
   text-align: center;
   margin-top: 6px;
 }
+
+/* ===== Shared Content Admin Styles ===== */
+
+/* Admin button in Content Manager header */
+.admin-shared-btn {
+  background: linear-gradient(135deg, #8b4513 0%, #a0522d 100%);
+  color: white;
+  border: 1px solid rgba(139, 69, 19, 0.8);
+  padding: 4px 10px;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: all 0.2s;
+  font-size: 0.85em;
+  line-height: 1;
+  height: 28px;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-weight: 600;
+}
+
+.admin-shared-btn:hover {
+  background: linear-gradient(135deg, #a0522d 0%, #8b4513 100%);
+  border-color: rgba(139, 69, 19, 1);
+  box-shadow: 0 0 8px rgba(139, 69, 19, 0.4);
+}
+
+/* Admin dialog container */
+.shared-content-admin-container {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+}
+
+/* Admin dialog header */
+.admin-header {
+  padding: 10px 15px;
+  background: linear-gradient(to right, rgba(139, 69, 19, 0.1), rgba(160, 82, 45, 0.1));
+  border-bottom: 2px solid rgba(139, 69, 19, 0.3);
+}
+
+.admin-header h2 {
+  margin: 0;
+  font-size: 1.2em;
+  color: #8b4513;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+/* Tab badge for pending count */
+.tabs .item .badge {
+  background: #f44336;
+  color: white;
+  padding: 2px 6px;
+  border-radius: 10px;
+  font-size: 0.75em;
+  margin-left: 4px;
+  font-weight: bold;
+}
+
+/* Admin table styles */
+.admin-table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-top: 10px;
+}
+
+.admin-table thead {
+  background: rgba(0, 0, 0, 0.05);
+}
+
+.admin-table th {
+  padding: 8px 12px;
+  text-align: left;
+  font-weight: 600;
+  border-bottom: 2px solid rgba(0, 0, 0, 0.1);
+  font-size: 0.9em;
+}
+
+.admin-table td {
+  padding: 10px 12px;
+  border-bottom: 1px solid rgba(0, 0, 0, 0.05);
+  vertical-align: middle;
+}
+
+.admin-table tbody tr:hover {
+  background: rgba(201, 132, 26, 0.05);
+}
+
+/* Table cell styles */
+.title-cell {
+  font-weight: 600;
+  max-width: 250px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.submitter-cell,
+.publisher-cell {
+  color: #666;
+  font-size: 0.9em;
+}
+
+.date-cell {
+  color: #999;
+  font-size: 0.85em;
+}
+
+.actions-cell {
+  display: flex;
+  gap: 6px;
+  justify-content: flex-end;
+}
+
+/* Action buttons */
+.approve-btn {
+  background: #4caf50;
+  color: white;
+  border: 1px solid #45a049;
+  padding: 4px 10px;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 0.85em;
+  transition: all 0.2s;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.approve-btn:hover {
+  background: #45a049;
+  box-shadow: 0 2px 4px rgba(76, 175, 80, 0.3);
+}
+
+.reject-btn {
+  background: #f44336;
+  color: white;
+  border: 1px solid #d32f2f;
+  padding: 4px 10px;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 0.85em;
+  transition: all 0.2s;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.reject-btn:hover {
+  background: #d32f2f;
+  box-shadow: 0 2px 4px rgba(244, 67, 54, 0.3);
+}
+
+.remove-btn {
+  background: #ff9800;
+  color: white;
+  border: 1px solid #f57c00;
+  padding: 4px 10px;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 0.85em;
+  transition: all 0.2s;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.remove-btn:hover {
+  background: #f57c00;
+  box-shadow: 0 2px 4px rgba(255, 152, 0, 0.3);
+}
+
+/* Published tab header */
+.published-header {
+  padding: 10px 15px;
+  background: rgba(201, 132, 26, 0.05);
+  border-bottom: 1px solid rgba(201, 132, 26, 0.2);
+  display: flex;
+  justify-content: flex-end;
+}
+
+.direct-publish-btn {
+  background: linear-gradient(135deg, #4a90e2 0%, #357abd 100%);
+  color: white;
+  border: 1px solid rgba(74, 144, 226, 0.8);
+  padding: 6px 14px;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 0.9em;
+  transition: all 0.2s;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-weight: 600;
+}
+
+.direct-publish-btn:hover {
+  background: linear-gradient(135deg, #357abd 0%, #2868a8 100%);
+  box-shadow: 0 2px 6px rgba(74, 144, 226, 0.4);
+}
+
+/* Empty state for admin tables */
+.shared-content-admin-container .empty-state {
+  text-align: center;
+  padding: 60px 20px;
+  color: #999;
+}
+
+.shared-content-admin-container .empty-state i {
+  font-size: 3em;
+  margin-bottom: 15px;
+  opacity: 0.3;
+}
+
+.shared-content-admin-container .empty-state p {
+  font-size: 1.1em;
+  margin: 0;
+}
