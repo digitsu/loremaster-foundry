@@ -114,3 +114,17 @@ Key points:
 - Scene controls use `getSceneControlButtons` hook
 - Control groups: tokens, measure, tiles, drawings, walls, lighting, sounds, notes
 - Tools require: name, title, icon, button, visible, onClick properties
+
+## Current Status
+
+- **Version**: 0.1.6 (released), main branch includes P2 polish (PR #2 merged)
+- **P2 Polish Complete**: i18n (92 keys across 4 groups), connection status bar component
+- **Status Bar**: `scripts/status-bar.mjs` — persistent pill showing connection state, tier, quota. 6 states with auto-collapse.
+- **i18n Coverage**: SharedContent, PatreonLogin, Connection, SettingsPanel groups in `lang/en.json`
+
+## Recent Changes
+
+- PR #2 merged: P2 Polish (i18n + status bar) — 940 lines across 11 files
+- PR #1 merged: Shared Content Library UI (v0.1.5)
+- v0.1.6: Auto-reconnect with auth recovery for hosted mode
+- Custom settings UI with inline account panel and section headers
