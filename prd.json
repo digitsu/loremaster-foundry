@@ -32,7 +32,9 @@
         "No non-shared-content strings are modified",
         "Template renders correctly (no broken Handlebars syntax)"
       ],
-      "priority": 2
+      "priority": 2,
+      "passes": true,
+      "notes": "Completed: 13 hardcoded strings in content-manager.hbs replaced with {{localize}} calls. All share/browse/deactivate dialog strings in content-manager.mjs replaced with game.i18n calls using fallback || patterns. Parameterized strings use game.i18n.format()."
     },
     {
       "id": "US-2",
