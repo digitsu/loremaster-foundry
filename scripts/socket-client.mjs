@@ -1060,8 +1060,8 @@ export class SocketClient {
    * Set the active adventure.
    * GM only. Optionally includes transition handling.
    *
-   * @param {string} adventureType - 'pdf' or 'module'.
-   * @param {number|string} adventureId - PDF ID or module ID.
+   * @param {string} adventureType - 'pdf', 'module', or 'shared'.
+   * @param {number|string} adventureId - PDF ID, module ID, or shared content ID.
    * @param {object} options - Optional transition options.
    * @param {string} options.transitionType - 'immediate' or 'narrative'.
    * @param {string} options.transitionPrompt - GM instructions for narrative bridge.

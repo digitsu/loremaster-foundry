@@ -75,6 +75,7 @@ export class ContentManager extends Application {
     // Active Adventure data
     this.activeAdventure = null;
     this.availableAdventures = { pdfAdventures: [], moduleAdventures: [] };
+    this.sharedAdventures = [];
     this.transitionState = null;
     this.linkedGMPrepScript = null;
     // History tab data
@@ -151,6 +152,7 @@ export class ContentManager extends Application {
       // Active Adventure data
       activeAdventure: this.activeAdventure,
       availableAdventures: this.availableAdventures,
+      sharedAdventures: this.sharedAdventures || [],
       transitionState: this.transitionState,
       linkedGMPrepScript: this.linkedGMPrepScript,
       // History tab data
@@ -1209,7 +1211,7 @@ export class ContentManager extends Application {
 
   /**
    * Load active adventure data from the server.
-   * Fetches current adventure, available adventures, and transition state.
+   * Fetches current adventure, available adventures, transition state, and shared adventures.
    *
    * @private
    */
@@ -1226,6 +1228,12 @@ export class ContentManager extends Application {
       this.activeAdventure = activeResult?.activeAdventure || null;
       this.availableAdventures = adventuresResult || { pdfAdventures: [], moduleAdventures: [] };
       this.transitionState = transitionResult?.transitionState || null;
+
+      // Filter shared adventures from activated shared content
+      // Only include adventure and adventure_supplement categories
+      this.sharedAdventures = this.activatedSharedContent.filter(item =>
+        item.category === 'adventure' || item.category === 'adventure_supplement'
+      );
 
       // If there's an active adventure with a GM Prep script, load its details
       if (this.activeAdventure?.gm_prep_script_id) {
@@ -1251,7 +1259,7 @@ export class ContentManager extends Application {
     const value = event.target.value;
     if (!value) return;
 
-    // Parse selection value (format: "pdf:uuid" or "module:module-id")
+    // Parse selection value (format: "pdf:uuid", "module:module-id", or "shared:id")
     const [type, id] = value.split(':');
     const adventureType = type;
     // Keep ID as string - Elixir uses UUIDs, Node.js uses integers
@@ -1349,6 +1357,11 @@ export class ContentManager extends Application {
         }
         // If 'keep', continue with existing script
       }
+    } else if (adventureType === 'shared') {
+      // Shared adventures don't have GM Prep scripts
+      const sharedAdventure = this.sharedAdventures.find(s => String(s.id) === adventureId);
+      adventureName = sharedAdventure?.title || 'Unknown Shared Adventure';
+      gmPrepScriptId = null; // Shared adventures don't have GM Prep scripts
     } else {
       const module = this.availableAdventures.moduleAdventures.find(m => m.module_id === adventureId);
       adventureName = module?.module_name || adventureId;

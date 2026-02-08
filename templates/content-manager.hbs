@@ -393,6 +393,8 @@
                 <div class="adventure-icon">
                   {{#if (eq activeAdventure.adventure_type "pdf")}}
                     <i class="fas fa-file-pdf"></i>
+                  {{else if (eq activeAdventure.adventure_type "shared")}}
+                    <i class="fas fa-cloud"></i>
                   {{else}}
                     <i class="fas fa-cube"></i>
                   {{/if}}
@@ -402,6 +404,8 @@
                     {{activeAdventure.adventure_name}}
                     {{#if (eq activeAdventure.adventure_type "pdf")}}
                       <span class="pdf-id-badge" title="Use 'pdf:{{activeAdventure.pdf_id}}' for /lm commands">pdf:{{activeAdventure.pdf_id}}</span>
+                    {{else if (eq activeAdventure.adventure_type "shared")}}
+                      <span class="shared-badge">Shared</span>
                     {{else}}
                       <span class="module-id-badge" title="Use '{{activeAdventure.module_id}}' for /lm commands">{{activeAdventure.module_id}}</span>
                     {{/if}}
@@ -409,19 +413,23 @@
                   <div class="adventure-type-badge">
                     {{#if (eq activeAdventure.adventure_type "pdf")}}
                       {{localize "LOREMASTER.ActiveAdventure.TypePDF"}}
+                    {{else if (eq activeAdventure.adventure_type "shared")}}
+                      Shared Adventure
                     {{else}}
                       {{localize "LOREMASTER.ActiveAdventure.TypeModule"}}
                     {{/if}}
                   </div>
                   {{#if linkedGMPrepScript}}
-                    <div class="gm-prep-link">
-                      <span class="gm-prep-status gm-prep-ready">
-                        <i class="fas fa-check"></i> {{localize "LOREMASTER.GMPrep.ScriptReady"}}
-                      </span>
-                      <button type="button" class="view-gm-prep-btn" data-script-id="{{linkedGMPrepScript.id}}">
-                        <i class="fas fa-eye"></i> {{localize "LOREMASTER.ActiveAdventure.ViewScript"}}
-                      </button>
-                    </div>
+                    {{#if (ne activeAdventure.adventure_type "shared")}}
+                      <div class="gm-prep-link">
+                        <span class="gm-prep-status gm-prep-ready">
+                          <i class="fas fa-check"></i> {{localize "LOREMASTER.GMPrep.ScriptReady"}}
+                        </span>
+                        <button type="button" class="view-gm-prep-btn" data-script-id="{{linkedGMPrepScript.id}}">
+                          <i class="fas fa-eye"></i> {{localize "LOREMASTER.ActiveAdventure.ViewScript"}}
+                        </button>
+                      </div>
+                    {{/if}}
                   {{/if}}
                 </div>
                 <button type="button" class="clear-adventure-btn" title="{{localize 'LOREMASTER.ActiveAdventure.Clear'}}">
@@ -479,6 +487,19 @@
                         {{#if (eq ../activeAdventure.module_id this.module_id)}}selected{{/if}}
                       {{/if}}>
                       {{this.module_name}}
+                    </option>
+                  {{/each}}
+                </optgroup>
+              {{/if}}
+
+              {{#if sharedAdventures.length}}
+                <optgroup label="Shared Adventures">
+                  {{#each sharedAdventures}}
+                    <option value="shared:{{this.id}}"
+                      {{#if (eq ../activeAdventure.adventure_type "shared")}}
+                        {{#if (eq ../activeAdventure.shared_content_id this.id)}}selected{{/if}}
+                      {{/if}}>
+                      {{this.title}} ({{this.publisher}})
                     </option>
                   {{/each}}
                 </optgroup>
