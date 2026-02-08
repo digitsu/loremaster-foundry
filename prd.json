@@ -72,7 +72,9 @@
         "StatusBar state updated in socket-client.mjs disconnect/reconnect handlers",
         "No functional changes to existing connection logic — display only"
       ],
-      "priority": 4
+      "priority": 4,
+      "passes": true,
+      "notes": "Completed: New StatusBar class in scripts/status-bar.mjs with 6 states, auto-collapse, i18n, and CSS. Integrated in loremaster.mjs at all lifecycle points. Added onReconnecting/onReconnected callbacks to socket-client.mjs."
     }
   ]
 }
