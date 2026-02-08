@@ -146,6 +146,15 @@
                     {{/if}}
                   {{/if}}
                 {{/if}}
+                {{!-- Share button for completed PDFs --}}
+                {{#if (eq processing_status "completed")}}
+                  <button type="button" class="share-pdf-btn"
+                          data-pdf-id="{{id}}"
+                          data-pdf-name="{{display_name}}"
+                          title="Share to Library">
+                    <i class="fas fa-share-alt"></i>
+                  </button>
+                {{/if}}
                 <button type="button" class="delete-pdf-btn" data-pdf-id="{{id}}" data-pdf-name="{{display_name}}"
                         title="{{localize 'LOREMASTER.ContentManager.Delete'}}">
                   <i class="fas fa-trash"></i>

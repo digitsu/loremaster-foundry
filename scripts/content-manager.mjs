@@ -216,6 +216,9 @@ export class ContentManager extends Application {
     // Delete buttons
     html.find('.delete-pdf-btn').on('click', this._onDeletePDF.bind(this));
 
+    // Share buttons
+    html.find('.share-pdf-btn').on('click', this._onSharePDF.bind(this));
+
     // GM Prep buttons
     html.find('.gm-prep-btn').on('click', this._onGMPrep.bind(this));
 
@@ -581,6 +584,99 @@ export class ContentManager extends Application {
         error: error.message
       }));
     }
+  }
+
+  /**
+   * Handle PDF share button click.
+   * Opens a dialog to submit the PDF to the shared library for admin review.
+   *
+   * @param {Event} event - The click event.
+   * @private
+   */
+  async _onSharePDF(event) {
+    event.preventDefault();
+
+    const pdfId = event.currentTarget.dataset.pdfId;
+    const pdfName = event.currentTarget.dataset.pdfName;
+    const shareButton = event.currentTarget;
+
+    // Create submission dialog
+    new Dialog({
+      title: 'Share to Library',
+      content: `
+        <form class="share-dialog-form">
+          <div class="form-group">
+            <label for="share-title">Title</label>
+            <input type="text" id="share-title" name="title" value="${pdfName}" readonly style="background: #f5f5f5;">
+          </div>
+          <div class="form-group">
+            <label for="share-publisher">Publisher (optional)</label>
+            <input type="text" id="share-publisher" name="publisher" placeholder="Your name or organization">
+          </div>
+          <div class="form-group">
+            <label for="share-description">Description (optional)</label>
+            <textarea id="share-description" name="description" rows="4" placeholder="Briefly describe this content..."></textarea>
+          </div>
+        </form>
+        <style>
+          .share-dialog-form .form-group {
+            margin-bottom: 12px;
+          }
+          .share-dialog-form label {
+            display: block;
+            margin-bottom: 4px;
+            font-weight: bold;
+          }
+          .share-dialog-form input[type="text"],
+          .share-dialog-form textarea {
+            width: 100%;
+            padding: 6px;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            box-sizing: border-box;
+          }
+          .share-dialog-form textarea {
+            resize: vertical;
+            font-family: inherit;
+          }
+        </style>
+      `,
+      buttons: {
+        submit: {
+          icon: '<i class="fas fa-share-alt"></i>',
+          label: 'Submit for Review',
+          callback: async (html) => {
+            const publisher = html.find('#share-publisher').val().trim() || null;
+            const description = html.find('#share-description').val().trim() || null;
+
+            try {
+              await this.socketClient.submitToSharedLibrary('pdf', pdfId, publisher, description);
+              ui.notifications.info('Submitted for review');
+
+              // Disable the share button and show pending status
+              shareButton.disabled = true;
+              shareButton.title = 'Pending Review';
+              shareButton.style.opacity = '0.5';
+
+            } catch (error) {
+              console.error(`${MODULE_ID} | Share submission failed:`, error);
+
+              // Check for specific error messages
+              if (error.message && error.message.includes('already exists')) {
+                ui.notifications.warn('Content already exists in the shared library');
+              } else {
+                ui.notifications.error(`Failed to submit: ${error.message}`);
+              }
+            }
+          }
+        },
+        cancel: {
+          icon: '<i class="fas fa-times"></i>',
+          label: 'Cancel'
+        }
+      },
+      default: 'submit'
+    }).render(true);
   }
 
   /**

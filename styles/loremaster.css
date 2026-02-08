@@ -807,6 +807,26 @@
   gap: 8px;
 }
 
+.share-pdf-btn {
+  background: transparent;
+  border: 1px solid #4a90e2;
+  color: #4a90e2;
+  padding: 6px 10px;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.share-pdf-btn:hover {
+  background: #4a90e2;
+  color: white;
+}
+
+.share-pdf-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
 .delete-pdf-btn {
   background: transparent;
   border: 1px solid #f44336;
