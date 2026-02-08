@@ -91,8 +91,8 @@
         "Backend compatibility verified or documented in notes"
       ],
       "priority": 5,
-      "passes": false,
-      "notes": ""
+      "passes": true,
+      "notes": "Completed: Added shared adventures to Active Adventure tab. UI sends adventure_type: 'shared' to backend. Backend compatibility needs verification - the set-active-adventure handler may need to be updated to recognize 'shared' as a valid adventure type alongside 'pdf' and 'module'. If backend doesn't support it yet, needs to be added to loremaster-proxy Elixir handlers."
     },
     {
       "id": "US-3",
