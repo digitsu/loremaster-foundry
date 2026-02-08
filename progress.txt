@@ -612,3 +612,56 @@ Added 4 new key groups to lang/en.json under LOREMASTER:
 
 ---
 
+## Session 10 - 2026-02-08 (continued)
+
+### Completed: US-3 - Connection Status Header Bar Component
+
+**Files Changed:**
+- scripts/status-bar.mjs (new file, ~350 lines)
+- scripts/loremaster.mjs (added ~30 lines)
+- scripts/socket-client.mjs (added 4 lines)
+
+**What Was Done:**
+
+1. **Created StatusBar component (scripts/status-bar.mjs):**
+   - StatusBar class with singleton export `statusBar`
+   - STATE_CONFIG object maps 6 states to CSS class, icon, i18n key, expansion behavior
+   - initialize(): creates DOM element after #navigation, injects CSS
+   - setConnected(tierName, tokensUsed, tokensLimit): shows tier + quota, auto-collapses after 5s
+   - setConnecting(), setDisconnected(), setReconnecting(attempt, max), setAuthRequired(), setDisabled()
+   - Click handler: toggles expand/collapse (or opens settings if auth-required)
+   - _injectStyles(): inline CSS with loremaster-status- prefix, backdrop-filter, Foundry CSS vars
+   - _formatTokens(): K/M suffix formatter (mirrors Handlebars helper pattern)
+
+2. **Integrated in loremaster.mjs:**
+   - Import statusBar, initialize after progressBar
+   - setConnecting() before connection attempt
+   - setDisabled() when module disabled
+   - setConnected() after successful auth (fetches quota for display)
+   - setAuthRequired() in showPatreonLoginPrompt()
+   - setDisconnected() on permanent disconnect and init errors
+   - onReconnecting callback → setReconnecting()
+   - onReconnected callback → setConnected()
+
+3. **Extended socket-client.mjs:**
+   - Added onReconnecting and onReconnected callback properties
+   - Fires onReconnecting(attempt, max) at start of each reconnect attempt
+   - Fires onReconnected() after successful reconnect (before auth required check)
+
+**Key Learnings:**
+- StatusBar follows ProgressBar pattern: constructor → initialize() → state methods
+- Socket client uses callback properties (not events) for lifecycle hooks
+- Status bar positioned at top:32px (below Foundry nav) with fixed + z-index:90 (below dialogs)
+- Auto-collapse uses setTimeout pattern; cleared on state change
+- getUsage() may not exist on all socket client versions — wrapped in try/catch
+
+---
+
+**All User Stories Completed:**
+✅ US-0 - Add i18n Keys to lang/en.json (priority 1)
+✅ US-1 - Wire i18n Keys in Shared Content UI (priority 2)
+✅ US-2 - Wire i18n Keys in Patreon Login UI and Settings Account Panel (priority 3)
+✅ US-3 - Connection Status Header Bar Component (priority 4)
+
+All 4 user stories from the P2 Polish PRD have been successfully implemented and pass acceptance criteria. The feature is complete and ready for testing.
+
