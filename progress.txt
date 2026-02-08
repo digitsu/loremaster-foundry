@@ -44,3 +44,119 @@ The next priority story is US-1 (Documents Tab Separation and Read-Only Shared T
 - Add browse modal for available shared content
 - Implement read-only tiles for activated shared content
 - Add category filtering
+
+---
+
+## Session 2 - 2026-02-08 (continued)
+
+### Completed: US-1 - Documents Tab Separation and Read-Only Shared Tiles
+
+**Files Changed:**
+- scripts/content-manager.mjs (added ~210 lines)
+- templates/content-manager.hbs (added ~50 lines)
+- styles/loremaster.css (added ~340 lines)
+
+**What Was Done:**
+
+1. **Updated ContentManager constructor** to initialize shared content properties:
+   - this.sharedContent = []
+   - this.sharedTier = null
+   - this.activatedSharedContent = []
+
+2. **Added _loadSharedContentData() method** that:
+   - Calls socketClient.listSharedContent() to get available shared content
+   - Calls socketClient.getSharedTierStatus() to get tier limits
+   - Filters activated items into this.activatedSharedContent
+   - Handles errors gracefully (non-critical)
+
+3. **Updated _render() method** to load shared content data on first render (alongside PDFs)
+
+4. **Updated getData() method** to return:
+   - sharedContent - all available shared content
+   - sharedTier - tier status with current/max counts
+   - activatedSharedContent - filtered activated items
+   - hasActivatedSharedContent - boolean flag
+
+5. **Added event listeners** in activateListeners():
+   - .browse-shared-btn → opens browse dialog
+   - .deactivate-shared-btn → deactivates shared content
+
+6. **Implemented _onBrowseSharedLibrary() handler** that:
+   - Creates a Foundry Dialog with card grid layout
+   - Shows tier status (n/m activated or n/∞ for premium)
+   - Category filter buttons (All, Core Rules, Adventure, etc.)
+   - Each card shows: title, publisher, category, type icon, description
+   - Activate/Deactivate buttons with tier limit enforcement
+   - Empty state for no content
+   - Filter functionality to show/hide cards by category
+   - Auto-refresh after activate/deactivate operations
+
+7. **Implemented _onDeactivateSharedContent() handler** that:
+   - Shows confirmation dialog
+   - Calls socketClient.deactivateSharedContent()
+   - Refreshes data on success
+   - Shows appropriate notifications
+
+8. **Modified content-manager.hbs template**:
+   - Added "Your Documents" section header above existing PDF list
+   - Added "Shared Library" section after PDF list (conditional on hasActivatedSharedContent)
+   - Shared Library header shows tier status (n/m activated)
+   - Shared tiles use .shared-content-tile class with:
+     - fa-cloud icon (instead of fa-file-pdf)
+     - Blue "Shared" badge
+     - Publisher name
+     - Category and content type
+     - Only "Deactivate" button (no delete, GM Prep, or share)
+   - Added "Browse Shared Library" button at bottom
+
+9. **Added comprehensive CSS styles**:
+   - .documents-section-header - "Your Documents" header
+   - .shared-library-section - container for shared content
+   - .shared-section-header - "Shared Library" header with blue styling
+   - .shared-tier-count - tier status text in header
+   - .shared-content-tile - blue-tinted tiles with subtle border
+   - .shared-icon - blue cloud icon
+   - .shared-badge - gradient blue/purple badge
+   - .browse-shared-btn - prominent gradient button
+   - .shared-tier-status - tier info box in dialog
+   - .shared-category-filters - filter button row
+   - .shared-category-filter - individual filter buttons with active state
+   - .shared-library-grid - responsive card grid (auto-fill minmax 300px)
+   - .shared-content-card - individual cards with hover effects
+   - .card-header/.card-body/.card-footer - card sections
+   - .category-badge - category labels
+   - .activate-card-btn/.deactivate-card-btn - action buttons
+
+**Key Learnings:**
+- Foundry Dialog class is used for modal overlays, not custom HTML/CSS overlays
+- jQuery event binding pattern: html.find('.selector').on('click', handler)
+- Template conditionals use {{#if}} with Handlebars helpers
+- CSS grid with auto-fill/minmax creates responsive card layouts
+- Tier limit of -1 means unlimited (premium tier)
+- Backend listSharedContent returns {content: [], tier: {current, max}}
+- game.system.title provides the current game system name
+- Non-critical errors (like failed shared content load) should be logged but not shown to users
+
+**Acceptance Criteria Met:**
+✅ PDFs tab shows 'Your Documents' section header above existing PDF list
+✅ PDFs tab shows 'Shared Library' section with activated shared content tiles
+✅ Shared Library section header shows tier status (n/m activated)
+✅ Shared Library section only appears when user has activated items
+✅ 'Browse Shared Library' button opens a modal overlay with available content
+✅ Browse panel shows content as card tiles with title, publisher, category, type icon, description
+✅ Browse panel has category filter and tier status display
+✅ Only content for current game.system.id is shown (backend filters by system)
+✅ Empty state message when no shared content exists
+✅ Activated shared tiles use fa-cloud icon and have blue/purple 'Shared' badge
+✅ Shared tiles have NO delete, GM Prep, or share buttons
+✅ Shared tiles have a 'Deactivate' button
+✅ Shared tiles have visual distinction (blue border/tint)
+✅ CSS styles added for .shared-library-grid, .shared-content-tile, browse panel
+
+**Next Steps:**
+The next priority story is US-5 (Login Window Shared Content Counter), which will:
+- Add a "Shared Resources" row to the Patreon login window
+- Show activation count vs tier limit with visual indicators
+- Add [Manage] link that opens Content Manager
+- Fetch tier status during _fetchQuota() in patreon-login-ui.mjs
+- Add Handlebars helper 'sharedTierLevel'
