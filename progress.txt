@@ -319,3 +319,86 @@ The next priority story is US-4 (Shared Adventures on Active Adventure Tab), whi
 - Show "Shared" badge for active shared adventures
 - Hide GM Prep and delete buttons for shared adventures
 - Verify backend support for adventure_type: 'shared'
+
+---
+
+## Session 5 - 2026-02-08 (continued)
+
+### Completed: US-4 - Shared Adventures on Active Adventure Tab
+
+**Files Changed:**
+- scripts/content-manager.mjs (added ~20 lines)
+- templates/content-manager.hbs (added ~25 lines)
+- scripts/socket-client.mjs (updated JSDoc)
+
+**What Was Done:**
+
+1. **Updated ContentManager constructor:**
+   - Added this.sharedAdventures = [] to initialize shared adventures array
+
+2. **Updated _loadAdventureData() method:**
+   - Added filtering logic to extract adventure/adventure_supplement categories from activatedSharedContent
+   - Stores filtered results in this.sharedAdventures
+   - Updated JSDoc to reflect the new functionality
+
+3. **Updated getData() method:**
+   - Added sharedAdventures: this.sharedAdventures || [] to template data
+   - This makes shared adventures available to the Handlebars template
+
+4. **Updated content-manager.hbs template:**
+   - Added third optgroup "Shared Adventures" to adventure selector dropdown
+   - Each option: value="shared:{{this.id}}", displays "{{this.title}} ({{this.publisher}})"
+   - Selection logic checks if activeAdventure.adventure_type === "shared" and matches shared_content_id
+   - Added fa-cloud icon for shared adventure type in active adventure display
+   - Added "Shared" badge (using existing .shared-badge CSS from US-1)
+   - Added "Shared Adventure" type label
+   - Hidden GM Prep link/button for shared adventures (wrapped in {{#if (ne activeAdventure.adventure_type "shared")}})
+   - Clear button remains visible for all adventure types (users can deactivate shared adventures)
+
+5. **Updated _onAdventureSelect() handler:**
+   - Added else if block for adventureType === 'shared'
+   - Finds shared adventure by ID from this.sharedAdventures
+   - Sets adventureName from shared adventure title
+   - Sets gmPrepScriptId to null (shared adventures don't have GM Prep scripts)
+   - Parses selection value format: "shared:id" alongside existing "pdf:uuid" and "module:module-id"
+
+6. **Updated socket-client.mjs JSDoc:**
+   - Updated setActiveAdventure() documentation to include 'shared' as valid adventure type
+   - Changed @param adventureType from "'pdf' or 'module'" to "'pdf', 'module', or 'shared'"
+   - Changed @param adventureId description to include shared content ID
+
+**Key Learnings:**
+- Shared content is already loaded in activatedSharedContent from US-1
+- Adventure filtering uses category === 'adventure' OR 'adventure_supplement'
+- Shared adventures don't have GM Prep scripts, so gmPrepScriptId should always be null
+- Shared content items have {id, title, publisher, category, contentType, activated}
+- The clear button should always be visible - users can clear any active adventure
+- Socket client already has all the infrastructure - just needed to update JSDoc
+
+**Backend Compatibility Note:**
+The UI now sends adventure_type: 'shared' to the backend via setActiveAdventure(). 
+The backend set-active-adventure WebSocket handler needs to be verified/updated to:
+1. Accept 'shared' as a valid adventure_type (alongside 'pdf' and 'module')
+2. Store shared_content_id field when adventure_type is 'shared'
+3. Return activeAdventure object with adventure_type: 'shared' and shared_content_id
+4. Handle shared adventures in get-active-adventure and clear-active-adventure handlers
+
+If backend doesn't support this yet, it needs to be implemented in loremaster-proxy Elixir.
+
+**Acceptance Criteria Met:**
+✅ Adventure selector dropdown includes 'Shared Adventures' optgroup section
+✅ Only activated shared content with adventure/adventure_supplement category appears
+✅ Selecting a shared adventure calls setActiveAdventure('shared', sharedContentId)
+✅ Active adventure display shows 'Shared' badge when shared adventure is active
+✅ GM Prep button is hidden for shared adventures
+✅ Backend compatibility documented in notes (needs verification)
+
+**Next Steps:**
+The final priority story is US-3 (Admin Controls Dialog for Shared Content), which will:
+- Create a new SharedContentAdmin Application class and template
+- Add admin button to Content Manager header (visible only to admin users)
+- Implement Pending Review tab with approve/reject actions
+- Implement Published tab with remove action and direct publish button
+- Admin detection using adminListPendingShared() call
+- CSS styles for admin dialog
+
