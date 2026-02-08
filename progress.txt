@@ -402,3 +402,115 @@ The final priority story is US-3 (Admin Controls Dialog for Shared Content), whi
 - Admin detection using adminListPendingShared() call
 - CSS styles for admin dialog
 
+---
+
+## Session 6 - 2026-02-08 (continued)
+
+### Completed: US-3 - Admin Controls Dialog for Shared Content
+
+**Files Changed:**
+- scripts/shared-content-admin.mjs (new file, 336 lines)
+- templates/shared-content-admin.hbs (new file, 125 lines)
+- scripts/content-manager.mjs (added ~50 lines)
+- templates/content-manager.hbs (added 3 lines)
+- styles/loremaster.css (added ~240 lines)
+
+**What Was Done:**
+
+1. **Created SharedContentAdmin Application class (scripts/shared-content-admin.mjs):**
+   - Extends Application with proper defaultOptions (id, template, classes, width, height, tabs)
+   - Constructor takes socketClient parameter
+   - Tabs: 'pending' (Pending Review) and 'published' (Published)
+   - getData() returns pendingItems, publishedItems, userPdfs, and boolean flags
+   - _loadData() method fetches:
+     - adminListPendingShared() for pending submissions
+     - listSharedContent() filtered for published status
+     - listPDFs() for direct publish dialog
+   - activateListeners() binds handlers for approve/reject/remove/direct-publish buttons
+   - _onApprove() handler: calls adminApproveShared(), shows success notification, reloads data
+   - _onReject() handler: calls adminRejectShared(), shows success notification, reloads data
+   - _onRemove() handler: confirmation dialog, calls adminRemoveShared(), reloads data
+   - _onDirectPublish() handler: opens dialog with PDF selector, publisher, description fields, calls adminPublishPdf()
+   - All handlers include proper error handling with ui.notifications
+
+2. **Created admin dialog template (templates/shared-content-admin.hbs):**
+   - Header with shield icon and "Shared Content Administration" title
+   - Tab navigation with badge showing pending count
+   - Pending Review tab:
+     - Table with columns: Title, Category, Type, Submitter, Submitted, Actions
+     - Category badges with color coding
+     - Approve (green) and Reject (red) buttons
+     - Empty state: "No content pending review"
+   - Published tab:
+     - "Direct Publish PDF" button in header area
+     - Table with columns: Title, Publisher, Category, Type, Published, Actions
+     - Remove button for each item
+     - Empty state: "No published shared content"
+
+3. **Updated ContentManager (scripts/content-manager.mjs):**
+   - Imported SharedContentAdmin at top
+   - Added this._isAdmin = null to constructor (cached admin status)
+   - Created _checkAdminStatus() method:
+     - Attempts to call adminListPendingShared() once
+     - On success: sets this._isAdmin = true
+     - On failure: sets this._isAdmin = false
+     - Result cached to avoid repeated calls
+   - Called _checkAdminStatus() in _render() on first load
+   - Updated getData() to return isAdmin: this._isAdmin === true
+   - Added .admin-shared-btn click handler in activateListeners()
+   - Created _onAdminShared() handler that creates and renders SharedContentAdmin dialog
+
+4. **Updated Content Manager template (templates/content-manager.hbs):**
+   - Added admin button to .header-actions div (before embeddings button)
+   - Button only visible when {{#if isAdmin}}
+   - Button shows shield icon and "Admin" label
+   - Title: "Manage Shared Content"
+
+5. **Added comprehensive CSS styles (styles/loremaster.css):**
+   - .admin-shared-btn - gradient brown/sienna button with shield icon
+   - .shared-content-admin-container - dialog container layout
+   - .admin-header - gradient header with shield icon
+   - .tabs .item .badge - red badge for pending count
+   - .admin-table - full-width table with hover effects
+   - .title-cell/.submitter-cell/.publisher-cell/.date-cell - cell styling
+   - .actions-cell - flex layout for action buttons
+   - .approve-btn - green button with check icon
+   - .reject-btn - red button with times icon
+   - .remove-btn - orange button with trash icon
+   - .published-header - container for direct publish button
+   - .direct-publish-btn - blue gradient button with upload icon
+   - Empty state styles for both tabs
+
+**Key Learnings:**
+- Admin detection pattern: attempt admin call, cache success/failure
+- this._isAdmin initialized as null, set to true/false after first check
+- SharedContentAdmin follows same Application pattern as ContentManager
+- _render() override with super._render() then await _loadData()
+- Dialog.confirm() used for remove confirmation
+- Published items filtered from listSharedContent() by status === 'published'
+- Direct publish dialog uses Foundry Dialog with form and inline styles
+- Admin button appears before embeddings button in header-actions
+
+**Acceptance Criteria Met:**
+✅ New SharedContentAdmin Application class in scripts/shared-content-admin.mjs with JSDoc
+✅ New template in templates/shared-content-admin.hbs
+✅ Admin button visible in Content Manager header only for admin users
+✅ Admin detection works (attempt adminListPendingShared, cache result)
+✅ Pending Review tab lists pending items with Approve and Reject buttons
+✅ Approve sends admin-approve-shared and removes item from list
+✅ Reject sends admin-reject-shared and removes item from list
+✅ Published tab lists published items with Remove button
+✅ Direct Publish button opens dialog to select PDF and publish it
+✅ Empty states for both tabs
+✅ CSS styles for admin dialog
+
+**All User Stories Completed:**
+✅ US-0 - Socket Client Wrapper Methods (priority 1)
+✅ US-1 - Documents Tab Separation and Read-Only Shared Tiles (priority 2)
+✅ US-5 - Login Window Shared Content Counter (priority 3)
+✅ US-2 - Submit Content for Sharing (priority 4)
+✅ US-4 - Shared Adventures on Active Adventure Tab (priority 5)
+✅ US-3 - Admin Controls Dialog for Shared Content (priority 6)
+
+All 6 user stories from the Shared Content UI PRD have been successfully implemented and pass acceptance criteria. The feature is complete and ready for testing.
+
