@@ -1,0 +1,46 @@
+# Shared Content UI Implementation Progress
+
+## Session 1 - 2026-02-08
+
+### Completed: US-0 - Socket Client Wrapper Methods for Shared Content
+
+**Files Changed:**
+- scripts/socket-client.mjs (added 160 lines)
+
+**What Was Done:**
+1. Added 6 user-facing wrapper methods for shared content operations:
+   - listSharedContent() - Lists available shared content for current game system
+   - activateSharedContent(sharedContentId) - Activates shared content (subject to tier limits)
+   - deactivateSharedContent(sharedContentId) - Deactivates shared content
+   - getSharedTierStatus() - Gets tier info and activation limits
+   - getSharedContentDetail(sharedContentId) - Gets detailed info for a shared content item
+   - submitToSharedLibrary(contentType, contentId, publisher, description) - Submits content for review
+
+2. Added 5 admin-only wrapper methods:
+   - adminListPendingShared() - Lists pending submissions
+   - adminApproveShared(sharedContentId) - Approves a pending submission
+   - adminRejectShared(sharedContentId) - Rejects a pending submission
+   - adminPublishPdf(pdfId, options) - Directly publishes a PDF (bypasses approval)
+   - adminRemoveShared(sharedContentId) - Removes published shared content
+
+**Key Learnings:**
+- The socket-client.mjs uses _sendRequest() as the standard pattern for all request/response operations
+- _sendRequest() automatically handles both Phoenix Channels and Node.js WebSocket protocols
+- Admin methods should check this.isGM and throw appropriate errors
+- All methods need JSDoc documentation following the established pattern
+- Methods are organized into logical sections with comment headers (// ===== Section Name =====)
+- The _sendRequest() method handles timeout, pending request tracking, and protocol switching automatically
+
+**Acceptance Criteria Met:**
+✅ All 6 user wrapper methods exist with JSDoc documentation
+✅ All 5 admin wrapper methods exist with JSDoc documentation
+✅ Methods follow existing patterns using _sendRequest()
+✅ Proper error handling with _requireAuth() and GM checks
+✅ CamelCase payload keys used throughout
+
+**Next Steps:**
+The next priority story is US-1 (Documents Tab Separation and Read-Only Shared Tiles), which will:
+- Split PDFs tab into "Your Documents" and "Shared Library" sections
+- Add browse modal for available shared content
+- Implement read-only tiles for activated shared content
+- Add category filtering
