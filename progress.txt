@@ -243,3 +243,79 @@ The next priority story is US-2 (Submit Content for Sharing), which will:
 - Clicking opens a confirmation dialog with title, publisher, description fields
 - Submit calls submitToSharedLibrary() socket method
 - Handle success, already-exists, and error cases with appropriate notifications
+
+---
+
+## Session 4 - 2026-02-08 (continued)
+
+### Completed: US-2 - Submit Content for Sharing
+
+**Files Changed:**
+- templates/content-manager.hbs (added 7 lines)
+- scripts/content-manager.mjs (added 96 lines)
+- styles/loremaster.css (added 14 lines)
+
+**What Was Done:**
+
+1. **Added Share button to content-manager.hbs template:**
+   - Button appears in .pdf-actions div next to delete button
+   - Only visible for PDFs with processing_status === "completed"
+   - Uses fa-share-alt icon
+   - data-pdf-id and data-pdf-name attributes for handler
+   - Title: "Share to Library"
+
+2. **Added event listener in activateListeners():**
+   - html.find('.share-pdf-btn').on('click', this._onSharePDF.bind(this))
+   - Added after delete button listener, before GM Prep listener
+
+3. **Implemented _onSharePDF() handler:**
+   - Extracts pdfId and pdfName from event.currentTarget.dataset
+   - Opens Foundry Dialog with form containing:
+     - Title field (pre-filled with pdfName, read-only, grey background)
+     - Publisher field (optional text input)
+     - Description field (optional textarea, 4 rows)
+   - Inline CSS styles for form layout
+   - Submit button: "Submit for Review" with fa-share-alt icon
+   - Cancel button with fa-times icon
+   - On submit callback:
+     - Calls this.socketClient.submitToSharedLibrary('pdf', pdfId, publisher, description)
+     - Success: Shows "Submitted for review" notification
+     - Success: Disables share button, sets title to "Pending Review", opacity 0.5
+     - Error handling:
+       - Checks if error message includes "already exists" → ui.notifications.warn
+       - Otherwise → ui.notifications.error with error message
+     - Console.error logs full error
+
+4. **Added CSS styles:**
+   - .share-pdf-btn - blue theme (#4a90e2 border/color)
+   - Hover state - fills background with blue, white text
+   - Disabled state - opacity 0.5, cursor not-allowed
+   - Follows same pattern as .delete-pdf-btn (red theme)
+
+**Key Learnings:**
+- Foundry Dialog buttons can have async callbacks
+- Dialog content can include inline <style> tags for custom form styling
+- event.currentTarget preserves the clicked button for post-submit manipulation
+- Read-only input fields styled with background: #f5f5f5 for visual distinction
+- Error messages can be checked with .includes() to handle specific cases
+- Share button should only appear for completed PDFs (not processing, failed, etc.)
+
+**Acceptance Criteria Met:**
+✅ Share button (fa-share-alt) appears on completed PDF tiles next to delete button
+✅ Share button NOT shown for PDFs with non-completed processing status
+✅ Clicking Share opens confirmation dialog with title, publisher, description fields
+✅ Title field pre-filled from PDF display_name (read-only)
+✅ Submit calls submitToSharedLibrary with correct params ('pdf', pdfId, publisher, description)
+✅ Success shows 'Submitted for review' notification and disables button
+✅ Already-exists case shows appropriate notification (ui.notifications.warn)
+✅ Error handling with user-friendly messages via ui.notifications
+
+**Next Steps:**
+The next priority story is US-4 (Shared Adventures on Active Adventure Tab), which will:
+- Add activated shared adventures to the adventure selector dropdown
+- Add third optgroup "Shared Adventures" after PDF and Module groups
+- Filter shared content for adventure/adventure_supplement categories
+- When selected, call setActiveAdventure('shared', sharedContentId)
+- Show "Shared" badge for active shared adventures
+- Hide GM Prep and delete buttons for shared adventures
+- Verify backend support for adventure_type: 'shared'
