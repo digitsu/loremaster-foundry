@@ -448,11 +448,9 @@ Hooks.on('getSceneControlButtons', (controls) => {
       button: true,
       visible: true,
       onChange: () => {
-        if (game.loremaster?.openPatreonLogin) {
-          game.loremaster.openPatreonLogin();
-        } else {
-          openPatreonLogin();
-        }
+        // Open Foundry settings — the renderSettingsConfig hook
+        // injects the account panel inline with the settings
+        game.settings.sheet.render(true);
       }
     };
   }

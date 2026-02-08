@@ -19,9 +19,10 @@ const MODULE_NAME = 'Loremaster';
 
 /**
  * Tier display configuration.
- * Maps tier names to display properties.
+ * Maps tier names to display labels, icons, colors, and token limits.
+ * Exported for reuse in settings panel account display.
  */
-const TIER_CONFIG = {
+export const TIER_CONFIG = {
   basic: {
     label: 'Basic',
     icon: '⭐',
