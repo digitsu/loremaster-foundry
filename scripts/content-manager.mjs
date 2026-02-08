@@ -641,20 +641,20 @@ export class ContentManager extends Application {
 
     // Create submission dialog
     new Dialog({
-      title: 'Share to Library',
+      title: game.i18n?.localize('LOREMASTER.SharedContent.ShareDialogTitle') || 'Share to Library',
       content: `
         <form class="share-dialog-form">
           <div class="form-group">
-            <label for="share-title">Title</label>
+            <label for="share-title">${game.i18n?.localize('LOREMASTER.SharedContent.TitleLabel') || 'Title'}</label>
             <input type="text" id="share-title" name="title" value="${escapedName}" readonly style="background: #f5f5f5;">
           </div>
           <div class="form-group">
-            <label for="share-publisher">Publisher (optional)</label>
-            <input type="text" id="share-publisher" name="publisher" placeholder="Your name or organization">
+            <label for="share-publisher">${game.i18n?.localize('LOREMASTER.SharedContent.PublisherLabel') || 'Publisher (optional)'}</label>
+            <input type="text" id="share-publisher" name="publisher" placeholder="${game.i18n?.localize('LOREMASTER.SharedContent.PublisherPlaceholder') || 'Your name or organization'}">
           </div>
           <div class="form-group">
-            <label for="share-description">Description (optional)</label>
-            <textarea id="share-description" name="description" rows="4" placeholder="Briefly describe this content..."></textarea>
+            <label for="share-description">${game.i18n?.localize('LOREMASTER.SharedContent.DescriptionLabel') || 'Description'}</label>
+            <textarea id="share-description" name="description" rows="4" placeholder="${game.i18n?.localize('LOREMASTER.SharedContent.DescriptionPlaceholder') || 'Brief description of this content'}"></textarea>
           </div>
         </form>
         <style>
@@ -683,18 +683,18 @@ export class ContentManager extends Application {
       buttons: {
         submit: {
           icon: '<i class="fas fa-share-alt"></i>',
-          label: 'Submit for Review',
+          label: game.i18n?.localize('LOREMASTER.SharedContent.Submit') || 'Submit for Review',
           callback: async (html) => {
             const publisher = html.find('#share-publisher').val().trim() || null;
             const description = html.find('#share-description').val().trim() || null;
 
             try {
               await this.socketClient.submitToSharedLibrary('pdf', pdfId, publisher, description);
-              ui.notifications.info('Submitted for review');
+              ui.notifications.info(game.i18n?.localize('LOREMASTER.SharedContent.SubmittedSuccess') || 'Submitted for review');
 
               // Disable the share button and show pending status
               shareButton.disabled = true;
-              shareButton.title = 'Pending Review';
+              shareButton.title = game.i18n?.localize('LOREMASTER.SharedContent.PendingReview') || 'Pending Review';
               shareButton.style.opacity = '0.5';
 
             } catch (error) {
@@ -702,16 +702,16 @@ export class ContentManager extends Application {
 
               // Check for specific error messages
               if (error.message && error.message.includes('already exists')) {
-                ui.notifications.warn('Content already exists in the shared library');
+                ui.notifications.warn(game.i18n?.localize('LOREMASTER.SharedContent.AlreadyExists') || 'Content already exists in the shared library');
               } else {
-                ui.notifications.error(`Failed to submit: ${error.message}`);
+                ui.notifications.error(game.i18n?.format('LOREMASTER.SharedContent.SubmitError', { error: error.message }) || `Failed to submit: ${error.message}`);
               }
             }
           }
         },
         cancel: {
           icon: '<i class="fas fa-times"></i>',
-          label: 'Cancel'
+          label: game.i18n?.localize('LOREMASTER.SharedContent.Cancel') || 'Cancel'
         }
       },
       default: 'submit'
@@ -2860,16 +2860,21 @@ export class ContentManager extends Application {
     // Tier status display (with null safety)
     const tierCurrent = this.sharedTier?.current ?? 0;
     const tierMax = this.sharedTier?.max ?? 0;
+    const tierUnlimited = game.i18n?.localize('LOREMASTER.SharedContent.TierUnlimited') || '∞';
+    const tierStatusText = game.i18n?.format('LOREMASTER.SharedContent.TierStatus', {
+      current: tierCurrent,
+      max: tierMax === -1 ? tierUnlimited : tierMax
+    }) || `${tierCurrent} / ${tierMax === -1 ? '∞' : tierMax} shared resources activated`;
     const tierStatus = `<div class="shared-tier-status">
       <i class="fas fa-layer-group"></i>
-      <span>${tierCurrent} / ${tierMax === -1 ? '∞' : tierMax} shared resources activated</span>
+      <span>${tierStatusText}</span>
     </div>`;
 
     // Build card grid
     let cardGrid = '<div class="shared-library-grid">';
 
     if (this.sharedContent.length === 0) {
-      cardGrid += '<div class="empty-state"><i class="fas fa-box-open"></i><p>No shared content available for this game system.</p></div>';
+      cardGrid += `<div class="empty-state"><i class="fas fa-box-open"></i><p>${game.i18n?.localize('LOREMASTER.SharedContent.NoSharedContent') || 'No shared content available for this game system yet.'}</p></div>`;
     } else {
       for (const item of this.sharedContent) {
         const isActivated = item.isActivated;
@@ -2893,15 +2898,15 @@ export class ContentManager extends Application {
             </div>
             <div class="card-body">
               <h4 class="card-title">${safeTitle}</h4>
-              <p class="card-publisher">by ${safePublisher}</p>
+              <p class="card-publisher">${game.i18n?.localize('LOREMASTER.SharedContent.PublisherPrefix') || 'by'} ${safePublisher}</p>
               <p class="card-description">${safeDesc}</p>
             </div>
             <div class="card-footer">
               ${isActivated
-                ? '<button class="deactivate-card-btn" data-shared-id="' + safeId + '"><i class="fas fa-times-circle"></i> Deactivate</button>'
+                ? '<button class="deactivate-card-btn" data-shared-id="' + safeId + '"><i class="fas fa-times-circle"></i> ' + (game.i18n?.localize('LOREMASTER.SharedContent.DeactivateBtn') || 'Deactivate') + '</button>'
                 : canActivate
-                  ? '<button class="activate-card-btn" data-shared-id="' + safeId + '"><i class="fas fa-plus-circle"></i> Activate</button>'
-                  : '<button class="activate-card-btn" disabled title="Tier limit reached"><i class="fas fa-lock"></i> Tier Limit Reached</button>'
+                  ? '<button class="activate-card-btn" data-shared-id="' + safeId + '"><i class="fas fa-plus-circle"></i> ' + (game.i18n?.localize('LOREMASTER.SharedContent.ActivateBtn') || 'Activate') + '</button>'
+                  : '<button class="activate-card-btn" disabled title="' + (game.i18n?.localize('LOREMASTER.SharedContent.AtLimitError') || 'Tier limit reached') + '"><i class="fas fa-lock"></i> ' + (game.i18n?.localize('LOREMASTER.SharedContent.AtLimitError') || 'Tier Limit Reached') + '</button>'
               }
             </div>
           </div>
@@ -2914,12 +2919,12 @@ export class ContentManager extends Application {
 
     // Create the dialog
     const dialog = new Dialog({
-      title: `Shared Library — ${game.system.title}`,
+      title: game.i18n?.format('LOREMASTER.SharedContent.BrowseDialogTitle', { system: game.system.title }) || `Shared Library — ${game.system.title}`,
       content: dialogContent,
       buttons: {
         close: {
           icon: '<i class="fas fa-times"></i>',
-          label: 'Close'
+          label: game.i18n?.localize('LOREMASTER.SharedContent.CloseBtn') || 'Close'
         }
       },
       default: 'close',
@@ -2951,14 +2956,14 @@ export class ContentManager extends Application {
           try {
             btn.prop('disabled', true);
             await this.socketClient.activateSharedContent(sharedId);
-            ui.notifications.info('Shared content activated successfully.');
+            ui.notifications.info(game.i18n?.localize('LOREMASTER.SharedContent.ActivateSuccess') || 'Shared content activated successfully.');
 
             // Refresh data and close dialog
             await this._loadSharedContentData();
             dialog.close();
           } catch (error) {
             console.error(`${MODULE_ID} | Failed to activate shared content:`, error);
-            ui.notifications.error(`Failed to activate: ${error.message}`);
+            ui.notifications.error(game.i18n?.format('LOREMASTER.SharedContent.SubmitError', { error: error.message }) || `Failed to activate: ${error.message}`);
             btn.prop('disabled', false);
           }
         });
@@ -2972,14 +2977,14 @@ export class ContentManager extends Application {
           try {
             btn.prop('disabled', true);
             await this.socketClient.deactivateSharedContent(sharedId);
-            ui.notifications.info('Shared content deactivated.');
+            ui.notifications.info(game.i18n?.localize('LOREMASTER.SharedContent.DeactivateSuccess') || 'Shared content deactivated.');
 
             // Refresh data and close dialog
             await this._loadSharedContentData();
             dialog.close();
           } catch (error) {
             console.error(`${MODULE_ID} | Failed to deactivate shared content:`, error);
-            ui.notifications.error(`Failed to deactivate: ${error.message}`);
+            ui.notifications.error(game.i18n?.format('LOREMASTER.SharedContent.SubmitError', { error: error.message }) || `Failed to deactivate: ${error.message}`);
             btn.prop('disabled', false);
           }
         });
@@ -3011,9 +3016,12 @@ export class ContentManager extends Application {
     if (!sharedId) return;
 
     // Confirm deactivation
+    const escapedTitle = foundry.utils.escapeHtml(sharedTitle);
+    const confirmText = game.i18n?.format('LOREMASTER.SharedContent.DeactivateConfirm', { title: escapedTitle }) || `Deactivate <strong>${escapedTitle}</strong>?`;
+    const hintText = game.i18n?.localize('LOREMASTER.SharedContent.DeactivateHint') || 'This will remove it from your active documents.';
     const confirmed = await Dialog.confirm({
-      title: 'Deactivate Shared Content',
-      content: `<p>Deactivate <strong>${sharedTitle}</strong>?</p><p>This will remove it from your active documents.</p>`,
+      title: game.i18n?.localize('LOREMASTER.SharedContent.DeactivateDialogTitle') || 'Deactivate Shared Content',
+      content: `<p>${confirmText}</p><p>${hintText}</p>`,
       yes: () => true,
       no: () => false
     });
@@ -3023,13 +3031,13 @@ export class ContentManager extends Application {
     try {
       button.prop('disabled', true);
       await this.socketClient.deactivateSharedContent(sharedId);
-      ui.notifications.info('Shared content deactivated.');
+      ui.notifications.info(game.i18n?.localize('LOREMASTER.SharedContent.DeactivateSuccess') || 'Shared content deactivated.');
 
       // Refresh shared content data
       await this._loadSharedContentData();
     } catch (error) {
       console.error(`${MODULE_ID} | Failed to deactivate shared content:`, error);
-      ui.notifications.error(`Failed to deactivate: ${error.message}`);
+      ui.notifications.error(game.i18n?.format('LOREMASTER.SharedContent.SubmitError', { error: error.message }) || `Failed to deactivate: ${error.message}`);
       button.prop('disabled', false);
     }
   }
