@@ -117,7 +117,7 @@ Key points:
 
 ## Current Status
 
-- **Version**: 0.1.6 (released), main branch includes P2 polish (PR #2 merged)
+- **Version**: 0.1.7 (released) — P2 polish: i18n + status bar
 - **P2 Polish Complete**: i18n (92 keys across 4 groups), connection status bar component
 - **Status Bar**: `scripts/status-bar.mjs` — persistent pill showing connection state, tier, quota. 6 states with auto-collapse.
 - **i18n Coverage**: SharedContent, PatreonLogin, Connection, SettingsPanel groups in `lang/en.json`
