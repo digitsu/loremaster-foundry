@@ -921,8 +921,8 @@
   border-color: rgba(25, 118, 210, 0.3);
 }
 
-.shared-icon {
-  color: #1976d2 !important;
+.shared-content-tile .shared-icon {
+  color: #1976d2;
 }
 
 .shared-badge {
@@ -5081,8 +5081,8 @@
   gap: 8px;
 }
 
-/* Tab badge for pending count */
-.tabs .item .badge {
+/* Tab badge for pending count in admin dialog */
+.shared-content-admin-container .tabs .item .badge {
   background: #f44336;
   color: white;
   padding: 2px 6px;

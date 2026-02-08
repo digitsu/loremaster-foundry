@@ -405,12 +405,13 @@ export class ContentManager extends Application {
    */
   async _loadSharedContentData() {
     try {
-      const result = await this.socketClient.listSharedContent();
-      this.sharedContent = result.content || [];
-      this.sharedTier = result.tier || { current: 0, max: 0 };
-
-      const tierStatus = await this.socketClient.getSharedTierStatus();
-      this.sharedTier = tierStatus.tier || this.sharedTier;
+      const [contentResult, tierResult] = await Promise.all([
+        this.socketClient.listSharedContent(),
+        this.socketClient.getSharedTierStatus()
+      ]);
+      this.sharedContent = contentResult.content || [];
+      // Prefer dedicated tier endpoint; fall back to tier info from list response
+      this.sharedTier = tierResult.tier || contentResult.tier || { current: 0, max: 0 };
 
       // Filter activated shared content
       this.activatedSharedContent = this.sharedContent.filter(item => item.isActivated);
@@ -635,6 +636,9 @@ export class ContentManager extends Application {
     const pdfName = event.currentTarget.dataset.pdfName;
     const shareButton = event.currentTarget;
 
+    // Escape user-provided strings to prevent XSS
+    const escapedName = foundry.utils.escapeHtml(pdfName);
+
     // Create submission dialog
     new Dialog({
       title: 'Share to Library',
@@ -642,7 +646,7 @@ export class ContentManager extends Application {
         <form class="share-dialog-form">
           <div class="form-group">
             <label for="share-title">Title</label>
-            <input type="text" id="share-title" name="title" value="${pdfName}" readonly style="background: #f5f5f5;">
+            <input type="text" id="share-title" name="title" value="${escapedName}" readonly style="background: #f5f5f5;">
           </div>
           <div class="form-group">
             <label for="share-publisher">Publisher (optional)</label>
@@ -2853,10 +2857,12 @@ export class ContentManager extends Application {
     }
     filterButtons += '</div>';
 
-    // Tier status display
+    // Tier status display (with null safety)
+    const tierCurrent = this.sharedTier?.current ?? 0;
+    const tierMax = this.sharedTier?.max ?? 0;
     const tierStatus = `<div class="shared-tier-status">
       <i class="fas fa-layer-group"></i>
-      <span>${this.sharedTier.current} / ${this.sharedTier.max === -1 ? '∞' : this.sharedTier.max} shared resources activated</span>
+      <span>${tierCurrent} / ${tierMax === -1 ? '∞' : tierMax} shared resources activated</span>
     </div>`;
 
     // Build card grid
@@ -2868,25 +2874,33 @@ export class ContentManager extends Application {
       for (const item of this.sharedContent) {
         const isActivated = item.isActivated;
         const canActivate = !isActivated && (this.sharedTier.max === -1 || this.sharedTier.current < this.sharedTier.max);
-        const description = item.description || 'No description provided.';
-        const truncatedDesc = description.length > 120 ? description.substring(0, 120) + '...' : description;
+        const rawDesc = item.description || 'No description provided.';
+        const truncatedDesc = rawDesc.length > 120 ? rawDesc.substring(0, 120) + '...' : rawDesc;
+
+        // Escape all user-provided strings to prevent XSS
+        const esc = foundry.utils.escapeHtml;
+        const safeTitle = esc(item.title);
+        const safePublisher = esc(item.publisher || 'Unknown');
+        const safeDesc = esc(truncatedDesc);
+        const safeCategory = esc(item.category);
+        const safeId = esc(String(item.id));
 
         cardGrid += `
-          <div class="shared-content-card" data-category="${item.category}" data-shared-id="${item.id}">
+          <div class="shared-content-card" data-category="${safeCategory}" data-shared-id="${safeId}">
             <div class="card-header">
               <i class="fas ${typeIcons[item.contentType] || 'fa-file'}"></i>
-              <span class="category-badge">${categoryLabels[item.category] || item.category}</span>
+              <span class="category-badge">${categoryLabels[item.category] || safeCategory}</span>
             </div>
             <div class="card-body">
-              <h4 class="card-title">${item.title}</h4>
-              <p class="card-publisher">by ${item.publisher || 'Unknown'}</p>
-              <p class="card-description">${truncatedDesc}</p>
+              <h4 class="card-title">${safeTitle}</h4>
+              <p class="card-publisher">by ${safePublisher}</p>
+              <p class="card-description">${safeDesc}</p>
             </div>
             <div class="card-footer">
               ${isActivated
-                ? '<button class="deactivate-card-btn" data-shared-id="' + item.id + '"><i class="fas fa-times-circle"></i> Deactivate</button>'
+                ? '<button class="deactivate-card-btn" data-shared-id="' + safeId + '"><i class="fas fa-times-circle"></i> Deactivate</button>'
                 : canActivate
-                  ? '<button class="activate-card-btn" data-shared-id="' + item.id + '"><i class="fas fa-plus-circle"></i> Activate</button>'
+                  ? '<button class="activate-card-btn" data-shared-id="' + safeId + '"><i class="fas fa-plus-circle"></i> Activate</button>'
                   : '<button class="activate-card-btn" disabled title="Tier limit reached"><i class="fas fa-lock"></i> Tier Limit Reached</button>'
               }
             </div>

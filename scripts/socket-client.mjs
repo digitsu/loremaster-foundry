@@ -1178,7 +1178,7 @@ export class SocketClient {
    * Activate a shared content item for use in the current world.
    * Subject to tier limits (basic: 3, pro: 10, premium: unlimited).
    *
-   * @param {number} sharedContentId - The shared content ID to activate.
+   * @param {string} sharedContentId - The shared content UUID to activate.
    * @returns {Promise<object>} Activation result.
    */
   async activateSharedContent(sharedContentId) {
@@ -1189,7 +1189,7 @@ export class SocketClient {
   /**
    * Deactivate a shared content item from the current world.
    *
-   * @param {number} sharedContentId - The shared content ID to deactivate.
+   * @param {string} sharedContentId - The shared content UUID to deactivate.
    * @returns {Promise<object>} Deactivation result.
    */
   async deactivateSharedContent(sharedContentId) {
@@ -1211,7 +1211,7 @@ export class SocketClient {
   /**
    * Get detailed information about a specific shared content item.
    *
-   * @param {number} sharedContentId - The shared content ID.
+   * @param {string} sharedContentId - The shared content UUID.
    * @returns {Promise<object>} Detailed shared content record.
    */
   async getSharedContentDetail(sharedContentId) {
@@ -1223,8 +1223,8 @@ export class SocketClient {
    * Submit content to the shared library for admin review.
    * Users can share their completed PDFs with the community.
    *
-   * @param {string} contentType - Content type (currently only 'pdf' supported).
-   * @param {number} contentId - Content ID (PDF ID).
+   * @param {string} contentType - Content type ('pdf' or 'module').
+   * @param {string} contentId - Content UUID (PDF or module ID).
    * @param {string} publisher - Optional publisher name.
    * @param {string} description - Optional content description.
    * @returns {Promise<object>} Submission result.
@@ -1256,7 +1256,7 @@ export class SocketClient {
    * Approve a pending shared content submission (admin only).
    * Moves content from pending to published state.
    *
-   * @param {number} sharedContentId - The shared content ID to approve.
+   * @param {string} sharedContentId - The shared content UUID to approve.
    * @returns {Promise<object>} Approval result.
    */
   async adminApproveShared(sharedContentId) {
@@ -1271,7 +1271,7 @@ export class SocketClient {
    * Reject a pending shared content submission (admin only).
    * Removes content from pending state.
    *
-   * @param {number} sharedContentId - The shared content ID to reject.
+   * @param {string} sharedContentId - The shared content UUID to reject.
    * @returns {Promise<object>} Rejection result.
    */
   async adminRejectShared(sharedContentId) {
@@ -1286,9 +1286,9 @@ export class SocketClient {
    * Directly publish a PDF to the shared library (admin only).
    * Bypasses the submission/approval workflow.
    *
-   * @param {number} pdfId - The PDF ID to publish.
+   * @param {string} pdfId - The PDF UUID to publish.
    * @param {object} options - Publishing options.
-   * @param {string} options.worldId - Optional world ID (defaults to current world).
+   * @param {string} options.worldId - Optional world ID (server defaults to current world if null).
    * @param {string} options.publisher - Optional publisher name.
    * @param {string} options.description - Optional content description.
    * @returns {Promise<object>} Publishing result.
@@ -1310,7 +1310,7 @@ export class SocketClient {
    * Remove a published shared content item (admin only).
    * Removes content from the shared library entirely.
    *
-   * @param {number} sharedContentId - The shared content ID to remove.
+   * @param {string} sharedContentId - The shared content UUID to remove.
    * @returns {Promise<object>} Removal result.
    */
   async adminRemoveShared(sharedContentId) {
