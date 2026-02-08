@@ -57,8 +57,8 @@
         "Handlebars helper sharedTierLevel registered in loremaster.mjs"
       ],
       "priority": 3,
-      "passes": false,
-      "notes": ""
+      "passes": true,
+      "notes": "Completed: Added Shared Resources row to Patreon login window with tier status display, color-coded indicators, and [Manage] link to open Content Manager."
     },
     {
       "id": "US-2",
