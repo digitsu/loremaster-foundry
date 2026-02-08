@@ -49,7 +49,9 @@
         "Fallback || patterns used in JS for safety",
         "No functional behavior changes — only string source changes"
       ],
-      "priority": 3
+      "priority": 3,
+      "passes": true,
+      "notes": "Completed: All hardcoded strings in patreon-login.hbs (4 states), patreon-login-ui.mjs (dialogs + notifications), and config.mjs (4 panel builders + section headers + dialogs) replaced with i18n calls. Parameterized strings use format(). Fallback || patterns throughout."
     },
     {
       "id": "US-3",
