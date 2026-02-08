@@ -1,119 +1,74 @@
 {
   "project": "loremaster",
-  "branchName": "ralph/shared-content-ui",
-  "description": "Add UI support for the Shared Content Library feature in the Loremaster Foundry module. The backend (loremaster-proxy Elixir) already implements all WebSocket handlers and Ash resources. This PRD covers the client-side UI: documents tab separation, share submission, admin controls, adventure activation, login counter, and read-only tiles.",
+  "branchName": "ralph/p2-polish",
+  "description": "Finish remaining P2 polish items for the Loremaster Foundry module: (1) Add i18n keys for all shared content UI strings and the inline settings account panel, then wire them up in templates and JS; (2) Add a persistent status header bar showing connection state, tier, and quota at a glance.",
   "userStories": [
     {
       "id": "US-0",
-      "title": "Socket Client Wrapper Methods for Shared Content",
-      "description": "Add all 11 WebSocket wrapper methods to socket-client.mjs for shared content operations. These are prerequisite for all other stories.\n\nUser methods:\n- listSharedContent() → sends 'list-shared-content', returns {content: [...], tier: {current, max}}\n- activateSharedContent(sharedContentId) → sends 'activate-shared-content'\n- deactivateSharedContent(sharedContentId) → sends 'deactivate-shared-content'\n- getSharedTierStatus() → sends 'get-shared-tier-status', returns {tier: {name, current, max, can_activate}}\n- getSharedContentDetail(sharedContentId) → sends 'get-shared-content-detail'\n- submitToSharedLibrary(contentType, contentId, publisher, description) → sends 'submit-to-shared-library'\n\nAdmin methods:\n- adminListPendingShared() → sends 'admin-list-pending-shared', returns {pending: [...]}\n- adminApproveShared(sharedContentId) → sends 'admin-approve-shared'\n- adminRejectShared(sharedContentId) → sends 'admin-reject-shared'\n- adminPublishPdf(pdfId, options) → sends 'admin-publish-pdf' with pdfId, worldId?, publisher?, description?\n- adminRemoveShared(sharedContentId) → sends 'admin-remove-shared'\n\nAll methods should follow the existing socket-client.mjs patterns: use _sendMessage() or the Phoenix Channel push pattern depending on connection mode, include proper error handling and logging, and add JSDoc documentation.",
+      "title": "Add i18n Keys to lang/en.json",
+      "description": "Add all missing i18n keys to lang/en.json for: shared content UI (content-manager.hbs and content-manager.mjs), Patreon login UI (patreon-login.hbs and patreon-login-ui.mjs), inline settings account panel (config.mjs), and connection status bar (new). Do NOT modify any JS or HBS files in this story — only update lang/en.json.\n\nNew key groups to add under LOREMASTER:\n\n1. SharedContent — strings from content-manager.hbs and content-manager.mjs:\n   - YourDocuments, SharedLibrary, ShareToLibrary, SharedBadge, PublisherPrefix (\"by\"), Active, Deactivate, DeactivateTitle, BrowseLibrary, SharedAdventure, SharedAdventures, ManageSharedContent, Admin\n   - ShareDialogTitle, TitleLabel, PublisherLabel, PublisherPlaceholder, DescriptionLabel, DescriptionPlaceholder, Submit, Cancel, PendingReview, SubmittedSuccess\n   - BrowseDialogTitle (\"Shared Library — {system}\"), TierStatus (\"{current} / {max} shared resources activated\"), TierUnlimited, ActivateBtn, DeactivateBtn, CloseBtn, ActivateSuccess, DeactivateSuccess, AtLimitError (\"At activation limit ({max}). Deactivate a resource to activate another.\"), DeactivateDialogTitle, DeactivateConfirm (\"Deactivate <strong>{title}</strong>?\"), DeactivateHint\n\n2. PatreonLogin — strings from patreon-login.hbs and patreon-login-ui.mjs:\n   - ConnectAccount, SignInHint, SignInBtn, Or, PasteTokenBtn, NoSubscription, SubscribeLink\n   - SigningIn, SigningInHint, PopupBlockedHint\n   - Connected, RAGEnabled, RAGLocked, RAGRequiresTier (\"Requires {tier} tier\")\n   - SharedResources, ActivatedUnlimited (\"{count} activated (unlimited)\"), ManageLink, UpgradeAccess, ActivatedCount (\"{current} / {max} activated\")\n   - MonthlyUsage, ResetsDate (\"Resets: {date}\"), TokensPerMonth (\"tokens/month\"), SignOut\n   - AuthFailed, TryAgain\n   - SignOutDialogTitle, SignOutConfirm\n   - SessionTokenLabel, SessionTokenPlaceholder, SessionTokenHint, EnterTokenTitle, ConnectBtn\n   - ConnectedSuccess, InvalidToken (\"Invalid token — {reason}\"), ValidationFailed\n   - ContentManagerUnavailable\n\n3. Connection — strings for the status header bar:\n   - Connecting, Connected, Disconnected, Reconnecting, ReconnectAttempt (\"Reconnecting ({attempt}/{max})...\"), SessionExpired, NotConnected\n\n4. SettingsPanel — strings for section headers in settings:\n   - AccountSection, ConnectionSection, ChatSection, ContextSection, MultiPlayerSection, UsageSection",
       "acceptanceCriteria": [
-        "All 6 user wrapper methods exist in socket-client.mjs with JSDoc documentation",
-        "All 5 admin wrapper methods exist in socket-client.mjs with JSDoc documentation",
-        "Methods follow existing patterns (use _sendMessage or Phoenix Channel push depending on mode)",
-        "Methods include proper error handling consistent with other socket-client methods",
-        "Both camelCase payload keys are used (backend accepts both camelCase and snake_case)"
+        "lang/en.json contains LOREMASTER.SharedContent group with all shared content UI strings",
+        "lang/en.json contains LOREMASTER.PatreonLogin group with all login/account UI strings",
+        "lang/en.json contains LOREMASTER.Connection group with connection status strings",
+        "lang/en.json contains LOREMASTER.SettingsPanel group with section header strings",
+        "All parameterized strings use {param} placeholder format consistent with existing keys",
+        "No JS or HBS files are modified in this story",
+        "JSON is valid and well-formatted"
       ],
       "priority": 1,
       "passes": true,
-      "notes": "Completed: All 11 wrapper methods added to socket-client.mjs with proper JSDoc, error handling, and camelCase payload keys."
+      "notes": "Completed: Added 92 i18n keys across 4 groups (SharedContent: 39, PatreonLogin: 38, Connection: 9, SettingsPanel: 6). JSON validated."
     },
     {
       "id": "US-1",
-      "title": "Documents Tab Separation and Read-Only Shared Tiles",
-      "description": "Split the PDFs tab into 'Your Documents' and 'Shared Library' sections, with a Browse Shared Library button. Activated shared content appears as read-only tiles. This combines the original US-1 and US-6 since they are tightly coupled.\n\nPDFs tab changes:\n1. Add 'Your Documents' section header above existing pdf-list\n2. Add 'Shared Library' section below with activated shared content tiles\n3. Shared Library section shows 'n/m activated' in header\n4. Add 'Browse Shared Library' button that opens a modal overlay\n5. Browse panel shows all available shared content for the current game.system.id as card tiles\n6. Cards show: title, publisher, category badge, content type icon, description (truncated), activate/deactivate toggle\n7. Browse panel has category filter buttons\n8. Empty state messages for no content\n\nShared content tiles (read-only):\n- Use fa-cloud icon instead of fa-file-pdf\n- Show title, category badge, publisher name, content type\n- Show 'Shared' status badge in blue/purple\n- NO delete button, NO GM Prep button, NO share button\n- Only action: 'Deactivate' button (fa-times-circle)\n- Subtle blue border/tint to visually distinguish\n\nData loading:\n- In getData(), add sharedContent, sharedTier, activatedSharedContent\n- Load shared content data on first render of PDFs tab\n- Listen for 'shared-content-activated' and 'shared-content-deactivated' push events to auto-refresh",
+      "title": "Wire i18n Keys in Shared Content UI",
+      "description": "Replace hardcoded English strings in the shared content sections of content-manager.hbs and content-manager.mjs with game.i18n.localize() / game.i18n.format() calls using the keys added in US-0.\n\nFiles to modify:\n\n1. templates/content-manager.hbs:\n   - Replace 'Your Documents' → {{localize 'LOREMASTER.SharedContent.YourDocuments'}}\n   - Replace 'Shared Library' → {{localize 'LOREMASTER.SharedContent.SharedLibrary'}}\n   - Replace 'Share to Library' → {{localize 'LOREMASTER.SharedContent.ShareToLibrary'}}\n   - Replace 'Shared' badge → {{localize 'LOREMASTER.SharedContent.SharedBadge'}}\n   - Replace 'by' prefix → {{localize 'LOREMASTER.SharedContent.PublisherPrefix'}}\n   - Replace 'Active' badge → {{localize 'LOREMASTER.SharedContent.Active'}}\n   - Replace 'Deactivate this shared content' → {{localize 'LOREMASTER.SharedContent.DeactivateTitle'}}\n   - Replace 'Browse Shared Library' → {{localize 'LOREMASTER.SharedContent.BrowseLibrary'}}\n   - Replace 'Shared Adventure' → {{localize 'LOREMASTER.SharedContent.SharedAdventure'}}\n   - Replace 'Shared Adventures' → {{localize 'LOREMASTER.SharedContent.SharedAdventures'}}\n   - Replace 'Manage Shared Content' → {{localize 'LOREMASTER.SharedContent.ManageSharedContent'}}\n   - Replace 'Admin' → {{localize 'LOREMASTER.SharedContent.Admin'}}\n\n2. scripts/content-manager.mjs:\n   - Share dialog: Replace hardcoded strings with game.i18n.localize/format calls\n   - Browse dialog: Replace title, button labels, tier status text, notifications\n   - Deactivate dialog: Replace title, confirm text, notifications\n   - Use game.i18n.format() for parameterized strings like '{current} / {max} shared resources activated'\n   - Keep fallback || patterns for safety: game.i18n?.localize('KEY') || 'fallback'\n\nIMPORTANT: Only touch shared content strings. Do NOT change existing localized strings or non-shared-content strings.",
       "acceptanceCriteria": [
-        "PDFs tab shows 'Your Documents' section header above existing PDF list",
-        "PDFs tab shows 'Shared Library' section with activated shared content tiles",
-        "Shared Library section header shows tier status (n/m activated)",
-        "Shared Library section only appears when user has activated items or is browsing",
-        "'Browse Shared Library' button opens a modal overlay with available content",
-        "Browse panel shows content as card tiles with title, publisher, category, type icon, description",
-        "Browse panel has category filter and tier status display",
-        "Only content for current game.system.id is shown",
-        "Empty state message when no shared content exists",
-        "Activated shared tiles use fa-cloud icon and have blue/purple 'Shared' badge",
-        "Shared tiles have NO delete, GM Prep, or share buttons",
-        "Shared tiles have a 'Deactivate' button",
-        "Shared tiles have visual distinction (blue border/tint)",
-        "CSS styles added for .shared-library-grid, .shared-content-tile, browse panel"
+        "All 12+ hardcoded strings in content-manager.hbs replaced with {{localize}} calls",
+        "All hardcoded strings in content-manager.mjs share/browse/deactivate dialogs replaced with game.i18n calls",
+        "Parameterized strings use game.i18n.format() with correct parameter names",
+        "Fallback || patterns used for safety in JS code",
+        "No non-shared-content strings are modified",
+        "Template renders correctly (no broken Handlebars syntax)"
       ],
-      "priority": 2,
-      "passes": true,
-      "notes": "Completed: Added Documents Tab separation with Your Documents and Shared Library sections. Implemented browse dialog with card grid, category filters, and tier status. Shared tiles are read-only with only deactivate action. All CSS styles added."
-    },
-    {
-      "id": "US-5",
-      "title": "Login Window Shared Content Counter",
-      "description": "Add a 'Shared Resources' row to the Patreon login window showing activation count vs tier limit.\n\nLocation: After RAG status indicator, before quota section in patreon-login.hbs.\n\nDisplay formats:\n- Normal: 'Shared Resources: n / m activated' with [Manage] link\n- Premium: 'Shared Resources: n activated (unlimited)' with [Manage] link\n- Free tier: 'Shared Resources: Upgrade to access' with Patreon link\n\nVisual indicators:\n- Green when n < m (can activate more)\n- Yellow when n == m (at limit)\n- Grey when m == 0 (free tier)\n\nData source: Call getSharedTierStatus() during _fetchQuota() in patreon-login-ui.mjs.\n[Manage] link opens Content Manager to PDFs tab.\n\nAdd Handlebars helper 'sharedTierLevel' returning 'available', 'at-limit', or 'none'.",
-      "acceptanceCriteria": [
-        "Shared Resources row appears in login window after RAG status, before quota",
-        "Shows 'n / m activated' format for basic/pro tiers",
-        "Shows 'n activated (unlimited)' for premium tier",
-        "Shows 'Upgrade to access' with Patreon link for free tier",
-        "Green indicator when under limit, yellow at limit, grey for free tier",
-        "[Manage] link opens Content Manager",
-        "Data fetched via getSharedTierStatus() during _fetchQuota()",
-        "Handlebars helper sharedTierLevel registered in loremaster.mjs"
-      ],
-      "priority": 3,
-      "passes": true,
-      "notes": "Completed: Added Shared Resources row to Patreon login window with tier status display, color-coded indicators, and [Manage] link to open Content Manager."
+      "priority": 2
     },
     {
       "id": "US-2",
-      "title": "Submit Content for Sharing",
-      "description": "Add a 'Share' button to each completed PDF tile in 'Your Documents', allowing users to submit their content to the shared library for admin review.\n\nPDF tile changes:\n- Add share button (fa-share-alt icon) next to delete button\n- Only visible for PDFs with processing_status: 'completed'\n- Clicking opens a confirmation dialog with:\n  - Content title (pre-filled from PDF display_name)\n  - Publisher field (text input, optional)\n  - Description field (textarea, optional)\n  - 'Submit for Review' / 'Cancel' buttons\n\nBehavior:\n- On submit: call submitToSharedLibrary('pdf', contentId, publisher, description)\n- Success: show 'Submitted for review' notification, disable share button, show 'Pending Review' label\n- Already exists: show 'Content already exists in the shared library' notification\n- Error: show user-friendly error message via ui.notifications",
+      "title": "Wire i18n Keys in Patreon Login UI and Settings Account Panel",
+      "description": "Replace hardcoded English strings in patreon-login.hbs, patreon-login-ui.mjs, and the inline account panel in config.mjs with i18n calls.\n\nFiles to modify:\n\n1. templates/patreon-login.hbs:\n   - Replace all hardcoded text with {{localize 'LOREMASTER.PatreonLogin.X'}} calls\n   - Key mappings: 'Connect Your Account' → ConnectAccount, 'Sign in with Patreon' → SignInBtn, 'or' → Or, 'Paste Token Manually' → PasteTokenBtn, etc.\n   - For shared resources section: use PatreonLogin keys (SharedResources, ActivatedUnlimited, ManageLink, UpgradeAccess, ActivatedCount)\n   - 'Connected' → Connected, 'Advanced RAG Enabled' → RAGEnabled, 'Monthly Usage' → MonthlyUsage, 'Sign Out' → SignOut, etc.\n\n2. scripts/patreon-login-ui.mjs:\n   - Sign out dialog: Replace title/content strings with game.i18n.localize calls\n   - Paste token dialog: Replace all labels, placeholders, and button text\n   - Notification messages: Replace with game.i18n.localize/format calls\n   - Keep fallback || patterns for safety\n\n3. scripts/config.mjs (inline account panel):\n   - In _buildLoggedOutPanel(): Replace hardcoded text with game.i18n?.localize calls\n   - In _buildLoggingInPanel(): Same treatment\n   - In _buildLoggedInPanel(): Replace all status/tier/quota/shared resource text\n   - In _buildErrorPanel(): Replace error state text\n   - In _handleSignOut(): Replace dialog title/content\n   - In _handlePasteToken(): Replace dialog strings\n   - In _insertSectionHeaders(): Replace section labels with game.i18n calls using SettingsPanel keys\n   - Section headers: 'Account' → SettingsPanel.AccountSection, 'Connection' → SettingsPanel.ConnectionSection, etc.\n\nIMPORTANT: The patreon-login.hbs template uses Handlebars {{localize}} helper. The JS files (patreon-login-ui.mjs, config.mjs) use game.i18n.localize() / game.i18n.format().",
       "acceptanceCriteria": [
-        "Share button (fa-share-alt) appears on completed PDF tiles next to delete button",
-        "Share button NOT shown for PDFs with non-completed processing status",
-        "Clicking Share opens confirmation dialog with title, publisher, description fields",
-        "Title field pre-filled from PDF display_name",
-        "Submit calls submitToSharedLibrary with correct params",
-        "Success shows 'Submitted for review' notification and disables button",
-        "Already-exists case shows appropriate notification",
-        "Error handling with user-friendly messages via ui.notifications"
+        "All hardcoded strings in patreon-login.hbs replaced with {{localize}} calls",
+        "All hardcoded strings in patreon-login-ui.mjs dialogs/notifications replaced with game.i18n calls",
+        "All hardcoded strings in config.mjs account panel builders and section headers replaced with game.i18n calls",
+        "Section header labels use LOREMASTER.SettingsPanel keys",
+        "Parameterized strings use game.i18n.format() with correct parameters",
+        "Fallback || patterns used in JS for safety",
+        "No functional behavior changes — only string source changes"
       ],
-      "priority": 4,
-      "passes": true,
-      "notes": "Completed: Added share button to completed PDF tiles. Dialog opens with title (read-only), publisher, and description fields. Submits via submitToSharedLibrary() with proper error handling for all cases."
-    },
-    {
-      "id": "US-4",
-      "title": "Shared Adventures on Active Adventure Tab",
-      "description": "Add activated shared adventures to the adventure selector dropdown on the Active Adventure tab.\n\nChanges:\n- In _loadAdventureData(), also fetch activated shared content and filter for adventure categories (adventure, adventure_supplement)\n- Add sharedAdventures to getData() return\n- In the template, add a third <optgroup label='Shared Adventures'> after PDF and Module groups\n- When a shared adventure is selected, call setActiveAdventure('shared', sharedContentId)\n- When active adventure is a shared one, show a 'Shared' badge in the display\n- Hide GM Prep and delete buttons for shared adventures\n\nIMPORTANT: Verify if the backend set-active-adventure handler supports adventure_type: 'shared'. If not, document what backend change is needed in the notes field.",
-      "acceptanceCriteria": [
-        "Adventure selector dropdown includes 'Shared Adventures' optgroup section",
-        "Only activated shared content with adventure/adventure_supplement category appears",
-        "Selecting a shared adventure sets it as active adventure",
-        "Active adventure display shows 'Shared' badge when shared adventure is active",
-        "GM Prep and delete buttons are hidden for shared adventures",
-        "Backend compatibility verified or documented in notes"
-      ],
-      "priority": 5,
-      "passes": true,
-      "notes": "Completed: Added shared adventures to Active Adventure tab. UI sends adventure_type: 'shared' to backend. Backend compatibility needs verification - the set-active-adventure handler may need to be updated to recognize 'shared' as a valid adventure type alongside 'pdf' and 'module'. If backend doesn't support it yet, needs to be added to loremaster-proxy Elixir handlers."
+      "priority": 3
     },
     {
       "id": "US-3",
-      "title": "Admin Controls Dialog for Shared Content",
-      "description": "Create a dedicated admin dialog for managing shared content, accessible from the Content Manager header.\n\nNew files:\n- scripts/shared-content-admin.mjs — SharedContentAdmin extends Application\n- templates/shared-content-admin.hbs — Admin dialog template\n\nAdmin button:\n- Appears in Content Manager header, visible only to admin users\n- Admin detection: check if authenticated user email matches admin list (backend enforces via ADMIN_EMAILS env var; on client, attempt admin-list-pending-shared and cache success/failure, or check an is_admin flag if available from auth status)\n\nAdmin dialog has two tabs:\n1. Pending Review:\n   - List of pending items: title, submitter, category, content type, submission date\n   - Approve button (green) → admin-approve-shared → success notification → remove from list\n   - Reject button (red) → admin-reject-shared → success notification → remove from list\n   - Empty state message\n\n2. Published:\n   - List of published items: title, publisher, category, type, publish date\n   - Remove button → admin-remove-shared\n   - 'Direct Publish' button in header → opens dialog to select PDF → admin-publish-pdf\n   - Empty state message\n\nAdmin account: digitsu@gmail.com",
+      "title": "Connection Status Header Bar Component",
+      "description": "Create a persistent, compact status bar that shows Loremaster's connection state at a glance. This bar appears below the Foundry navigation/scene bar and above the canvas area. It is always visible while Loremaster is enabled, providing instant feedback about server connectivity.\n\nNew file: scripts/status-bar.mjs\n\nClass: StatusBar\n- Follows the same pattern as ProgressBar and BatchUI: creates a DOM element in initialize(), toggles visibility/state with methods\n- Singleton instance exported as `statusBar`\n\nDOM structure:\n```html\n<div id=\"loremaster-status-bar\" class=\"loremaster-status-bar loremaster-status--connected\">\n  <div class=\"loremaster-status-content\">\n    <i class=\"fas fa-hat-wizard loremaster-status-icon\"></i>\n    <span class=\"loremaster-status-label\">Loremaster</span>\n    <span class=\"loremaster-status-state\">Connected</span>\n    <span class=\"loremaster-status-detail\">Pro · 1.2M / 2M tokens</span>\n  </div>\n</div>\n```\n\nStates (each has a CSS class and icon):\n- connected: Green dot, shows tier + quota summary (e.g., 'Pro · 1.2M / 2M'). Auto-collapses to just the icon after 5 seconds.\n- connecting: Yellow spinner, 'Connecting...'\n- disconnected: Red dot, 'Disconnected'\n- reconnecting: Yellow spinner, 'Reconnecting ({attempt}/{max})...'\n- auth-required: Orange lock icon, 'Sign in required' — clicking opens settings\n- disabled: Grey, 'Disabled' (when module is off)\n\nPositioning:\n- Fixed position below the top Foundry nav bar (#navigation)\n- Left-aligned, compact pill shape\n- z-index below dialogs but above canvas\n- Subtle, non-intrusive — small font, muted colors, transparent background\n\nAuto-collapse behavior:\n- After connection is stable for 5 seconds, collapse to just the wizard hat icon (hover to expand)\n- While disconnected/reconnecting/auth-required, stay expanded\n- Click the bar to expand/collapse manually\n\nIntegration points (in loremaster.mjs):\n- Import and initialize statusBar in the 'ready' hook (after progressBar.initialize())\n- After successful initializeLoremaster(): call statusBar.setConnected(tierName, tokensUsed, tokensLimit)\n- In showPatreonLoginPrompt(): call statusBar.setAuthRequired()\n- Wire socketClient events:\n  - On disconnect: statusBar.setDisconnected()\n  - On reconnect attempt: statusBar.setReconnecting(attempt, max)\n  - On reconnect success: statusBar.setConnected(...)\n  - On auth required: statusBar.setAuthRequired()\n- When module is disabled (enabled=false): statusBar.setDisabled()\n- Click handler on auth-required state: open game.settings.sheet.render(true)\n\nCSS (inline in the module, same pattern as progress-bar.mjs):\n- Use Foundry CSS variables for theming\n- Smooth transitions for state changes\n- Collapse/expand animation\n- All classes prefixed with loremaster-status-\n\ni18n: Use the LOREMASTER.Connection keys added in US-0 for all status text.\n\nIMPORTANT: The status bar only needs to read `game.loremaster.socketClient.isConnected` and auth manager state — it does NOT manage connections itself. It's purely a display component.",
       "acceptanceCriteria": [
-        "New SharedContentAdmin Application class in scripts/shared-content-admin.mjs with JSDoc",
-        "New template in templates/shared-content-admin.hbs",
-        "Admin button visible in Content Manager header only for admin users",
-        "Admin detection works (attempt admin call or check flag)",
-        "Pending Review tab lists pending items with Approve and Reject buttons",
-        "Approve sends admin-approve-shared and removes item from list",
-        "Reject sends admin-reject-shared and removes item from list",
-        "Published tab lists published items with Remove button",
-        "Direct Publish button opens dialog to select PDF and publish it",
-        "Empty states for both tabs",
-        "CSS styles for admin dialog"
+        "New scripts/status-bar.mjs file with StatusBar class and singleton export",
+        "StatusBar creates a persistent DOM element below Foundry's nav bar",
+        "All 6 states render correctly: connected, connecting, disconnected, reconnecting, auth-required, disabled",
+        "Connected state shows tier and quota summary",
+        "Auto-collapse after 5 seconds in connected state",
+        "Click to expand/collapse toggle",
+        "Click in auth-required state opens Foundry settings",
+        "i18n keys used for all displayed text with fallback patterns",
+        "CSS styles use Foundry CSS variables and loremaster-status- prefix",
+        "StatusBar initialized in loremaster.mjs ready hook",
+        "StatusBar state updated at all connection lifecycle points in loremaster.mjs",
+        "StatusBar state updated in socket-client.mjs disconnect/reconnect handlers",
+        "No functional changes to existing connection logic — display only"
       ],
-      "priority": 6,
-      "passes": true,
-      "notes": "Completed: Created SharedContentAdmin Application class and template. Admin button appears in Content Manager header only for admin users (detected via adminListPendingShared() attempt, cached). Pending Review tab shows pending items with approve/reject actions. Published tab shows published items with remove action and direct publish button. All actions include proper error handling and notifications. Empty states for both tabs. Comprehensive CSS styles added."
+      "priority": 4
     }
   ]
 }
