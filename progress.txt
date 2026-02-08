@@ -514,3 +514,60 @@ The final priority story is US-3 (Admin Controls Dialog for Shared Content), whi
 
 All 6 user stories from the Shared Content UI PRD have been successfully implemented and pass acceptance criteria. The feature is complete and ready for testing.
 
+---
+
+# P2 Polish PRD Progress
+
+## Session 7 - 2026-02-08
+
+### Completed: US-0 - Add i18n Keys to lang/en.json
+
+**Files Changed:**
+- lang/en.json (added 92 i18n keys)
+
+**What Was Done:**
+Added 4 new key groups to lang/en.json under LOREMASTER:
+1. SharedContent (39 keys) - All shared content UI strings
+2. PatreonLogin (38 keys) - All login/account UI strings
+3. Connection (9 keys) - Connection status bar strings
+4. SettingsPanel (6 keys) - Section header strings
+
+**Key Learnings:**
+- Parameterized strings use {param} placeholder format (e.g., `{current} / {max}`)
+- JSON validated with Python json.load()
+
+---
+
+## Session 8 - 2026-02-08 (continued)
+
+### Completed: US-1 - Wire i18n Keys in Shared Content UI
+
+**Files Changed:**
+- templates/content-manager.hbs (13 string replacements)
+- scripts/content-manager.mjs (~30 string replacements)
+
+**What Was Done:**
+
+1. **Template (content-manager.hbs):**
+   - Replaced all 13 hardcoded shared content strings with {{localize}} calls
+   - Admin button title/label, Your Documents header, Share to Library title
+   - Shared Library header with tier unlimited localization
+   - Shared badge, publisher prefix, Active badge, Deactivate title
+   - Browse Shared Library button, Shared Adventure type, Shared Adventures optgroup
+
+2. **JavaScript (content-manager.mjs):**
+   - Share dialog: title, labels, placeholders, submit button, notifications
+   - Browse dialog: title (format with system), tier status (format with current/max),
+     empty state, publisher prefix, activate/deactivate buttons, at-limit error,
+     close button, success/error notifications
+   - Deactivate dialog: title, confirm text (format with title), hint, notifications
+   - All JS strings use `game.i18n?.localize()` / `game.i18n?.format()` with `||` fallback
+
+**Key Learnings:**
+- Template uses `{{localize 'KEY'}}` — Handlebars helper
+- JS uses `game.i18n?.localize('KEY') || 'fallback'` — with null safety + fallback
+- Parameterized strings: `game.i18n?.format('KEY', {param: value})`
+- XSS: user-provided strings in deactivate confirm must use `foundry.utils.escapeHtml()`
+
+---
+
