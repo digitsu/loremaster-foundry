@@ -174,6 +174,11 @@ function showPatreonLoginPrompt() {
 async function initializeLoremaster() {
   console.log(`${MODULE_NAME} | Starting Loremaster`);
 
+  // Clean up existing socket to prevent orphaned reconnect timers
+  if (game.loremaster?.socketClient) {
+    game.loremaster.socketClient.disconnect();
+  }
+
   // Create socket client instance
   const socketClient = new SocketClient();
 
@@ -183,6 +188,18 @@ async function initializeLoremaster() {
 
     // Authenticate with proxy server
     await socketClient.authenticate();
+
+    // Wire reconnect lifecycle callbacks (hosted mode auto-reconnect support)
+    socketClient.onAuthRequired = () => {
+      console.log(`${MODULE_NAME} | Session expired, showing login UI`);
+      ui.notifications.warn(`${MODULE_NAME}: Session expired. Please sign in again.`);
+      showPatreonLoginPrompt();
+    };
+
+    socketClient.onPermanentDisconnect = () => {
+      console.log(`${MODULE_NAME} | Permanently disconnected`);
+      // No additional action needed — user can use Account button to re-login
+    };
 
     // Register tool handlers for Claude tool use
     registerToolHandlers(socketClient);

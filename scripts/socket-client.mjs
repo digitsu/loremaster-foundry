@@ -50,7 +50,12 @@ export class SocketClient {
     this.reconnectAttempts = 0;
     this.maxReconnectAttempts = 5;
     this.reconnectDelay = 2000;
+    this.reconnectTimer = null;  // Stores setTimeout ID for pending reconnect
     this.toolHandlers = new Map();
+
+    // Callbacks for reconnect lifecycle events
+    this.onAuthRequired = null;          // Called when session expires during reconnect
+    this.onPermanentDisconnect = null;   // Called when all reconnect attempts are exhausted
 
     // Hosted mode properties
     this.tier = null;           // User's subscription tier (basic, pro, premium)
@@ -173,6 +178,20 @@ export class SocketClient {
       clearInterval(this.heartbeatInterval);
       this.heartbeatInterval = null;
       console.log(`${MODULE_ID} | Phoenix heartbeat stopped`);
+    }
+  }
+
+  /**
+   * Cancel any pending reconnect timer.
+   * Prevents orphaned reconnect attempts when the client is being replaced.
+   *
+   * @private
+   */
+  _cancelReconnect() {
+    if (this.reconnectTimer) {
+      clearTimeout(this.reconnectTimer);
+      this.reconnectTimer = null;
+      console.log(`${MODULE_ID} | Reconnect timer cancelled`);
     }
   }
 
@@ -2264,13 +2283,17 @@ export class SocketClient {
   }
 
   /**
-   * Disconnect from the proxy server.
+   * Cleanly disconnect from the proxy server.
+   * Cancels heartbeat and reconnect timers, closes the WebSocket,
+   * and rejects all pending requests. Prevents _handleDisconnect from
+   * firing so no orphaned reconnect attempts are created.
    */
   disconnect() {
-    // Stop Phoenix heartbeat
     this._stopHeartbeat();
+    this._cancelReconnect();
 
     if (this.ws) {
+      this.ws.onclose = null;  // Prevent _handleDisconnect from firing
       this.ws.close();
       this.ws = null;
     }
@@ -2282,6 +2305,14 @@ export class SocketClient {
     // Reset Phoenix-specific state
     this.joinedTopic = false;
     this.topic = null;
+
+    // Reject all pending requests
+    for (const [, pending] of this.pendingRequests) {
+      pending.reject(new Error('Disconnected'));
+    }
+    this.pendingRequests.clear();
+
+    console.log(`${MODULE_ID} | Socket client disconnected`);
   }
 
   /**
@@ -3018,28 +3049,35 @@ export class SocketClient {
    */
   _handleDisconnect() {
     // Reject all pending requests
-    for (const [requestId, pending] of this.pendingRequests) {
+    for (const [, pending] of this.pendingRequests) {
       pending.reject(new Error('Connection lost'));
     }
     this.pendingRequests.clear();
 
-    // Attempt reconnect
+    // Attempt reconnect with exponential backoff
     if (this.reconnectAttempts < this.maxReconnectAttempts) {
       this.reconnectAttempts++;
       const delay = this.reconnectDelay * this.reconnectAttempts;
       console.log(`${MODULE_ID} | Reconnecting in ${delay}ms (attempt ${this.reconnectAttempts})`);
 
-      setTimeout(async () => {
+      this.reconnectTimer = setTimeout(async () => {
+        this.reconnectTimer = null;
         try {
           await this.connect();
           await this.authenticate();
           ui.notifications.info('Loremaster reconnected to server');
         } catch (error) {
           console.error(`${MODULE_ID} | Reconnect failed:`, error);
+          if (error.message === 'PATREON_AUTH_REQUIRED') {
+            // Session expired — stop retrying and request re-login
+            this.reconnectAttempts = this.maxReconnectAttempts;
+            this.onAuthRequired?.();
+          }
         }
       }, delay);
     } else {
       ui.notifications.error('Loremaster lost connection to server');
+      this.onPermanentDisconnect?.();
     }
   }
 
