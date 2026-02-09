@@ -2983,13 +2983,7 @@ export class ContentManager extends Application {
     const dialog = new Dialog({
       title: game.i18n?.format('LOREMASTER.SharedContent.BrowseDialogTitle', { system: game.system.title }) || `Shared Library — ${game.system.title}`,
       content: dialogContent,
-      buttons: {
-        close: {
-          icon: '<i class="fas fa-times"></i>',
-          label: game.i18n?.localize('LOREMASTER.SharedContent.CloseBtn') || 'Close'
-        }
-      },
-      default: 'close',
+      buttons: {},
       render: (html) => {
         // Category filter handlers
         html.find('.shared-category-filter').on('click', (e) => {
