@@ -14,6 +14,16 @@ import { SharedContentAdmin } from './shared-content-admin.mjs';
 const MODULE_ID = 'loremaster';
 
 /**
+ * Escape HTML special characters to prevent XSS in user-provided strings.
+ * @param {string} text - Raw text to escape
+ * @returns {string} HTML-safe string
+ */
+function _escapeHtml(text) {
+  const escapeMap = { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#039;' };
+  return String(text).replace(/[&<>"']/g, char => escapeMap[char]);
+}
+
+/**
  * Register Handlebars helpers for the Content Manager template.
  * Called once during module initialization.
  */
@@ -637,7 +647,7 @@ export class ContentManager extends Application {
     const shareButton = event.currentTarget;
 
     // Escape user-provided strings to prevent XSS
-    const escapedName = foundry.utils.escapeHtml(pdfName);
+    const escapedName = _escapeHtml(pdfName);
 
     // Create submission dialog
     new Dialog({
@@ -2883,7 +2893,7 @@ export class ContentManager extends Application {
         const truncatedDesc = rawDesc.length > 120 ? rawDesc.substring(0, 120) + '...' : rawDesc;
 
         // Escape all user-provided strings to prevent XSS
-        const esc = foundry.utils.escapeHtml;
+        const esc = _escapeHtml;
         const safeTitle = esc(item.title);
         const safePublisher = esc(item.publisher || 'Unknown');
         const safeDesc = esc(truncatedDesc);
@@ -3016,7 +3026,7 @@ export class ContentManager extends Application {
     if (!sharedId) return;
 
     // Confirm deactivation
-    const escapedTitle = foundry.utils.escapeHtml(sharedTitle);
+    const escapedTitle = _escapeHtml(sharedTitle);
     const confirmText = game.i18n?.format('LOREMASTER.SharedContent.DeactivateConfirm', { title: escapedTitle }) || `Deactivate <strong>${escapedTitle}</strong>?`;
     const hintText = game.i18n?.localize('LOREMASTER.SharedContent.DeactivateHint') || 'This will remove it from your active documents.';
     const confirmed = await Dialog.confirm({
