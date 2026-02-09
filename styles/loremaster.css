@@ -5251,3 +5251,121 @@
   font-size: 1.1em;
   margin: 0;
 }
+
+/* ===== Pending Review Cards in Browse Panel ===== */
+
+/* Pending card — amber left border and subtle background tint */
+.shared-content-card.pending {
+  border-left: 4px solid #f59e0b;
+  background: rgba(245, 158, 11, 0.05);
+}
+
+.shared-content-card.pending:hover {
+  border-color: #d97706;
+  background: rgba(245, 158, 11, 0.1);
+}
+
+/* Pending badge — amber pill displayed in card header */
+.pending-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
+  color: white;
+  padding: 2px 8px;
+  border-radius: 10px;
+  font-size: 0.75em;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+}
+
+/* Submitter info line in pending cards */
+.shared-content-card.pending .card-submitter {
+  font-size: 0.8em;
+  color: #92400e;
+  margin: 2px 0;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+/* Admin footer with approve/reject side by side */
+.card-footer-admin {
+  display: flex;
+  gap: 8px;
+}
+
+/* Approve button — green */
+.approve-card-btn {
+  flex: 1;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  padding: 6px 12px;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 0.85em;
+  font-weight: 600;
+  transition: all 0.2s;
+  background: linear-gradient(135deg, #22c55e 0%, #16a34a 100%);
+  color: white;
+}
+
+.approve-card-btn:hover:not(:disabled) {
+  background: linear-gradient(135deg, #16a34a 0%, #15803d 100%);
+  box-shadow: 0 2px 6px rgba(22, 163, 74, 0.4);
+}
+
+.approve-card-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* Reject button — red */
+.reject-card-btn {
+  flex: 1;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  padding: 6px 12px;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 0.85em;
+  font-weight: 600;
+  transition: all 0.2s;
+  background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
+  color: white;
+}
+
+.reject-card-btn:hover:not(:disabled) {
+  background: linear-gradient(135deg, #dc2626 0%, #b91c1c 100%);
+  box-shadow: 0 2px 6px rgba(220, 38, 38, 0.4);
+}
+
+.reject-card-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* Pending Review filter button — amber highlight */
+.shared-category-filter.pending-filter {
+  background: rgba(245, 158, 11, 0.15);
+  border-color: rgba(245, 158, 11, 0.5);
+  color: #92400e;
+  font-weight: 600;
+}
+
+.shared-category-filter.pending-filter:hover {
+  background: rgba(245, 158, 11, 0.25);
+  border-color: rgba(245, 158, 11, 0.7);
+}
+
+.shared-category-filter.pending-filter.active {
+  background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
+  color: white;
+  border-color: #d97706;
+}

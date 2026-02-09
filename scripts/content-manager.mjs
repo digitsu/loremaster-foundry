@@ -2859,9 +2859,23 @@ export class ContentManager extends Application {
       module: 'fa-cube'
     };
 
+    // Fetch pending items for admins
+    let pendingItems = [];
+    if (this._isAdmin) {
+      try {
+        const pendingResult = await this.socketClient.adminListPendingShared();
+        pendingItems = pendingResult.pending || [];
+      } catch (error) {
+        console.error(`${MODULE_ID} | Failed to fetch pending items:`, error);
+      }
+    }
+
     // Build category filter buttons
     let filterButtons = '<div class="shared-category-filters">';
     filterButtons += '<button class="shared-category-filter active" data-category="all">All</button>';
+    if (this._isAdmin && pendingItems.length > 0) {
+      filterButtons += `<button class="shared-category-filter pending-filter" data-category="pending"><i class="fas fa-clock"></i> Pending Review (${pendingItems.length})</button>`;
+    }
     for (const cat of categories) {
       filterButtons += `<button class="shared-category-filter" data-category="${cat}">${categoryLabels[cat]}</button>`;
     }
@@ -2883,7 +2897,42 @@ export class ContentManager extends Application {
     // Build card grid
     let cardGrid = '<div class="shared-library-grid">';
 
-    if (this.sharedContent.length === 0) {
+    // Render pending items for admins (shown at top with amber styling)
+    if (this._isAdmin && pendingItems.length > 0) {
+      for (const item of pendingItems) {
+        const rawDesc = item.description || 'No description provided.';
+        const truncatedDesc = rawDesc.length > 120 ? rawDesc.substring(0, 120) + '...' : rawDesc;
+
+        const esc = _escapeHtml;
+        const safeTitle = esc(item.title);
+        const safePublisher = esc(item.publisher || 'Unknown');
+        const safeSubmitter = esc(item.submitterName || item.submitter_name || 'Unknown');
+        const safeDesc = esc(truncatedDesc);
+        const safeCategory = esc(item.category || 'unknown');
+        const safeId = esc(String(item.id));
+
+        cardGrid += `
+          <div class="shared-content-card pending" data-category="pending" data-shared-id="${safeId}">
+            <div class="card-header">
+              <i class="fas ${typeIcons[item.contentType || item.content_type] || 'fa-file'}"></i>
+              <span class="pending-badge"><i class="fas fa-clock"></i> Pending Review</span>
+            </div>
+            <div class="card-body">
+              <h4 class="card-title">${safeTitle}</h4>
+              <p class="card-publisher">by ${safePublisher}</p>
+              <p class="card-submitter"><i class="fas fa-user"></i> Submitted by ${safeSubmitter}</p>
+              <p class="card-description">${safeDesc}</p>
+            </div>
+            <div class="card-footer card-footer-admin">
+              <button class="approve-card-btn" data-shared-id="${safeId}"><i class="fas fa-check"></i> Approve</button>
+              <button class="reject-card-btn" data-shared-id="${safeId}"><i class="fas fa-times"></i> Reject</button>
+            </div>
+          </div>
+        `;
+      }
+    }
+
+    if (this.sharedContent.length === 0 && pendingItems.length === 0) {
       cardGrid += `<div class="empty-state"><i class="fas fa-box-open"></i><p>${game.i18n?.localize('LOREMASTER.SharedContent.NoSharedContent') || 'No shared content available for this game system yet.'}</p></div>`;
     } else {
       for (const item of this.sharedContent) {
@@ -2948,9 +2997,12 @@ export class ContentManager extends Application {
           html.find('.shared-category-filter').removeClass('active');
           filterBtn.addClass('active');
 
-          // Filter cards
+          // Filter cards — "all" shows everything, "pending" shows only pending, others show by category
           if (category === 'all') {
             html.find('.shared-content-card').show();
+          } else if (category === 'pending') {
+            html.find('.shared-content-card').hide();
+            html.find('.shared-content-card.pending').show();
           } else {
             html.find('.shared-content-card').hide();
             html.find(`.shared-content-card[data-category="${category}"]`).show();
@@ -2996,6 +3048,80 @@ export class ContentManager extends Application {
             console.error(`${MODULE_ID} | Failed to deactivate shared content:`, error);
             ui.notifications.error(game.i18n?.format('LOREMASTER.SharedContent.SubmitError', { error: error.message }) || `Failed to deactivate: ${error.message}`);
             btn.prop('disabled', false);
+          }
+        });
+
+        // Admin approve button handlers
+        html.find('.approve-card-btn').on('click', async (e) => {
+          const btn = $(e.currentTarget);
+          const sharedId = btn.data('shared-id');
+          if (!sharedId) return;
+
+          try {
+            btn.prop('disabled', true);
+            btn.closest('.card-footer-admin').find('button').prop('disabled', true);
+            await this.socketClient.adminApproveShared(sharedId);
+            ui.notifications.info('Content approved and published successfully.');
+
+            // Remove the card from the dialog with a fade animation
+            const card = btn.closest('.shared-content-card');
+            card.fadeOut(300, () => {
+              card.remove();
+              // Update pending count in filter button
+              const pendingBtn = html.find('.pending-filter');
+              const remainingPending = html.find('.shared-content-card.pending').length;
+              if (remainingPending === 0) {
+                pendingBtn.remove();
+              } else {
+                pendingBtn.html(`<i class="fas fa-clock"></i> Pending Review (${remainingPending})`);
+              }
+            });
+          } catch (error) {
+            console.error(`${MODULE_ID} | Failed to approve shared content:`, error);
+            ui.notifications.error(`Failed to approve: ${error.message}`);
+            btn.closest('.card-footer-admin').find('button').prop('disabled', false);
+          }
+        });
+
+        // Admin reject button handlers
+        html.find('.reject-card-btn').on('click', async (e) => {
+          const btn = $(e.currentTarget);
+          const sharedId = btn.data('shared-id');
+          if (!sharedId) return;
+
+          // Confirm rejection before proceeding
+          const confirmed = await Dialog.confirm({
+            title: 'Reject Submission',
+            content: '<p>Are you sure you want to reject this submission? This action cannot be undone.</p>',
+            yes: () => true,
+            no: () => false,
+            defaultYes: false
+          });
+          if (!confirmed) return;
+
+          try {
+            btn.prop('disabled', true);
+            btn.closest('.card-footer-admin').find('button').prop('disabled', true);
+            await this.socketClient.adminRejectShared(sharedId);
+            ui.notifications.info('Content rejected and removed from queue.');
+
+            // Remove the card from the dialog with a fade animation
+            const card = btn.closest('.shared-content-card');
+            card.fadeOut(300, () => {
+              card.remove();
+              // Update pending count in filter button
+              const pendingBtn = html.find('.pending-filter');
+              const remainingPending = html.find('.shared-content-card.pending').length;
+              if (remainingPending === 0) {
+                pendingBtn.remove();
+              } else {
+                pendingBtn.html(`<i class="fas fa-clock"></i> Pending Review (${remainingPending})`);
+              }
+            });
+          } catch (error) {
+            console.error(`${MODULE_ID} | Failed to reject shared content:`, error);
+            ui.notifications.error(`Failed to reject: ${error.message}`);
+            btn.closest('.card-footer-admin').find('button').prop('disabled', false);
           }
         });
       },
