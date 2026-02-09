@@ -38,6 +38,10 @@ jobs:
           rm -rf TODO.md
           rm -rf docs/
 
+          # Remove PRD and progress tracking files
+          rm -rf prd.json
+          rm -rf progress.txt
+
           # Remove macOS metadata files
           find . -name ".DS_Store" -type f -delete
 
@@ -50,6 +54,8 @@ jobs:
           echo "  - .claude/"
           echo "  - TODO.md"
           echo "  - docs/"
+          echo "  - prd.json"
+          echo "  - progress.txt"
           echo "  - .DS_Store (all)"
           echo "  - .github/workflows/publish-public.yml"
           echo ""
@@ -71,8 +77,9 @@ jobs:
       - name: Scrub AI attribution from commit messages
         run: |
           # Remove Co-Authored-By lines and Claude Code generated lines from all commits
+          # Case-insensitive match to catch all variants (Co-Authored-By, co-authored-by, etc.)
           FILTER_BRANCH_SQUELCH_WARNING=1 git filter-branch --msg-filter '
-            sed "/^Co-Authored-By:.*$/d" | sed "/.*Generated with \[Claude Code\].*/d"
+            sed "/^[Cc]o-[Aa]uthored-[Bb]y:.*$/d" | sed "/.*Generated with \[Claude Code\].*/d"
           ' --force -- --all
           rm -rf .git/refs/original
 
