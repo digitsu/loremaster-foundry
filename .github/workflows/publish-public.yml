@@ -95,9 +95,9 @@ jobs:
         if: github.event_name == 'release'
         env:
           GH_TOKEN: ${{ secrets.PUBLIC_REPO_TOKEN }}
+          RELEASE_BODY: ${{ github.event.release.body }}
         run: |
           TAG="${{ github.event.release.tag_name }}"
-          BODY="${{ github.event.release.body }}"
 
           # Check if release already exists on public repo
           if gh release view "$TAG" --repo digitsu/loremaster-foundry > /dev/null 2>&1; then
@@ -105,11 +105,20 @@ jobs:
             exit 0
           fi
 
+          # Write release body to temp file to avoid bash interpretation of backticks
+          NOTES_FILE=$(mktemp)
+          if [ -n "$RELEASE_BODY" ]; then
+            printf '%s' "$RELEASE_BODY" > "$NOTES_FILE"
+          else
+            echo "Release $TAG" > "$NOTES_FILE"
+          fi
+
           # Create the release on the public repo
           # The release.yml workflow on the public repo will handle building assets
           gh release create "$TAG" \
             --repo digitsu/loremaster-foundry \
             --title "$TAG" \
-            --notes "${BODY:-Release $TAG}"
+            --notes-file "$NOTES_FILE"
 
+          rm -f "$NOTES_FILE"
           echo "Created release $TAG on digitsu/loremaster-foundry"
