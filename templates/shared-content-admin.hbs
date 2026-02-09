@@ -49,11 +49,11 @@
                   </span>
                 </td>
                 <td>
-                  <i class="fas fa-{{#if (eq this.contentType 'pdf')}}file-pdf{{else}}book{{/if}}"></i>
-                  {{this.contentType}}
+                  <i class="fas fa-{{#if (eq this.content_type 'pdf')}}file-pdf{{else}}book{{/if}}"></i>
+                  {{this.content_type}}
                 </td>
-                <td class="submitter-cell">{{this.submitter}}</td>
-                <td class="date-cell">{{this.submittedAt}}</td>
+                <td class="submitter-cell">{{this.published_by}}</td>
+                <td class="date-cell">{{this.inserted_at}}</td>
                 <td class="actions-cell">
                   <button type="button" class="approve-btn" data-shared-content-id="{{this.id}}" title="Approve and publish">
                     <i class="fas fa-check"></i> Approve
@@ -105,10 +105,10 @@
                   </span>
                 </td>
                 <td>
-                  <i class="fas fa-{{#if (eq this.contentType 'pdf')}}file-pdf{{else}}book{{/if}}"></i>
-                  {{this.contentType}}
+                  <i class="fas fa-{{#if (eq this.content_type 'pdf')}}file-pdf{{else}}book{{/if}}"></i>
+                  {{this.content_type}}
                 </td>
-                <td class="date-cell">{{this.publishedAt}}</td>
+                <td class="date-cell">{{this.published_at}}</td>
                 <td class="actions-cell">
                   <button type="button" class="remove-btn" data-shared-content-id="{{this.id}}" data-title="{{this.title}}" title="Remove from shared library">
                     <i class="fas fa-trash"></i> Remove

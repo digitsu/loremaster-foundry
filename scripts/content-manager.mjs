@@ -2837,6 +2837,9 @@ export class ContentManager extends Application {
   async _onBrowseSharedLibrary(event) {
     event.preventDefault();
 
+    // Refresh shared content data before opening the browse dialog
+    await this._loadSharedContentData();
+
     // Build the dialog content
     const categories = [
       'core_rules',

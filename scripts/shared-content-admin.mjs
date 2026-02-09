@@ -25,6 +25,7 @@ export class SharedContentAdmin extends Application {
     this.pendingItems = [];
     this.publishedItems = [];
     this.userPdfs = [];
+    this._dataLoaded = false;
   }
 
   /**
@@ -96,15 +97,15 @@ export class SharedContentAdmin extends Application {
       const pendingResult = await this.socketClient.adminListPendingShared();
       this.pendingItems = pendingResult.pending || [];
 
-      // Load published shared content
+      // Load published shared content (listSharedContent only returns published items)
       const sharedResult = await this.socketClient.listSharedContent();
-      this.publishedItems = (sharedResult.content || []).filter(item => item.status === 'published');
+      this.publishedItems = sharedResult.content || [];
 
       // Load user's PDFs for direct publish
       const pdfsResult = await this.socketClient.listPDFs();
       this.userPdfs = pdfsResult || [];
 
-      this.render(false);
+      this._dataLoaded = true;
     } catch (error) {
       console.error(`${MODULE_ID} | Failed to load admin data:`, error);
       ui.notifications.error('Failed to load admin data. See console for details.');
@@ -119,8 +120,11 @@ export class SharedContentAdmin extends Application {
    * @protected
    */
   async _render(...args) {
+    // Load data before first render, then re-render with populated data
+    if (!this._dataLoaded) {
+      await this._loadData();
+    }
     await super._render(...args);
-    await this._loadData();
   }
 
   /**
@@ -133,17 +137,15 @@ export class SharedContentAdmin extends Application {
   async _onApprove(event) {
     event.preventDefault();
     const button = event.currentTarget;
-    const sharedContentId = parseInt(button.dataset.sharedContentId);
+    const sharedContentId = button.dataset.sharedContentId;
 
     try {
       await this.socketClient.adminApproveShared(sharedContentId);
       ui.notifications.info('Content approved and published successfully.');
 
-      // Remove from pending list
-      this.pendingItems = this.pendingItems.filter(item => item.id !== sharedContentId);
-
-      // Reload data to update published list
-      await this._loadData();
+      // Reload all data and re-render
+      this._dataLoaded = false;
+      this.render(true);
     } catch (error) {
       console.error(`${MODULE_ID} | Failed to approve content:`, error);
       ui.notifications.error('Failed to approve content. See console for details.');
@@ -160,15 +162,15 @@ export class SharedContentAdmin extends Application {
   async _onReject(event) {
     event.preventDefault();
     const button = event.currentTarget;
-    const sharedContentId = parseInt(button.dataset.sharedContentId);
+    const sharedContentId = button.dataset.sharedContentId;
 
     try {
       await this.socketClient.adminRejectShared(sharedContentId);
       ui.notifications.info('Content rejected and removed from queue.');
 
-      // Remove from pending list
-      this.pendingItems = this.pendingItems.filter(item => item.id !== sharedContentId);
-      this.render(false);
+      // Reload all data and re-render
+      this._dataLoaded = false;
+      this.render(true);
     } catch (error) {
       console.error(`${MODULE_ID} | Failed to reject content:`, error);
       ui.notifications.error('Failed to reject content. See console for details.');
@@ -185,7 +187,7 @@ export class SharedContentAdmin extends Application {
   async _onRemove(event) {
     event.preventDefault();
     const button = event.currentTarget;
-    const sharedContentId = parseInt(button.dataset.sharedContentId);
+    const sharedContentId = button.dataset.sharedContentId;
     const title = button.dataset.title || 'this content';
 
     // Confirmation dialog
@@ -203,9 +205,9 @@ export class SharedContentAdmin extends Application {
       await this.socketClient.adminRemoveShared(sharedContentId);
       ui.notifications.info('Content removed from shared library.');
 
-      // Remove from published list
-      this.publishedItems = this.publishedItems.filter(item => item.id !== sharedContentId);
-      this.render(false);
+      // Reload all data and re-render
+      this._dataLoaded = false;
+      this.render(true);
     } catch (error) {
       console.error(`${MODULE_ID} | Failed to remove content:`, error);
       ui.notifications.error('Failed to remove content. See console for details.');
@@ -307,8 +309,9 @@ export class SharedContentAdmin extends Application {
               });
               ui.notifications.info('PDF published to shared library successfully.');
 
-              // Reload data to update published list
-              await this._loadData();
+              // Reload all data and re-render
+              this._dataLoaded = false;
+              this.render(true);
             } catch (error) {
               console.error(`${MODULE_ID} | Failed to publish PDF:`, error);
               if (error.message && error.message.includes('already exists')) {
