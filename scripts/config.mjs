@@ -467,17 +467,62 @@ function enhanceSettingsPanel(app, html) {
   // --- Inject CSS ---
   _injectSettingsStyles(loremasterSection);
 
-  // --- Hide mode-irrelevant fields ---
+  // --- Apply mode-specific layout ---
+  _applyModeLayout(root, loremasterSection, isHosted);
+
+  // --- Listen for mode changes to refresh field visibility ---
+  const modeSelect = root.querySelector(`[name="${MODULE_ID}.serverMode"]`);
+  if (modeSelect) {
+    modeSelect.addEventListener('change', (e) => {
+      const isNowHosted = e.target.value === 'hosted';
+
+      // Reset: show all previously hidden form groups
+      for (const fieldKey of HOSTED_HIDDEN_FIELDS) {
+        const input = root.querySelector(`[name="${MODULE_ID}.${fieldKey}"]`);
+        const formGroup = input?.closest('.form-group');
+        if (formGroup) formGroup.style.display = '';
+      }
+
+      // Remove all injected section headers
+      root.querySelectorAll('.loremaster-settings-section').forEach(el => el.remove());
+
+      // Remove account panel if present
+      const existingPanel = document.getElementById('loremaster-settings-account-panel');
+      if (existingPanel) {
+        if (_settingsAuthUnsubscribe) {
+          _settingsAuthUnsubscribe();
+          _settingsAuthUnsubscribe = null;
+        }
+        existingPanel.remove();
+      }
+
+      // Re-apply layout for the newly selected mode
+      _applyModeLayout(root, loremasterSection, isNowHosted);
+    });
+  }
+}
+
+/**
+ * Apply mode-specific layout to the settings panel.
+ * Hides mode-irrelevant fields, inserts section headers, and injects
+ * the account panel when in hosted mode.
+ *
+ * @param {HTMLElement} root - The settings dialog root element.
+ * @param {HTMLElement} loremasterSection - The Loremaster settings section container.
+ * @param {boolean} isHosted - Whether hosted mode is selected.
+ */
+function _applyModeLayout(root, loremasterSection, isHosted) {
+  // Hide self-hosted-only fields when in hosted mode
   if (isHosted) {
     for (const fieldKey of HOSTED_HIDDEN_FIELDS) {
       _hideFormGroup(root, fieldKey);
     }
   }
 
-  // --- Insert section headers ---
+  // Insert section headers
   _insertSectionHeaders(root, isHosted);
 
-  // --- Inject account panel (hosted mode only) ---
+  // Inject account panel (hosted mode only)
   if (isHosted) {
     _injectAccountPanel(root, loremasterSection);
   }

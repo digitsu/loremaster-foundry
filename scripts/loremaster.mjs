@@ -395,7 +395,13 @@ Hooks.on('getSceneControlButtons', (controls) => {
   // Only show Loremaster controls for the GM
   if (!game.user?.isGM) return;
 
-  // Build the tool definitions for our control group
+  // Build the tool definitions for our control group.
+  // All tools use button: true (action buttons, not mode selectors).
+  // Note: Do NOT set activeTool on the control group to any button tool.
+  // Foundry V13's #onChangeTool has an early return (tool === this.tool)
+  // that fires before the button handler, preventing onChange from being called
+  // on already-active tools. Leaving activeTool unset ensures this.tool is
+  // undefined so the early return never triggers for button tools.
   const loremasterTools = {
     'loremaster-content': {
       name: 'loremaster-content',
@@ -491,14 +497,14 @@ Hooks.on('getSceneControlButtons', (controls) => {
     };
   }
 
-  // Define the top-level Loremaster control group
+  // Define the top-level Loremaster control group.
+  // Note: activeTool is intentionally omitted — see comment on loremasterTools above.
   const loremasterControlGroup = {
     name: 'loremaster',
     order: 11,
     title: game.i18n?.localize('LOREMASTER.SceneControls.Title') || 'Loremaster',
     icon: 'fa-solid fa-hat-wizard',
     visible: true,
-    activeTool: 'loremaster-content',
     tools: loremasterTools
   };
 
