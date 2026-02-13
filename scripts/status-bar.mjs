@@ -312,8 +312,9 @@ export class StatusBar {
       /* Status Bar Container */
       .loremaster-status-bar {
         position: fixed;
-        top: 32px;
-        left: 8px;
+        top: 8px;
+        left: 50%;
+        transform: translateX(-50%);
         z-index: 90;
         background: rgba(26, 26, 46, 0.85);
         border: 1px solid rgba(201, 132, 26, 0.3);
