@@ -498,13 +498,18 @@ export class PatreonLoginUI extends Application {
   async _onSignOut() {
     console.log(`${MODULE_NAME} | Sign out clicked`);
 
-    // Confirm sign out
-    const confirmed = await Dialog.confirm({
-      title: game.i18n?.localize('LOREMASTER.PatreonLogin.SignOutDialogTitle') || 'Sign Out',
-      content: `<p>${game.i18n?.localize('LOREMASTER.PatreonLogin.SignOutConfirm') || 'Are you sure you want to sign out of Loremaster?'}</p>`,
-      yes: () => true,
-      no: () => false,
-      defaultYes: false
+    // Confirm sign out — use explicit Dialog for V13 compatibility
+    const confirmed = await new Promise((resolve) => {
+      new Dialog({
+        title: game.i18n?.localize('LOREMASTER.PatreonLogin.SignOutDialogTitle') || 'Sign Out',
+        content: `<p>${game.i18n?.localize('LOREMASTER.PatreonLogin.SignOutConfirm') || 'Are you sure you want to sign out of Loremaster?'}</p>`,
+        buttons: {
+          yes: { icon: '<i class="fas fa-check"></i>', label: 'Yes', callback: () => resolve(true) },
+          no: { icon: '<i class="fas fa-times"></i>', label: 'No', callback: () => resolve(false) }
+        },
+        default: 'no',
+        close: () => resolve(false)
+      }).render(true);
     });
 
     if (confirmed) {
@@ -536,14 +541,21 @@ export class PatreonLoginUI extends Application {
       </form>
     `;
 
-    const token = await Dialog.prompt({
-      title: game.i18n?.localize('LOREMASTER.PatreonLogin.EnterTokenTitle') || 'Enter Session Token',
-      content,
-      label: game.i18n?.localize('LOREMASTER.PatreonLogin.ConnectBtn') || 'Connect',
-      callback: (html) => {
-        return html.find('input[name="token"]').val()?.trim();
-      },
-      rejectClose: false
+    // Use explicit Dialog for V13 compatibility
+    const token = await new Promise((resolve) => {
+      new Dialog({
+        title: game.i18n?.localize('LOREMASTER.PatreonLogin.EnterTokenTitle') || 'Enter Session Token',
+        content,
+        buttons: {
+          connect: {
+            icon: '<i class="fas fa-plug"></i>',
+            label: game.i18n?.localize('LOREMASTER.PatreonLogin.ConnectBtn') || 'Connect',
+            callback: (html) => resolve(html.find('input[name="token"]').val()?.trim())
+          }
+        },
+        default: 'connect',
+        close: () => resolve(null)
+      }).render(true);
     });
 
     if (token) {
