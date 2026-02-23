@@ -16,7 +16,7 @@ const MODULE_NAME = 'Loremaster';
  * Hosted mode proxy URL.
  * Users connect to this URL when using hosted mode.
  */
-const HOSTED_PROXY_URL = 'wss://elixir.loremastervtt.com/socket/websocket';
+const HOSTED_PROXY_URL = 'wss://api.loremastervtt.com/socket/websocket';
 
 /**
  * Register all module settings.
