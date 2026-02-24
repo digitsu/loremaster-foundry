@@ -86,16 +86,19 @@ export function registerSettings() {
   });
 
   // Session Token (hidden - used internally for hosted mode authentication)
+  // scope: 'client' because this is a per-user credential stored in localStorage,
+  // not a world-level setting. Using 'world' caused Foundry V13 sync issues.
   game.settings.register(MODULE_ID, 'sessionToken', {
-    scope: 'world',
+    scope: 'client',
     config: false,
     type: String,
     default: ''
   });
 
   // Patreon User Info (hidden - cached from OAuth)
+  // scope: 'client' because this is personal user data, not a world-level setting.
   game.settings.register(MODULE_ID, 'patreonUser', {
-    scope: 'world',
+    scope: 'client',
     config: false,
     type: Object,
     default: null
@@ -299,11 +302,16 @@ export function isSelfHostedMode() {
 
 /**
  * Get the session token for hosted mode.
+ * Defensively trims to 64 characters in case a doubled value was previously stored.
  *
- * @returns {string|null} Session token or null if not set.
+ * @returns {string|null} The 64-character hex session token, or null if not set.
  */
 export function getSessionToken() {
-  return getSetting('sessionToken') || null;
+  const raw = getSetting('sessionToken');
+  if (!raw) return null;
+  // Session tokens are exactly 64 hex chars; truncate if a doubled value was stored
+  const token = raw.length > 64 ? raw.substring(0, 64) : raw;
+  return token || null;
 }
 
 /**
