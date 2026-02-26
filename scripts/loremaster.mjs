@@ -20,6 +20,7 @@ import { registerWelcomeSettings, checkAndShowWelcome, openWelcomeJournal } from
 import { createHouseRulesJournal } from './house-rules-journal.mjs';
 import { GMPrepJournalSync } from './gm-prep-journal.mjs';
 import { progressBar } from './progress-bar.mjs';
+import { StatReviewPanel } from './stat-review-panel.mjs';
 import { statusBar } from './status-bar.mjs';
 import { getAuthManager, AuthState, AUTH_STATE_CHANGED_EVENT } from './patreon-auth.mjs';
 import { openPatreonLogin, registerPatreonLoginHelpers } from './patreon-login-ui.mjs';
@@ -283,6 +284,17 @@ async function initializeLoremaster() {
     const gmPrepJournalSync = new GMPrepJournalSync(socketClient);
     gmPrepJournalSync.initialize();
 
+    // Create stat review panel (GM only)
+    const statReviewPanel = new StatReviewPanel(socketClient);
+
+    // Wire up socket event handlers for stat proposals
+    socketClient.onStatProposal = (data) => {
+      statReviewPanel.addProposal(data);
+    };
+    socketClient.onStatApply = (data) => {
+      statReviewPanel.handleApply(data);
+    };
+
     // Store references on the game object for debugging/access
     game.loremaster = {
       socketClient,
@@ -295,6 +307,7 @@ async function initializeLoremaster() {
       houseRulesJournal,
       usageMonitor,
       gmPrepJournalSync,
+      statReviewPanel,
       MODULE_ID,
       MODULE_NAME,
       // Convenience methods
@@ -304,6 +317,7 @@ async function initializeLoremaster() {
       openConversationManager: () => conversationManager.render(true),
       openHouseRulesJournal: () => houseRulesJournal.open(),
       openUsageMonitor: () => usageMonitor.open(),
+      openStatReview: () => { statReviewPanel.loadProposals(); statReviewPanel.render(true); },
       openPatreonLogin,
       openGuide: () => openWelcomeJournal()
     };
@@ -448,9 +462,24 @@ Hooks.on('getSceneControlButtons', (controls) => {
         }
       }
     },
+    'loremaster-stat-review': {
+      name: 'loremaster-stat-review',
+      order: 4,
+      title: 'Stat Change Review',
+      icon: 'fa-solid fa-clipboard-check',
+      button: true,
+      visible: true,
+      onChange: () => {
+        if (game.loremaster?.openStatReview) {
+          game.loremaster.openStatReview();
+        } else {
+          ui.notifications.warn('Loremaster not initialized');
+        }
+      }
+    },
     'loremaster-usage': {
       name: 'loremaster-usage',
-      order: 4,
+      order: 5,
       title: game.i18n?.localize('LOREMASTER.UsageMonitor.Title') || 'API Usage Monitor',
       icon: 'fa-solid fa-chart-bar',
       button: true,

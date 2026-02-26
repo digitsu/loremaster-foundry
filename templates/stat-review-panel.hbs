@@ -1,0 +1,83 @@
+<div class="stat-review-panel">
+  <nav class="tabs" data-group="primary">
+    <a class="item" data-tab="pending">
+      Pending
+      {{#if pendingCount}}<span class="notification-badge">{{pendingCount}}</span>{{/if}}
+    </a>
+    <a class="item" data-tab="history">History</a>
+  </nav>
+
+  <div class="tab-content">
+    <div class="tab" data-tab="pending" data-group="primary">
+      <div class="proposal-actions">
+        <button class="refresh-btn" title="Refresh"><i class="fas fa-sync-alt"></i> Refresh</button>
+      </div>
+
+      {{#if pendingProposals.length}}
+        {{#each pendingProposals}}
+        <div class="proposal-card pending" data-proposal-id="{{this.proposalId}}">
+          <div class="proposal-header">
+            <strong>{{this.actorName}}</strong>
+            <span class="proposal-time">{{this.proposedAt}}</span>
+          </div>
+
+          {{#if this.reason}}
+          <div class="proposal-reason"><em>{{this.reason}}</em></div>
+          {{/if}}
+
+          <ul class="changes-list">
+            {{#each this.changes}}
+            <li>
+              <span class="change-type">{{this.type}}</span>
+              {{#if this.value}}<span class="change-value">{{this.value}}</span>{{/if}}
+              {{#if this.reason}}<span class="change-reason">— {{this.reason}}</span>{{/if}}
+            </li>
+            {{/each}}
+          </ul>
+
+          {{#if ../isGM}}
+          <div class="proposal-buttons">
+            <button class="approve-btn" data-proposal-id="{{this.proposalId}}">
+              <i class="fas fa-check"></i> Approve
+            </button>
+            <button class="reject-btn" data-proposal-id="{{this.proposalId}}">
+              <i class="fas fa-times"></i> Reject
+            </button>
+          </div>
+          {{/if}}
+        </div>
+        {{/each}}
+      {{else}}
+        <p class="empty-message">No pending proposals.</p>
+      {{/if}}
+    </div>
+
+    <div class="tab" data-tab="history" data-group="primary">
+      {{#if resolvedProposals.length}}
+        {{#each resolvedProposals}}
+        <div class="proposal-card {{this.status}}">
+          <div class="proposal-header">
+            <strong>{{this.actorName}}</strong>
+            <span class="status-badge {{this.status}}">{{this.status}}</span>
+          </div>
+          <ul class="changes-list">
+            {{#each this.changes}}
+            <li>
+              <span class="change-type">{{this.type}}</span>
+              {{#if this.value}}<span class="change-value">{{this.value}}</span>{{/if}}
+            </li>
+            {{/each}}
+          </ul>
+          {{#if this.resolvedBy}}
+          <div class="resolved-info">
+            Resolved by {{this.resolvedBy}} {{#if this.resolvedAt}}at {{this.resolvedAt}}{{/if}}
+          </div>
+          {{/if}}
+        </div>
+        {{/each}}
+      {{else}}
+        <p class="empty-message">No resolved proposals yet.</p>
+      {{/if}}
+    </div>
+  </div>
+</div>

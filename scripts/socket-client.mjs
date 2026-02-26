@@ -2575,7 +2575,17 @@ export class SocketClient {
       'backup_progress': 'backup-progress',
       'backup-progress': 'backup-progress',
       'import_progress': 'import-progress',
-      'import-progress': 'import-progress'
+      'import-progress': 'import-progress',
+
+      // Character stat sync events
+      'char-stat-proposal': 'char-stat-proposal',
+      'char_stat_proposal': 'char-stat-proposal',
+      'char-stat-apply': 'char-stat-apply',
+      'char_stat_apply': 'char-stat-apply',
+      'sync-char-ack': 'sync-char-ack',
+      'sync_char_ack': 'sync-char-ack',
+      'sync-char-batch-ack': 'sync-char-batch-ack',
+      'sync_char_batch_ack': 'sync-char-batch-ack'
     };
 
     const mappedType = eventMap[event];
@@ -2795,6 +2805,24 @@ export class SocketClient {
     // Handle import progress updates
     if (message.type === 'import-progress') {
       this._handleImportProgress(message);
+      return;
+    }
+
+    // Handle character stat proposal (AI proposed changes)
+    if (message.type === 'char-stat-proposal') {
+      if (this.onStatProposal) this.onStatProposal(message);
+      return;
+    }
+
+    // Handle character stat apply (approved changes to apply)
+    if (message.type === 'char-stat-apply') {
+      if (this.onStatApply) this.onStatApply(message);
+      return;
+    }
+
+    // Handle sync acks
+    if (message.type === 'sync-char-ack' || message.type === 'sync-char-batch-ack') {
+      if (this.onSyncAck) this.onSyncAck(message);
       return;
     }
 
