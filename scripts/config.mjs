@@ -1076,8 +1076,7 @@ async function _handleRefreshTier(authManager) {
   _rerenderAccountPanel(authManager);
 
   try {
-    const loremaster = game.modules.get('loremaster');
-    const socketClient = loremaster?.api?.getSocketClient?.();
+    const socketClient = game.loremaster?.socketClient;
 
     if (!socketClient || !socketClient.isAuthenticated) {
       ui.notifications.warn(`${MODULE_NAME}: Not connected to server`);
@@ -1158,8 +1157,7 @@ async function _fetchAccountData(authManager) {
  */
 async function _fetchRagStatus() {
   try {
-    const loremaster = game.modules.get('loremaster');
-    const socketClient = loremaster?.api?.getSocketClient?.();
+    const socketClient = game.loremaster?.socketClient;
 
     if (socketClient && socketClient.isAuthenticated) {
       const ragStatus = await socketClient.getRagStatus();
@@ -1177,8 +1175,7 @@ async function _fetchRagStatus() {
  */
 async function _fetchSharedTierStatus() {
   try {
-    const loremaster = game.modules.get('loremaster');
-    const socketClient = loremaster?.api?.getSocketClient?.();
+    const socketClient = game.loremaster?.socketClient;
 
     if (socketClient && socketClient.isAuthenticated) {
       const sharedTier = await socketClient.getSharedTierStatus();
