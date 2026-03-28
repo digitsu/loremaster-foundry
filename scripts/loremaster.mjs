@@ -7,6 +7,7 @@
  */
 
 import { registerSettings, getSetting, isHostedMode } from './config.mjs';
+import { TIER_CONFIG } from './patreon-login-ui.mjs';
 import { ChatHandler } from './chat-handler.mjs';
 import { SocketClient } from './socket-client.mjs';
 import { registerToolHandlers } from './tool-handlers.mjs';
@@ -219,7 +220,8 @@ async function initializeLoremaster() {
 
     socketClient.onReconnected = () => {
       const user = isHostedMode() ? getAuthManager()?.getUser() : null;
-      const tier = user?.tierName || 'Active';
+      const tierKey = user?.tierName?.toLowerCase();
+      const tier = TIER_CONFIG[tierKey]?.label || tierKey || 'Active';
       statusBar.setConnected(tier, 0, 0);
     };
 
@@ -346,15 +348,16 @@ async function initializeLoremaster() {
     // Update status bar to connected state
     // Retrieve tier and quota info for the status display
     const authManager = isHostedMode() ? getAuthManager() : null;
-    const tierName = authManager?.getUser()?.tierName || 'Active';
+    const tierKey = authManager?.getUser()?.tierName?.toLowerCase();
+    const tierDisplayName = TIER_CONFIG[tierKey]?.label || tierKey || 'Active';
     try {
       const quotaResult = await socketClient.getUsage?.();
       const tokensUsed = quotaResult?.tokensUsed || 0;
       const tokensLimit = quotaResult?.tokensLimit || 0;
-      statusBar.setConnected(tierName, tokensUsed, tokensLimit);
+      statusBar.setConnected(tierDisplayName, tokensUsed, tokensLimit);
     } catch {
       // Quota fetch is optional — show connected without quota details
-      statusBar.setConnected(tierName, 0, 0);
+      statusBar.setConnected(tierDisplayName, 0, 0);
     }
 
     // Show welcome journal on first run or version update

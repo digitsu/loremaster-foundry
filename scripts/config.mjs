@@ -802,7 +802,8 @@ function _buildLoggedInPanel(user) {
 
   // RAG status
   const ragAvailable = ragStatus?.ragAvailable ?? false;
-  const ragRequiredTier = ragStatus?.ragRequiredTier || 'Pro';
+  const ragRequiredTierInternal = ragStatus?.ragRequiredTier || 'pro';
+  const ragRequiredTier = TIER_CONFIG[ragRequiredTierInternal]?.label || ragRequiredTierInternal;
 
   // Shared tier
   const sharedCurrent = sharedTier?.tier?.current || 0;

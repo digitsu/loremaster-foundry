@@ -24,20 +24,20 @@ const MODULE_NAME = 'Loremaster';
  */
 export const TIER_CONFIG = {
   basic: {
-    label: 'Basic',
-    icon: '⭐',
+    label: 'Knave',
+    icon: '⚔️',
     color: '#a0a0a0',
     tokenLimit: 500000
   },
   pro: {
-    label: 'Pro',
-    icon: '⭐⭐',
+    label: 'Knight',
+    icon: '🛡️',
     color: '#d4af37',
     tokenLimit: 2000000
   },
   premium: {
-    label: 'Premium',
-    icon: '⭐⭐⭐',
+    label: 'Lord',
+    icon: '👑',
     color: '#f4d03f',
     tokenLimit: 5000000
   }
