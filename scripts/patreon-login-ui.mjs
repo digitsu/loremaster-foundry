@@ -366,7 +366,7 @@ export class PatreonLoginUI extends Application {
 
       // RAG status
       ragAvailable: this.ragStatus?.ragAvailable ?? false,
-      ragRequiredTier: this.ragStatus?.ragRequiredTier || 'Pro',
+      ragRequiredTier: TIER_CONFIG[this.ragStatus?.ragRequiredTier]?.label || TIER_CONFIG['pro']?.label || 'Knight',
       isRefreshingTier: this.isRefreshingTier,
 
       // Shared tier status
