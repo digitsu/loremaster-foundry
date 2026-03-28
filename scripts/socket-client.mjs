@@ -92,7 +92,8 @@ export class SocketClient {
 
     // Detect Phoenix server based on hostname or port
     // Phoenix/Elixir servers typically run on port 4040 or have 'elixir' in hostname
-    this.isPhoenix = url.hostname.includes('elixir') || url.port === '4040' || url.port === '4000';
+    this.isPhoenix = url.hostname.includes('elixir') || url.port === '4040' || url.port === '4000'
+      || url.pathname.includes('/socket/websocket') || url.pathname.includes('/socket');
 
     // For Phoenix/Elixir servers, append /socket/websocket if not already present
     // Phoenix Channels require the /socket/websocket suffix for WebSocket transport
