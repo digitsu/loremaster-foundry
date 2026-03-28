@@ -48,17 +48,22 @@ export function registerSettings() {
     default: 'hosted',
     requiresReload: true,
     onChange: (value) => {
-      // Auto-set proxy URL when switching to hosted mode
+      // Auto-set proxy URL when switching to hosted mode, but only if
+      // it's still at a self-hosted-looking URL (don't clobber overrides)
       if (value === 'hosted') {
-        game.settings.set(MODULE_ID, 'proxyUrl', HOSTED_PROXY_URL);
+        const current = game.settings.get(MODULE_ID, 'proxyUrl');
+        const looksLocal = !current || current.includes('localhost') || current.includes('127.0.0.1');
+        if (looksLocal) {
+          game.settings.set(MODULE_ID, 'proxyUrl', HOSTED_PROXY_URL);
+        }
       }
     }
   });
 
-  // Proxy server URL (only shown in self-hosted mode)
+  // Proxy server URL (visible in both modes — override for dev/testing)
   game.settings.register(MODULE_ID, 'proxyUrl', {
     name: 'Proxy Server URL',
-    hint: 'URL of the Loremaster proxy server. Auto-configured in hosted mode.',
+    hint: 'URL of the Loremaster proxy server. Defaults to the hosted service in hosted mode. Override to point at a dev or custom proxy.',
     scope: 'world',
     config: true,
     type: String,
@@ -446,7 +451,7 @@ const SETTINGS_SECTIONS = [
  * These are self-hosted-only fields.
  * @type {string[]}
  */
-const HOSTED_HIDDEN_FIELDS = ['proxyUrl', 'apiKey', 'licenseKey', 'maxTokensPerMonth'];
+const HOSTED_HIDDEN_FIELDS = ['apiKey', 'licenseKey', 'maxTokensPerMonth'];
 
 /**
  * Enhance the Foundry settings panel for Loremaster.
