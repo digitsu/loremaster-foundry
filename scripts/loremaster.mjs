@@ -274,7 +274,7 @@ async function initializeLoremaster() {
 
     // Create content manager for PDF uploads
     const contentManager = new ContentManager(socketClient);
-n    // Create shared content admin for managing shared library
+    // Create shared content admin for managing shared library
     const sharedContentAdmin = new SharedContentAdmin(socketClient);
 
     // Create conversation manager for history management
@@ -386,7 +386,7 @@ n    // Create shared content admin for managing shared library
     // Store reference even on failure for debugging
     // Managers can still work without socket connection for viewing
     const contentManager = new ContentManager(socketClient);
-n    // Create shared content admin for managing shared library
+    // Create shared content admin for managing shared library
     const sharedContentAdmin = new SharedContentAdmin(socketClient);
     const conversationManager = new ConversationManager(socketClient);
     const usageMonitor = new UsageMonitor(socketClient);
