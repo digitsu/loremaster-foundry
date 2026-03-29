@@ -977,8 +977,8 @@ function _attachAccountPanelListeners(container, authManager) {
         break;
 
       case 'manage-shared':
-        if (game.loremaster?.openContentManager) {
-          game.loremaster.openContentManager();
+        if (game.loremaster?.openSharedContentAdmin) {
+          game.loremaster.openSharedContentAdmin();
         } else {
           ui.notifications.warn(`${MODULE_NAME}: ${game.i18n?.localize('LOREMASTER.PatreonLogin.ContentManagerUnavailable') || 'Content Manager not available'}`);
         }

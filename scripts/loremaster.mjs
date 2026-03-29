@@ -22,6 +22,7 @@ import { createHouseRulesJournal } from './house-rules-journal.mjs';
 import { GMPrepJournalSync } from './gm-prep-journal.mjs';
 import { progressBar } from './progress-bar.mjs';
 import { StatReviewPanel } from './stat-review-panel.mjs';
+import { SharedContentAdmin } from './shared-content-admin.mjs';
 import { statusBar } from './status-bar.mjs';
 import { getAuthManager, AuthState, AUTH_STATE_CHANGED_EVENT } from './patreon-auth.mjs';
 import { openPatreonLogin, registerPatreonLoginHelpers } from './patreon-login-ui.mjs';
@@ -164,6 +165,7 @@ function showPatreonLoginPrompt() {
     retryInit: () => initializeLoremaster(),
     // Stub functions that require auth - open login dialog instead
     openContentManager: requireAuth,
+    openSharedContentAdmin: requireAuth,
     openConversationManager: requireAuth,
     openHouseRulesJournal: requireAuth,
     openUsageMonitor: requireAuth
@@ -272,6 +274,8 @@ async function initializeLoremaster() {
 
     // Create content manager for PDF uploads
     const contentManager = new ContentManager(socketClient);
+n    // Create shared content admin for managing shared library
+    const sharedContentAdmin = new SharedContentAdmin(socketClient);
 
     // Create conversation manager for history management
     const conversationManager = new ConversationManager(socketClient);
@@ -305,6 +309,7 @@ async function initializeLoremaster() {
       batchUI,
       dataExtractor,
       contentManager,
+      sharedContentAdmin,
       conversationManager,
       houseRulesJournal,
       usageMonitor,
@@ -316,6 +321,7 @@ async function initializeLoremaster() {
       syncWorldData: () => dataExtractor.showSyncDialog(),
       listSyncedFiles: () => dataExtractor.listSyncedFiles(),
       openContentManager: () => contentManager.render(true),
+      openSharedContentAdmin: () => sharedContentAdmin.render(true),
       openConversationManager: () => conversationManager.render(true),
       openHouseRulesJournal: () => houseRulesJournal.open(),
       openUsageMonitor: () => usageMonitor.open(),
@@ -380,17 +386,21 @@ async function initializeLoremaster() {
     // Store reference even on failure for debugging
     // Managers can still work without socket connection for viewing
     const contentManager = new ContentManager(socketClient);
+n    // Create shared content admin for managing shared library
+    const sharedContentAdmin = new SharedContentAdmin(socketClient);
     const conversationManager = new ConversationManager(socketClient);
     const usageMonitor = new UsageMonitor(socketClient);
     game.loremaster = {
       socketClient,
       contentManager,
+      sharedContentAdmin,
       conversationManager,
       usageMonitor,
       error,
       MODULE_ID,
       MODULE_NAME,
       openContentManager: () => contentManager.render(true),
+      openSharedContentAdmin: () => sharedContentAdmin.render(true),
       openConversationManager: () => conversationManager.render(true),
       openUsageMonitor: () => usageMonitor.open(),
       openPatreonLogin,
