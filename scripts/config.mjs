@@ -1139,6 +1139,10 @@ async function _fetchAccountData(authManager) {
     if (status.authenticated && status.quota) {
       _accountPanelState.quota = status.quota;
     }
+    // Use RAG status from auth response (available immediately, no socket needed)
+    if (status.authenticated && status.rag) {
+      _accountPanelState.ragStatus = status.rag;
+    }
   } catch (err) {
     console.error(`${MODULE_NAME} | Failed to fetch quota:`, err);
   } finally {
