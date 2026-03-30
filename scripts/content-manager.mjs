@@ -287,6 +287,9 @@ export class ContentManager extends Application {
     // Extract characters from script
     html.find('.extract-characters-btn').on('click', this._onExtractCharacters.bind(this));
 
+    // Create custom character button
+    html.find('.create-character-btn').on('click', this._onCreateCharacter.bind(this));
+
     // Save cast assignments
     html.find('.save-cast-btn').on('click', this._onSaveCast.bind(this));
 
@@ -946,6 +949,80 @@ export class ContentManager extends Application {
   static getCategoryLabel(category) {
     const key = `LOREMASTER.ContentManager.Category.${category.charAt(0).toUpperCase() + category.slice(1)}`;
     return game.i18n.localize(key);
+  }
+
+    /**
+   * Handle tab change to refresh data for the target tab.
+   * Overrides Foundry's Application._onChangeTab.
+   */
+  _onChangeTab(event, tabs, active) {
+    super._onChangeTab(event, tabs, active);
+    
+    // Refresh adventure data when switching to adventure tab
+    if (active === 'adventure' && game.user.isGM) {
+      this._loadAdventureData();
+    }
+    // Refresh cast data when switching to cast tab
+    if (active === 'cast' && game.user.isGM) {
+      this._loadCastData();
+    }
+    // Refresh history when switching to history tab
+    if (active === 'history' && game.user.isGM) {
+      this._loadHistoryData();
+    }
+  }
+
+  /**
+   * Handle create custom character button click.
+   * Opens a dialog to name the character and adds it to the cast.
+   */
+  async _onCreateCharacter(event) {
+    event.preventDefault();
+    
+    if (!this.castScriptId) {
+      ui.notifications.warn('No active adventure with a GM Prep script');
+      return;
+    }
+    
+    const scriptId = this.castScriptId;
+    
+    new Dialog({
+      title: game.i18n.localize('LOREMASTER.Cast.CreateCharacterTitle') || 'Create Character',
+      content: `
+        <form class="create-character-form">
+          <div class="form-group">
+            <label for="char-name">${game.i18n.localize('LOREMASTER.Cast.CharacterNameLabel') || 'Character Name'}</label>
+            <input type="text" id="char-name" name="characterName" placeholder="${game.i18n.localize('LOREMASTER.Cast.CharacterNamePlaceholder') || 'Enter character name'}" autofocus>
+          </div>
+        </form>
+      `,
+      buttons: {
+        create: {
+          icon: '<i class="fas fa-plus"></i>',
+          label: game.i18n.localize('LOREMASTER.Cast.CreateBtn') || 'Create',
+          callback: async (html) => {
+            const name = html.find('#char-name').val().trim();
+            if (!name) {
+              ui.notifications.warn('Character name is required');
+              return;
+            }
+            try {
+              await this.socketClient.createCustomCharacter(scriptId, name);
+              ui.notifications.info(`Character "${name}" created`);
+              await this._loadCastData();
+            } catch (error) {
+              console.error('loremaster | Failed to create character:', error);
+              ui.notifications.error(`Failed to create character: ${error.message}`);
+            }
+          }
+        },
+        cancel: {
+          icon: '<i class="fas fa-times"></i>',
+          label: game.i18n.localize('Cancel') || 'Cancel'
+        }
+      },
+      default: 'create'
+    }).render(true);
   }
 
   // ===== GM Prep Methods =====

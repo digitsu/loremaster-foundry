@@ -1490,6 +1490,27 @@ export class SocketClient {
   // ===== Journal Sync Methods =====
 
   /**
+   * Create a custom player character for the active adventure cast.
+   * GM only. Used when adventures don't have pre-defined player characters.
+   *
+   * @param {string} scriptId - The GM Prep script ID.
+   * @param {string} characterName - Name of the character.
+   * @param {object} options - Optional: assignedToUserId, assignedToUserName.
+   * @returns {Promise<object>} Created character assignment.
+   */
+  async createCustomCharacter(scriptId, characterName, options = {}) {
+    this._requireAuth();
+    if (!this.isGM) {
+      throw new Error('Creating characters requires GM permissions');
+    }
+    return this._sendRequest('create-custom-character', {
+      scriptId,
+      characterName,
+      ...options
+    });
+  }
+
+  /**
    * Sync GM Prep script content back to the server.
    * GM only. Called after journal edits to update server and re-upload to Claude.
    *
