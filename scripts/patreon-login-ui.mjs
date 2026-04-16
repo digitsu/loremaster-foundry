@@ -12,7 +12,7 @@ import {
   AuthState,
   AUTH_STATE_CHANGED_EVENT
 } from './patreon-auth.mjs';
-import { isHostedMode, getProxyUrl } from './config.mjs';
+import { isHostedMode, getProxyUrl, classifyFetchError } from './config.mjs';
 
 const MODULE_ID = 'loremaster';
 const MODULE_NAME = 'Loremaster';
@@ -138,6 +138,14 @@ export class PatreonLoginUI extends Application {
     /** @type {Object|null} Shared tier status from server */
     this.sharedTier = null;
 
+    /**
+     * Per-section fetch error state — populated by classifyFetchError on failure
+     * so the dialog can render a retry affordance instead of silently swallowing.
+     * Each entry is null on success or { reason, retryable } on failure.
+     * @type {{quota: ?Object, ragStatus: ?Object, sharedTier: ?Object}}
+     */
+    this.errorState = { quota: null, ragStatus: null, sharedTier: null };
+
     /** @type {boolean} Whether tier is being refreshed */
     this.isRefreshingTier = false;
 
@@ -204,15 +212,31 @@ export class PatreonLoginUI extends Application {
 
     this.isLoadingQuota = true;
     this._quotaFetchAttempted = true;
+    this.errorState.quota = null;
     if (this.rendered) this.render(false);
 
     try {
       const status = await this.authManager.checkAuthStatus();
       if (status.authenticated && status.quota) {
         this.quota = status.quota;
+      } else if (!status.authenticated) {
+        // checkAuthStatus returns { authenticated: false } for BOTH real auth
+        // expiry (401 → reason: 'Session expired') and network errors (fetch
+        // failed → reason: err.message). Only show the session-expired notice
+        // for actual auth failures; treat everything else as a retryable
+        // network error with an error banner.
+        const isAuthExpired = status.reason === 'Session expired' || status.reason === 'No session token';
+        if (isAuthExpired) {
+          ui.notifications.warn(`${MODULE_NAME}: ${game.i18n?.localize('LOREMASTER.Connection.SessionExpiredNotice') || 'Your session expired — please sign in again.'}`);
+        } else {
+          this.errorState.quota = { reason: status.reason || 'Server unavailable', retryable: true };
+        }
+        this._quotaFetchAttempted = false;
       }
     } catch (err) {
       console.error(`${MODULE_NAME} | Failed to fetch quota:`, err);
+      this.errorState.quota = classifyFetchError(err);
+      this._quotaFetchAttempted = false;
     } finally {
       this.isLoadingQuota = false;
       if (this.rendered) this.render(false);
@@ -235,12 +259,15 @@ export class PatreonLoginUI extends Application {
       const socketClient = loremaster?.api?.getSocketClient?.();
 
       if (socketClient && socketClient.isAuthenticated) {
+        this.errorState.ragStatus = null;
         const ragStatus = await socketClient.getRagStatus();
         this.ragStatus = ragStatus;
         if (this.rendered) this.render(false);
       }
     } catch (err) {
       console.error(`${MODULE_NAME} | Failed to fetch RAG status:`, err);
+      this.errorState.ragStatus = classifyFetchError(err);
+      if (this.rendered) this.render(false);
     }
   }
 
@@ -257,12 +284,15 @@ export class PatreonLoginUI extends Application {
       const socketClient = loremaster?.api?.getSocketClient?.();
 
       if (socketClient && socketClient.isAuthenticated) {
+        this.errorState.sharedTier = null;
         const sharedTier = await socketClient.getSharedTierStatus();
         this.sharedTier = sharedTier;
         if (this.rendered) this.render(false);
       }
     } catch (err) {
       console.error(`${MODULE_NAME} | Failed to fetch shared tier status:`, err);
+      this.errorState.sharedTier = classifyFetchError(err);
+      if (this.rendered) this.render(false);
     }
   }
 
@@ -378,7 +408,11 @@ export class PatreonLoginUI extends Application {
 
       // Config
       isHostedMode: isHostedMode(),
-      patreonUrl: 'https://patreon.com/loremastervtt'
+      patreonUrl: 'https://patreon.com/loremastervtt',
+
+      // Per-section fetch error state — see classifyFetchError in config.mjs.
+      // Template renders {{#if errorState.X}} blocks above each section.
+      errorState: this.errorState
     };
   }
 
@@ -453,6 +487,40 @@ export class PatreonLoginUI extends Application {
         // Reset the fetch attempted flag so refresh actually works
         this._quotaFetchAttempted = false;
         this._fetchQuota();
+      });
+    }
+
+    // Per-section retry buttons — shown by the error banner when the
+    // corresponding fetch has failed (issue #1). Each clears its section's
+    // error + re-renders for instant feedback, then refires the fetch.
+    const retryQuotaBtn = element.querySelector('.patreon-retry-quota-btn');
+    if (retryQuotaBtn) {
+      retryQuotaBtn.addEventListener('click', (event) => {
+        event.preventDefault();
+        this.errorState.quota = null;
+        this._quotaFetchAttempted = false;
+        if (this.rendered) this.render(false);
+        this._fetchQuota();
+      });
+    }
+
+    const retryRagBtn = element.querySelector('.patreon-retry-rag-btn');
+    if (retryRagBtn) {
+      retryRagBtn.addEventListener('click', (event) => {
+        event.preventDefault();
+        this.errorState.ragStatus = null;
+        if (this.rendered) this.render(false);
+        this._fetchRagStatus();
+      });
+    }
+
+    const retrySharedBtn = element.querySelector('.patreon-retry-shared-btn');
+    if (retrySharedBtn) {
+      retrySharedBtn.addEventListener('click', (event) => {
+        event.preventDefault();
+        this.errorState.sharedTier = null;
+        if (this.rendered) this.render(false);
+        this._fetchSharedTierStatus();
       });
     }
 

@@ -92,6 +92,16 @@
     </div>
 
     {{!-- RAG Status Indicator --}}
+    {{#if errorState.ragStatus}}
+    <div class="patreon-section-error" title="{{errorState.ragStatus.reason}}">
+      <i class="fas fa-exclamation-circle"></i>
+      <span>{{localize "LOREMASTER.Connection.CouldntLoad"}}</span>
+      <button type="button" class="patreon-retry-rag-btn">
+        <i class="fas fa-redo"></i>
+        {{localize "LOREMASTER.Connection.Retry"}}
+      </button>
+    </div>
+    {{/if}}
     <div class="patreon-rag-status {{#if ragAvailable}}rag-unlocked{{else}}rag-locked{{/if}}">
       {{#if ragAvailable}}
       <span class="rag-icon">🔓</span>
@@ -104,6 +114,16 @@
     </div>
 
     {{!-- Shared Resources Section --}}
+    {{#if errorState.sharedTier}}
+    <div class="patreon-section-error" title="{{errorState.sharedTier.reason}}">
+      <i class="fas fa-exclamation-circle"></i>
+      <span>{{localize "LOREMASTER.Connection.CouldntLoad"}}</span>
+      <button type="button" class="patreon-retry-shared-btn">
+        <i class="fas fa-redo"></i>
+        {{localize "LOREMASTER.Connection.Retry"}}
+      </button>
+    </div>
+    {{/if}}
     <div class="patreon-shared-resources shared-{{sharedTierLevel sharedTierCurrent sharedTierMax}}">
       <span class="shared-icon">📚</span>
       <span class="shared-text">{{localize "LOREMASTER.PatreonLogin.SharedResources"}}:</span>
@@ -122,6 +142,16 @@
     </div>
 
     {{!-- Quota Section --}}
+    {{#if errorState.quota}}
+    <div class="patreon-section-error" title="{{errorState.quota.reason}}">
+      <i class="fas fa-exclamation-circle"></i>
+      <span>{{localize "LOREMASTER.Connection.CouldntLoad"}}</span>
+      <button type="button" class="patreon-retry-quota-btn">
+        <i class="fas fa-redo"></i>
+        {{localize "LOREMASTER.Connection.Retry"}}
+      </button>
+    </div>
+    {{/if}}
     <div class="patreon-quota">
       <div class="quota-header">
         <span class="quota-title">{{localize "LOREMASTER.PatreonLogin.MonthlyUsage"}}</span>
@@ -679,5 +709,46 @@
     background: var(--color-bg-option);
     border-color: #d4af37;
     color: #d4af37;
+  }
+
+  /* Per-section fetch error banner — issue #1 */
+  .patreon-section-error {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.4rem 0.75rem;
+    margin-bottom: 0.5rem;
+    background: rgba(248, 113, 113, 0.1);
+    border: 1px solid rgba(248, 113, 113, 0.3);
+    border-radius: 6px;
+    font-size: 0.8rem;
+    color: #f87171;
+    width: 100%;
+  }
+
+  .patreon-section-error span {
+    flex: 1;
+    font-weight: 600;
+    text-align: left;
+  }
+
+  .patreon-section-error button {
+    background: none;
+    border: 1px solid rgba(248, 113, 113, 0.4);
+    border-radius: 4px;
+    color: #f87171;
+    cursor: pointer;
+    padding: 0.2rem 0.5rem;
+    font-size: 0.75rem;
+    font-family: inherit;
+    display: flex;
+    align-items: center;
+    gap: 0.25rem;
+    transition: all 0.2s;
+  }
+
+  .patreon-section-error button:hover {
+    background: rgba(248, 113, 113, 0.2);
+    border-color: rgba(248, 113, 113, 0.6);
   }
 </style>

@@ -19,6 +19,28 @@ const MODULE_NAME = 'Loremaster';
 const HOSTED_PROXY_URL = 'wss://api.loremastervtt.com/socket/websocket';
 
 /**
+ * Classify a fetch error from the hosted-mode account panel data fetches.
+ *
+ * Returns a structured error object that the panel renders as a per-section
+ * error state with a retry affordance, instead of silently swallowing the
+ * failure (issue #1). Network/HTTP errors are treated as retryable; the
+ * auth-expired case is handled at the call site by checking
+ * `status.authenticated` from `checkAuthStatus()`, not here, so this helper
+ * only sees network-class failures.
+ *
+ * @param {Error|*} err - The error caught from a checkAuthStatus, getRagStatus,
+ *   or getSharedTierStatus call.
+ * @returns {{ reason: string, retryable: boolean }} Structured error info for
+ *   rendering and for the per-section retry button to consume.
+ */
+export function classifyFetchError(err) {
+  return {
+    reason: err?.message || 'Unknown error',
+    retryable: true
+  };
+}
+
+/**
  * Register all module settings.
  * Called during module initialization.
  */
@@ -407,7 +429,15 @@ let _accountPanelState = {
   ragStatus: null,
   sharedTier: null,
   isRefreshingTier: false,
-  quotaFetchAttempted: false
+  quotaFetchAttempted: false,
+  // Per-section fetch error state — populated by classifyFetchError on failure
+  // so the panel can render a retry affordance instead of silently swallowing.
+  // Each entry is null on success or { reason, retryable } on failure.
+  errorState: {
+    quota: null,
+    ragStatus: null,
+    sharedTier: null
+  }
 };
 
 /**
@@ -557,7 +587,12 @@ function cleanupSettingsPanel() {
     ragStatus: null,
     sharedTier: null,
     isRefreshingTier: false,
-    quotaFetchAttempted: false
+    quotaFetchAttempted: false,
+    errorState: {
+      quota: null,
+      ragStatus: null,
+      sharedTier: null
+    }
   };
 }
 
@@ -793,7 +828,7 @@ function _buildLoggedInPanel(user) {
   const tierCfg = TIER_CONFIG[tierName] || TIER_CONFIG.basic;
 
   // Quota display
-  const { quota, isLoadingQuota, ragStatus, sharedTier, isRefreshingTier } = _accountPanelState;
+  const { quota, isLoadingQuota, ragStatus, sharedTier, isRefreshingTier, errorState } = _accountPanelState;
   const tokensUsed = quota?.tokensUsed || 0;
   const tokensLimit = quota?.tokensLimit || tierCfg.tokenLimit;
   const quotaPercent = tokensLimit > 0 ? Math.min((tokensUsed / tokensLimit) * 100, 100).toFixed(1) : 0;
@@ -871,6 +906,15 @@ function _buildLoggedInPanel(user) {
         </button>
       </div>
 
+      ${errorState?.ragStatus ? `
+      <div class="lm-section-error" style="display:flex;align-items:center;gap:0.5rem;padding:0.4rem 0.75rem;margin-bottom:0.5rem;background:rgba(248,113,113,0.1);border:1px solid rgba(248,113,113,0.3);border-radius:6px;font-size:0.8rem;color:#f87171;width:100%;" title="${String(errorState.ragStatus.reason || '').replace(/"/g, '&quot;')}">
+        <i class="fas fa-exclamation-circle"></i>
+        <span style="flex:1;font-weight:600;text-align:left;">${game.i18n?.localize('LOREMASTER.Connection.CouldntLoad') || "Couldn't load"}</span>
+        <button type="button" data-action="retry-rag" style="background:none;border:1px solid rgba(248,113,113,0.4);border-radius:4px;color:#f87171;cursor:pointer;padding:0.2rem 0.5rem;font-size:0.75rem;font-family:inherit;display:inline-flex;align-items:center;gap:0.25rem;">
+          <i class="fas fa-redo"></i> ${game.i18n?.localize('LOREMASTER.Connection.Retry') || 'Retry'}
+        </button>
+      </div>
+      ` : ''}
       <div class="lm-rag-status ${ragAvailable ? 'rag-unlocked' : 'rag-locked'}">
         ${ragAvailable
           ? `<span class="lm-rag-icon">&#128275;</span><span class="lm-rag-text">${game.i18n?.localize('LOREMASTER.PatreonLogin.RAGEnabled') || 'Advanced RAG Enabled'}</span>`
@@ -878,12 +922,30 @@ function _buildLoggedInPanel(user) {
         }
       </div>
 
+      ${errorState?.sharedTier ? `
+      <div class="lm-section-error" style="display:flex;align-items:center;gap:0.5rem;padding:0.4rem 0.75rem;margin-bottom:0.5rem;background:rgba(248,113,113,0.1);border:1px solid rgba(248,113,113,0.3);border-radius:6px;font-size:0.8rem;color:#f87171;width:100%;" title="${String(errorState.sharedTier.reason || '').replace(/"/g, '&quot;')}">
+        <i class="fas fa-exclamation-circle"></i>
+        <span style="flex:1;font-weight:600;text-align:left;">${game.i18n?.localize('LOREMASTER.Connection.CouldntLoad') || "Couldn't load"}</span>
+        <button type="button" data-action="retry-shared" style="background:none;border:1px solid rgba(248,113,113,0.4);border-radius:4px;color:#f87171;cursor:pointer;padding:0.2rem 0.5rem;font-size:0.75rem;font-family:inherit;display:inline-flex;align-items:center;gap:0.25rem;">
+          <i class="fas fa-redo"></i> ${game.i18n?.localize('LOREMASTER.Connection.Retry') || 'Retry'}
+        </button>
+      </div>
+      ` : ''}
       <div class="lm-shared-resources shared-${sharedLevel}">
         <span class="lm-shared-icon">&#128218;</span>
         <span class="lm-shared-text">${game.i18n?.localize('LOREMASTER.PatreonLogin.SharedResources') || 'Shared Resources'}:</span>
         ${sharedHtml}
       </div>
 
+      ${errorState?.quota ? `
+      <div class="lm-section-error" style="display:flex;align-items:center;gap:0.5rem;padding:0.4rem 0.75rem;margin-bottom:0.5rem;background:rgba(248,113,113,0.1);border:1px solid rgba(248,113,113,0.3);border-radius:6px;font-size:0.8rem;color:#f87171;width:100%;" title="${String(errorState.quota.reason || '').replace(/"/g, '&quot;')}">
+        <i class="fas fa-exclamation-circle"></i>
+        <span style="flex:1;font-weight:600;text-align:left;">${game.i18n?.localize('LOREMASTER.Connection.CouldntLoad') || "Couldn't load"}</span>
+        <button type="button" data-action="retry-quota" style="background:none;border:1px solid rgba(248,113,113,0.4);border-radius:4px;color:#f87171;cursor:pointer;padding:0.2rem 0.5rem;font-size:0.75rem;font-family:inherit;display:inline-flex;align-items:center;gap:0.25rem;">
+          <i class="fas fa-redo"></i> ${game.i18n?.localize('LOREMASTER.Connection.Retry') || 'Retry'}
+        </button>
+      </div>
+      ` : ''}
       <div class="lm-quota">
         <div class="lm-quota-header">
           <span class="lm-quota-title">${game.i18n?.localize('LOREMASTER.PatreonLogin.MonthlyUsage') || 'Monthly Usage'}</span>
@@ -972,6 +1034,27 @@ function _attachAccountPanelListeners(container, authManager) {
         _fetchAccountData(authManager);
         break;
 
+      case 'retry-quota':
+        // Per-section retry from the error banner (issue #1). Clear state +
+        // re-render for instant visual feedback, then refetch.
+        _accountPanelState.errorState.quota = null;
+        _accountPanelState.quotaFetchAttempted = false;
+        _rerenderAccountPanel(authManager);
+        _fetchAccountData(authManager);
+        break;
+
+      case 'retry-rag':
+        _accountPanelState.errorState.ragStatus = null;
+        _rerenderAccountPanel(authManager);
+        _fetchRagStatus();
+        break;
+
+      case 'retry-shared':
+        _accountPanelState.errorState.sharedTier = null;
+        _rerenderAccountPanel(authManager);
+        _fetchSharedTierStatus();
+        break;
+
       case 'refresh-tier':
         await _handleRefreshTier(authManager);
         break;
@@ -1007,6 +1090,7 @@ async function _handleSignOut(authManager) {
     _accountPanelState.quota = null;
     _accountPanelState.ragStatus = null;
     _accountPanelState.sharedTier = null;
+    _accountPanelState.errorState = { quota: null, ragStatus: null, sharedTier: null };
   }
 }
 
@@ -1132,15 +1216,31 @@ async function _fetchAccountData(authManager) {
 
   _accountPanelState.isLoadingQuota = true;
   _accountPanelState.quotaFetchAttempted = true;
+  _accountPanelState.errorState.quota = null;
   _rerenderAccountPanel(authManager);
 
   try {
     const status = await authManager.checkAuthStatus();
     if (status.authenticated && status.quota) {
       _accountPanelState.quota = status.quota;
+    } else if (!status.authenticated) {
+      // checkAuthStatus returns { authenticated: false } for BOTH real auth
+      // expiry (401 → reason: 'Session expired') and network errors (fetch
+      // failed → reason: err.message). Only show the session-expired notice
+      // for actual auth failures; treat everything else as a retryable
+      // network error with an error banner.
+      const isAuthExpired = status.reason === 'Session expired' || status.reason === 'No session token';
+      if (isAuthExpired) {
+        ui.notifications.warn(`${MODULE_NAME}: ${game.i18n?.localize('LOREMASTER.Connection.SessionExpiredNotice') || 'Your session expired — please sign in again.'}`);
+      } else {
+        _accountPanelState.errorState.quota = { reason: status.reason || 'Server unavailable', retryable: true };
+      }
+      _accountPanelState.quotaFetchAttempted = false;
     }
   } catch (err) {
     console.error(`${MODULE_NAME} | Failed to fetch quota:`, err);
+    _accountPanelState.errorState.quota = classifyFetchError(err);
+    _accountPanelState.quotaFetchAttempted = false;
   } finally {
     _accountPanelState.isLoadingQuota = false;
     _rerenderAccountPanel(authManager);
@@ -1160,12 +1260,15 @@ async function _fetchRagStatus() {
     const socketClient = game.loremaster?.socketClient;
 
     if (socketClient && socketClient.isAuthenticated) {
+      _accountPanelState.errorState.ragStatus = null;
       const ragStatus = await socketClient.getRagStatus();
       _accountPanelState.ragStatus = ragStatus;
       _rerenderAccountPanel(getAuthManager());
     }
   } catch (err) {
     console.error(`${MODULE_NAME} | Failed to fetch RAG status:`, err);
+    _accountPanelState.errorState.ragStatus = classifyFetchError(err);
+    _rerenderAccountPanel(getAuthManager());
   }
 }
 
@@ -1178,12 +1281,15 @@ async function _fetchSharedTierStatus() {
     const socketClient = game.loremaster?.socketClient;
 
     if (socketClient && socketClient.isAuthenticated) {
+      _accountPanelState.errorState.sharedTier = null;
       const sharedTier = await socketClient.getSharedTierStatus();
       _accountPanelState.sharedTier = sharedTier;
       _rerenderAccountPanel(getAuthManager());
     }
   } catch (err) {
     console.error(`${MODULE_NAME} | Failed to fetch shared tier status:`, err);
+    _accountPanelState.errorState.sharedTier = classifyFetchError(err);
+    _rerenderAccountPanel(getAuthManager());
   }
 }
 
