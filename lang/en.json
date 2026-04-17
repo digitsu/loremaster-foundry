@@ -626,7 +626,10 @@
       "SessionExpired": "Session expired",
       "NotConnected": "Not connected",
       "AuthRequired": "Sign in required",
-      "Disabled": "Disabled"
+      "Disabled": "Disabled",
+      "CouldntLoad": "Couldn't load",
+      "Retry": "Retry",
+      "SessionExpiredNotice": "Your session expired — please sign in again."
     },
     "SettingsPanel": {
       "AccountSection": "Account",
