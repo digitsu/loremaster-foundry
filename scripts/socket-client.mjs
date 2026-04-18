@@ -21,6 +21,20 @@ import {
 const MODULE_ID = 'loremaster';
 
 /**
+ * Timeout (ms) for async chat requests (chat-batch, veto).
+ * If the proxy ack's "processing" but never sends chat-complete/chat-error,
+ * the pending request is rejected after this interval. (issue #6)
+ */
+const ASYNC_TIMEOUT_CHAT = 5 * 60 * 1000; // 5 minutes
+
+/**
+ * Timeout (ms) for async GM Prep script generation requests.
+ * These are long-running — Claude generates a full adventure script — so
+ * the timeout is more generous than chat.
+ */
+const ASYNC_TIMEOUT_GM_PREP = 10 * 60 * 1000; // 10 minutes
+
+/**
  * SocketClient class manages WebSocket connection to the proxy server.
  * Supports both Node.js (raw WebSocket) and Elixir (Phoenix Channels) protocols.
  *
@@ -2330,8 +2344,9 @@ export class SocketClient {
     this.joinedTopic = false;
     this.topic = null;
 
-    // Reject all pending requests
+    // Reject all pending requests and clear their timeouts
     for (const [, pending] of this.pendingRequests) {
+      if (pending.timeoutId) clearTimeout(pending.timeoutId);
       pending.reject(new Error('Disconnected'));
     }
     this.pendingRequests.clear();
@@ -2500,6 +2515,14 @@ export class SocketClient {
                 // Move pending request to batch ID key for later resolution
                 this.pendingRequests.delete(ref);
                 this.pendingRequests.set(`batch_${batchId}`, pending);
+                // Attach timeout — reject if server never sends chat-complete/chat-error (issue #6)
+                pending.timeoutId = setTimeout(() => {
+                  if (this.pendingRequests.has(`batch_${batchId}`)) {
+                    console.warn(`${MODULE_ID} | Chat request timed out (batchId: ${batchId})`);
+                    this.pendingRequests.delete(`batch_${batchId}`);
+                    pending.reject(new Error('Request timed out — no response from server'));
+                  }
+                }, ASYNC_TIMEOUT_CHAT);
                 console.log(`${MODULE_ID} | Async request acknowledged, waiting for result (batchId: ${batchId}, isVeto: ${pending.isVeto})`);
               } else if (scriptId) {
                 // GM Prep async - store with scriptId for correlation
@@ -2508,6 +2531,14 @@ export class SocketClient {
                 // Move to scriptId key for later resolution by gm-prep-complete
                 this.pendingRequests.delete(ref);
                 this.pendingRequests.set(`script_${scriptId}`, pending);
+                // Attach timeout — GM Prep generation is long-running (issue #6)
+                pending.timeoutId = setTimeout(() => {
+                  if (this.pendingRequests.has(`script_${scriptId}`)) {
+                    console.warn(`${MODULE_ID} | GM Prep request timed out (scriptId: ${scriptId})`);
+                    this.pendingRequests.delete(`script_${scriptId}`);
+                    pending.reject(new Error('GM Prep generation timed out — no response from server'));
+                  }
+                }, ASYNC_TIMEOUT_GM_PREP);
                 console.log(`${MODULE_ID} | GM Prep request acknowledged, waiting for completion (scriptId: ${scriptId})`);
               }
               // Don't resolve yet - wait for completion event
@@ -2660,6 +2691,7 @@ export class SocketClient {
         const pending = this.pendingRequests.get(`batch_${batchId}`);
         if (pending) {
           console.log(`${MODULE_ID} | Chat complete received for batch: ${batchId}`);
+          if (pending.timeoutId) clearTimeout(pending.timeoutId);
           this.pendingRequests.delete(`batch_${batchId}`);
           pending.resolve({
             success: true,
@@ -2685,6 +2717,7 @@ export class SocketClient {
         const pending = this.pendingRequests.get(`batch_${batchId}`);
         if (pending) {
           console.error(`${MODULE_ID} | Chat error for batch ${batchId}:`, message.error);
+          if (pending.timeoutId) clearTimeout(pending.timeoutId);
           this.pendingRequests.delete(`batch_${batchId}`);
           pending.reject(new Error(message.error || 'Chat request failed'));
           return;
@@ -2720,6 +2753,7 @@ export class SocketClient {
       const pending = this.pendingRequests.get(pendingKey);
       if (pending) {
         console.log(`${MODULE_ID} | GM Prep complete received for script: ${scriptId}`);
+        if (pending.timeoutId) clearTimeout(pending.timeoutId);
         this.pendingRequests.delete(pendingKey);
         // Also clean up any progress callbacks
         for (const [reqId, callback] of this.progressCallbacks) {
@@ -2749,6 +2783,7 @@ export class SocketClient {
       const pending = this.pendingRequests.get(pendingKey);
       if (pending) {
         console.error(`${MODULE_ID} | GM Prep error for script ${scriptId}:`, error);
+        if (pending.timeoutId) clearTimeout(pending.timeoutId);
         this.pendingRequests.delete(pendingKey);
         // Also clean up any progress callbacks
         for (const [reqId, callback] of this.progressCallbacks) {
@@ -3100,8 +3135,9 @@ export class SocketClient {
    * @private
    */
   _handleDisconnect() {
-    // Reject all pending requests
+    // Reject all pending requests and clear their timeouts
     for (const [, pending] of this.pendingRequests) {
+      if (pending.timeoutId) clearTimeout(pending.timeoutId);
       pending.reject(new Error('Connection lost'));
     }
     this.pendingRequests.clear();
