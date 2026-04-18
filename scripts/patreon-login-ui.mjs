@@ -254,9 +254,8 @@ export class PatreonLoginUI extends Application {
    */
   async _fetchRagStatus() {
     try {
-      // Get socket client from Loremaster module
-      const loremaster = game.modules.get('loremaster');
-      const socketClient = loremaster?.api?.getSocketClient?.();
+      // Get socket client via the standard game.loremaster path (see commit 8e3ea7f)
+      const socketClient = game.loremaster?.socketClient;
 
       if (socketClient && socketClient.isAuthenticated) {
         this.errorState.ragStatus = null;
@@ -279,9 +278,8 @@ export class PatreonLoginUI extends Application {
    */
   async _fetchSharedTierStatus() {
     try {
-      // Get socket client from Loremaster module
-      const loremaster = game.modules.get('loremaster');
-      const socketClient = loremaster?.api?.getSocketClient?.();
+      // Get socket client via the standard game.loremaster path (see commit 8e3ea7f)
+      const socketClient = game.loremaster?.socketClient;
 
       if (socketClient && socketClient.isAuthenticated) {
         this.errorState.sharedTier = null;
@@ -309,9 +307,8 @@ export class PatreonLoginUI extends Application {
     if (this.rendered) this.render(false);
 
     try {
-      // Get socket client from Loremaster module
-      const loremaster = game.modules.get('loremaster');
-      const socketClient = loremaster?.api?.getSocketClient?.();
+      // Get socket client via the standard game.loremaster path (see commit 8e3ea7f)
+      const socketClient = game.loremaster?.socketClient;
 
       if (!socketClient || !socketClient.isAuthenticated) {
         ui.notifications.warn(`${MODULE_NAME}: Not connected to server`);
