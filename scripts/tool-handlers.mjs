@@ -167,8 +167,8 @@ async function handleGetScene() {
   return {
     name: scene.name,
     description: scene.description,
-    darkness: scene.darkness,
-    weather: scene.weather,
+    darkness: scene.environment?.darknessLevel ?? scene.darkness,
+    weather: scene.environment?.weather ?? scene.weather,
     tokens: scene.tokens.map(t => ({
       name: t.name,
       x: t.x,
