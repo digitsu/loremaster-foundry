@@ -563,12 +563,21 @@ export class SocketClient {
     }
 
     return new Promise((resolve, reject) => {
-      // Set up timeout (5 minutes for large PDFs)
-      const timeout = 300000;
+      // Set up timeout (8 minutes). The proxy runs Ghostscript compression on
+      // oversized PDFs before uploading to Claude, which can add 30-90 s on
+      // image-heavy RPG modules on top of the raw transport time. If we hit
+      // this with no server progress pushes at all, the frame almost
+      // certainly never reached the proxy (silently dropped, idle-timeout
+      // close, or upstream size rejection) - tell the user something
+      // actionable instead of the bare "timeout".
+      const timeout = 480000;
       const timeoutId = setTimeout(() => {
         this.pendingRequests.delete(requestId);
         this.progressCallbacks.delete(requestId);
-        reject(new Error('PDF upload timeout'));
+        reject(new Error(
+          'PDF upload timed out. The file may be too large or the connection ' +
+          'was interrupted. Try a smaller PDF (under 64 MB) or reconnect.'
+        ));
       }, timeout);
 
       // Store pending request

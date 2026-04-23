@@ -13,6 +13,17 @@ import { SharedContentAdmin } from './shared-content-admin.mjs';
 
 const MODULE_ID = 'loremaster';
 
+// Maximum accepted PDF size at the client. Files larger than this are
+// rejected before we even try to base64-encode or transmit them.
+//
+// Anthropic's Files API hard limit is 32 MB per file. The proxy runs
+// Ghostscript on the server to compress oversized uploads down to 30 MB
+// before forwarding to Claude, so we accept up to 2x the API cap here and
+// let the server decide whether compression succeeds. Anything above 64 MB
+// is rejected because compression cannot reliably halve a file that large
+// without destroying legibility for Claude's vision.
+const MAX_PDF_BYTES = 64 * 1024 * 1024;
+
 /**
  * Escape HTML special characters to prevent XSS in user-provided strings.
  * @param {string} text - Raw text to escape
@@ -529,11 +540,11 @@ export class ContentManager extends Application {
       return;
     }
 
-    // Validate file size (50MB max)
-    const maxSize = 50 * 1024 * 1024;
-    if (file.size > maxSize) {
+    // Anthropic Files API caps PDFs at 32 MB. Reject oversized files at
+    // selection time so the user can't even start an upload that would hang.
+    if (file.size > MAX_PDF_BYTES) {
       ui.notifications.warn(game.i18n.format('LOREMASTER.ContentManager.FileTooLarge', {
-        max: this._formatFileSize(maxSize)
+        max: this._formatFileSize(MAX_PDF_BYTES)
       }));
       return;
     }
@@ -561,6 +572,16 @@ export class ContentManager extends Application {
     const html = $(this.element);
     const category = html.find('.category-select').val();
     const displayName = html.find('.display-name-input').val().trim() || this._selectedFile.name;
+
+    // Backstop for drag-and-drop paths that bypass _handleFileSelection.
+    // Anthropic's Files API caps PDFs at 32 MB; anything larger stalls the
+    // upload at 0% instead of returning an error, so we refuse it here.
+    if (this._selectedFile.size > MAX_PDF_BYTES) {
+      ui.notifications.error(game.i18n.format('LOREMASTER.ContentManager.FileTooLarge', {
+        max: this._formatFileSize(MAX_PDF_BYTES)
+      }));
+      return;
+    }
 
     try {
       this.isUploading = true;
