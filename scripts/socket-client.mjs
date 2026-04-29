@@ -104,16 +104,18 @@ export class SocketClient {
     // Parse URL to detect Phoenix server
     const url = new URL(wsUrl);
 
-    // Detect Phoenix server based on hostname or port
-    // Phoenix/Elixir servers typically run on port 4040 or have 'elixir' in hostname
-    this.isPhoenix = url.hostname.includes('elixir') || url.port === '4040' || url.port === '4000'
-      || url.pathname.includes('/socket/websocket') || url.pathname.includes('/socket');
+    // The Elixir/Phoenix proxy is the only supported backend; the Node.js
+    // proxy is deprecated. Default to Phoenix mode for every self-hosted
+    // URL so users can run on any port (the previous heuristic only knew
+    // about 4000/4040 and silently 404'd on anything else, e.g. dev on
+    // 4001). Phoenix mounts its WebSocket transport at <path>/socket/websocket
+    // — never at literal "/" — so we append the canonical suffix below
+    // unless the user already provided it.
+    this.isPhoenix = true;
 
-    // For Phoenix/Elixir servers, append /socket/websocket if not already present
-    // Phoenix Channels require the /socket/websocket suffix for WebSocket transport
-    if (this.isPhoenix && (!url.pathname || url.pathname === '/' || url.pathname === '/websocket')) {
+    if (!url.pathname || url.pathname === '/' || url.pathname === '/websocket') {
       wsUrl = wsUrl.replace(/\/?(websocket)?$/, '/socket/websocket');
-      console.log(`${MODULE_ID} | Detected Phoenix server, using WebSocket path: ${wsUrl}`);
+      console.log(`${MODULE_ID} | Phoenix proxy: using WebSocket path: ${wsUrl}`);
     }
 
     return new Promise((resolve, reject) => {
