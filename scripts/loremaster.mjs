@@ -182,11 +182,37 @@ function showPatreonLoginPrompt() {
 }
 
 /**
+ * Show a friendly prompt when self-hosted mode has no API key configured,
+ * and open the Foundry settings panel so the user can paste one in.
+ * Avoids the cryptic backend rejection ("api key required for new worlds")
+ * that fires when the client sends an empty apiKey on phx_join.
+ */
+function promptForSelfHostedApiKey() {
+  console.warn(`${MODULE_NAME} | Self-hosted mode but no Claude API key set — opening settings`);
+  statusBar.setDisconnected();
+  ui.notifications.warn(
+    `${MODULE_NAME}: Set your Claude API key in module settings to connect to your self-hosted proxy.`,
+    { permanent: true }
+  );
+  game.settings.sheet.render(true);
+}
+
+/**
  * Initialize the Loremaster system.
  * Sets up WebSocket connection, message batching, and chat handling.
  */
 async function initializeLoremaster() {
   console.log(`${MODULE_NAME} | Starting Loremaster`);
+
+  // Pre-flight: in self-hosted mode the proxy demands an apiKey on every
+  // join. Skip the connect attempt entirely if the user hasn't set one,
+  // and open settings instead — the backend's rejection message is misleading
+  // ("api key required for new worlds") and would otherwise surface as a
+  // generic red error with no path to recovery.
+  if (!isHostedMode() && !getSetting('apiKey')) {
+    promptForSelfHostedApiKey();
+    return;
+  }
 
   // Clean up existing socket to prevent orphaned reconnect timers
   if (game.loremaster?.socketClient) {
