@@ -163,7 +163,7 @@ Loremaster has its own top-level control group in the left toolbar, identified b
 
 ## Support
 
-- **Discord**: [discord.gg/loremaster](https://discord.gg/loremaster)
+- **Discord**: [discord.gg/W2NQ6ekYMd](https://discord.gg/W2NQ6ekYMd)
 - **Website**: [loremastervtt.com](https://loremastervtt.com)
 - **Issues**: [GitHub Issues](https://github.com/digitsu/loremaster-foundry/issues)
 - **Email**: support@loremastervtt.com

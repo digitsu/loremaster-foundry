@@ -1,130 +1,118 @@
-# Loremaster Module - Development Notes
+# CLAUDE.md
 
-## Environment
+This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
-- **Foundry VTT Version**: 13
-- **Module Compatibility**: Minimum V13, Verified V13
+## Repository Role
 
-## Code Locations
+This repo is the **development source** for the Loremaster Foundry VTT module. It is NOT the live module Foundry loads at runtime.
 
-- **Foundry Module (Client)**: `/Users/jerrychan/foundrydata/Data/modules/loremaster/`
-- **Proxy Server**: `~/work/loremaster-proxy/` (separate repository)
+| Path | Purpose |
+|------|---------|
+| `~/work/loremaster` (this repo) | Git source — develop here |
+| `~/foundrydata/Data/modules/loremaster` | Installed copy Foundry actually loads — overwritten by auto-updates and reinstalls; never edit directly |
 
-## Git Commit Guidelines
+To test changes in Foundry, copy or symlink files from this repo into the installed location. Never edit the installed copy as your primary workflow — those edits will be lost.
 
-- Claude-related files and directories (`.claude/`, `CLAUDE.md`, etc.) may be committed to the repository
-- Do NOT include any "Co-authored by", "Generated with Claude Code", or "Co-Authored-By" lines in commit messages
-- Keep commit messages clean and focused on the changes only
+The proxy server is an **Elixir** application (the older Node.js proxy is deprecated and should not be referenced). It lives in a separate repo. This repo only contains the client module.
+
+## Build & Release
+
+There is **no build step**. The module is plain ES modules + Handlebars + CSS loaded directly by Foundry.
+
+- **Run/test**: copy or symlink files into `~/foundrydata/Data/modules/loremaster`, then reload Foundry.
+- **No package.json, no bundler, no test runner.** Manual in-Foundry testing is the verification path.
+- **Release**: bump `module.json` `version`, commit, tag, and create a GitHub Release. `.github/workflows/release.yml` then:
+  1. Rewrites `module.json` with manifest/download URLs pointing at the release.
+  2. Builds `module.zip` from `module.json`, `scripts/`, `styles/`, `lang/`, `templates/`, `README.md`, `LICENSE.md` (excludes `CLAUDE.md`, `.claude/`, `TODO.md`, `docs/`).
+  3. Attaches both files to the release and notifies the Foundry Package Registry (requires `FOUNDRY_PACKAGE_RELEASE_TOKEN` secret).
+- **Sync to public repo**: `.github/workflows/publish-public.yml` mirrors this private repo to `github.com/digitsu/loremaster-foundry`, the public-facing manifest source.
+
+If you add new top-level files or directories the module needs at runtime, update the `zip -r` list in `release.yml` or they will be missing from releases.
 
 ## Architecture
 
-Loremaster is an AI-powered Game Master assistant module that consists of:
+Loremaster is a three-tier system:
 
-1. **Foundry Module** (`/scripts/`) - Client-side code running in the browser
-2. **Proxy Server** (`/server/`) - Node.js backend for Claude API communication
+```
+Foundry VTT (browser)  ──WebSocket──▶  Proxy Server (Elixir)  ──HTTPS──▶  Claude API
+   [this repo]                          [separate repo]                  [Anthropic]
+```
 
-## Key Components
+This repo is only the browser-side tier. All Claude API calls, conversation persistence, PDF processing, Patreon auth verification, and quota enforcement happen in the Elixir proxy. The client never sees the Anthropic API key. Production deployment is on Hetzner.
 
-### Client-Side (Foundry Module)
+Note: an older Node.js proxy implementation is deprecated. Any reference to Node-side files (`socket-handler.js`, `claude-client.js`, `conversation-store.js`, etc.) is stale and should be ignored — the Elixir proxy is the source of truth.
 
-- `loremaster.mjs` - Main entry point, hooks, initialization
-- `chat-handler.mjs` - Chat message processing, private GM chat, publish/iterate/discard
-- `socket-client.mjs` - WebSocket communication with proxy server
-- `message-batcher.mjs` - Multi-player message batching
-- `content-manager.mjs` - PDF upload, adventure management, Cast tab UI
-- `conversation-manager.mjs` - Conversation history management UI with export
-- `cast-selection-dialog.mjs` - Character assignment dialog for adventure activation
-- `gm-prep-journal.mjs` - Debounced sync of GM Prep journal edits to server
-- `usage-monitor.mjs` - API usage tracking and cost estimation UI
-- `welcome-journal.mjs` - First-run documentation journal
+### Two Server Modes
 
-### Server-Side (Proxy Server)
+Settings drive a fork in initialization (`scripts/loremaster.mjs` `ready` hook):
 
-- `socket-handler.js` - WebSocket event handlers
-- `conversation-store.js` - SQLite database for conversations and canon
-- `claude-client.js` - Claude API integration
-- `pdf-processor.js` - PDF text extraction
+- **Hosted mode** (`isHostedMode()` true): proxy URL is locked to the hosted endpoint, Patreon OAuth flow runs via `patreon-auth.mjs` / `patreon-login-ui.mjs`, tier-gated quotas enforced server-side. Claude API key and license fields are disabled in the settings UI.
+- **Self-hosted mode**: user supplies their own proxy URL, Claude API key, and Gumroad license key. No Patreon flow.
 
-## Features
+`config.mjs` is the single source of truth for which mode is active. New features that touch auth, settings UI, or server URLs must check `isHostedMode()` rather than assuming one mode.
 
-### Core Features
-- **Chat Integration**: `@lm` prefix for public messages, `@lm!` for private GM chat
-- **Message Batching**: Collects multiple player actions before sending to AI
-- **Canon System**: Published responses become official campaign history
-- **PDF Support**: Upload adventure PDFs for AI context
-- **Tool Use**: Claude can roll dice, query actors, etc.
+### Client-Side Module Layout (`scripts/`)
 
-### GM Prep System
-- **GM Prep Script Generation**: AI generates comprehensive adventure scripts from uploaded PDFs
-- **Character Extraction**: Parses GM Prep scripts to extract NPCs and playable characters
-- **Journal Sync**: GM Prep journals auto-sync back to server with 30-second debounce
-- **Sync Indicators**: Visual feedback in journal header showing sync status (pending, syncing, synced, error)
+Entry point: `loremaster.mjs` registers settings, hooks (`init`, `ready`, `renderChatMessage`, `getSceneControlButtons`, etc.), and wires modules together.
 
-### Cast Management
-- **Cast Selection Dialog**: Shown when activating an adventure with a GM Prep script
-- **Character Assignments**: Assign players to playable characters via dropdown
-- **Loremaster Control**: Mark NPCs for AI roleplay with checkboxes
-- **Cast Tab**: Persistent character management in Content Manager
-- **Role Detection**: Characters categorized as PC, major NPC, minor NPC, antagonist
+Functional groups:
 
-### Conversation Management
-- **Conversation History**: View, switch, rename, and delete conversations
-- **Compaction & Archive**: Summarize long conversations and archive them
-- **Continue from Summary**: Start new conversations with inherited context
-- **Export to Journal**: Export conversation history to Foundry journal with player/AI styling
+- **Transport & auth**: `socket-client.mjs` (WebSocket to proxy), `api-client.mjs`, `patreon-auth.mjs`, `patreon-login-ui.mjs`
+- **Chat pipeline**: `chat-handler.mjs` (`@lm` / `@lm!` parsing, publish/iterate/discard), `message-batcher.mjs` (multi-player batching), `batch-ui.mjs`, `message-formatter.mjs`
+- **Game state extraction**: `data-extractor.mjs` (actors, scenes, combat → context for Claude), `player-context.mjs`, `tool-handlers.mjs` (Claude tool-use callbacks: dice rolls, actor queries, etc.)
+- **Content & cast**: `content-manager.mjs` (PDF upload, adventures, Cast tab), `cast-selection-dialog.mjs`, `gm-prep-journal.mjs` (debounced 30s sync of GM Prep journals back to server), `shared-content-admin.mjs`
+- **Conversation lifecycle**: `conversation-manager.mjs` (history UI, compaction, archive, journal export)
+- **Status / monitoring UI**: `status-bar.mjs` (persistent connection/tier/quota pill, 6 states with auto-collapse), `progress-bar.mjs`, `usage-monitor.mjs` (token usage + cost estimation), `stat-review-panel.mjs`
+- **Onboarding & docs**: `welcome-journal.mjs`, `house-rules-journal.mjs`
+- **Config**: `config.mjs` (settings registration, mode helpers)
 
-### API Usage Monitoring
-- **Usage Monitor**: Track API token usage (input, output, cache reads/writes)
-- **Session Stats**: View current session usage
-- **All-Time Stats**: Track cumulative usage across all sessions
-- **Cost Estimation**: Approximate API cost calculation
+### Templates, Styles, i18n
 
-## Foundry V12+ API Changes
+- `templates/*.hbs` — Handlebars templates for each ApplicationV2/Dialog UI. Helpers are registered from each module's `register*Helpers()` function called in the `init` hook.
+- `styles/loremaster.css` — single stylesheet; no preprocessor.
+- `lang/en.json` — i18n keys grouped by feature (`SharedContent`, `PatreonLogin`, `Connection`, `SettingsPanel`, ...). Use `game.i18n.localize()` for any user-facing string.
 
-### Chat Messages
+### Cross-Cutting Concerns
 
-**IMPORTANT**: ChatMessage API changed significantly in Foundry V12+.
+- **Game-system adapters**: tool handlers in `tool-handlers.mjs` are designed for system-agnostic dispatch via an adapter pattern. Year Zero Engine (Coriolis, Forbidden Lands, Alien) is implemented; D&D 5e and Pathfinder 2e are planned. See `docs/TOOL_ADAPTER_SYSTEM.md` before adding new system support.
+- **Canon system**: published AI responses become permanent campaign history fed back into future Claude context. The publish/iterate/discard flow is concentrated in `chat-handler.mjs`.
+- **Rules discrepancies**: `docs/RULES_DISCREPANCY_SPEC.md` covers the PDF-vs-Foundry conflict detection and GM-ruling persistence flow.
 
-**DO NOT USE** (deprecated/broken):
+## Foundry V12+ API Gotchas
+
+These are non-obvious and have bitten us. Foundry V12+ broke the old ChatMessage construction patterns:
+
+**DO NOT USE** (causes `element.addEventListener is not a function` and notification errors):
 ```javascript
-// Old pattern - causes errors in V12+
-speaker: { alias: 'Loremaster' }
-style: CONST.CHAT_MESSAGE_STYLES.OTHER
-type: CONST.CHAT_MESSAGE_TYPES.IC
+speaker: { alias: 'Loremaster' }       // raw object — broken
+style: CONST.CHAT_MESSAGE_STYLES.OTHER  // causes addEventListener error
+type: CONST.CHAT_MESSAGE_TYPES.IC       // deprecated, also broken
 ```
 
 **USE INSTEAD**:
 ```javascript
-// Correct V12+ pattern
 speaker: ChatMessage.getSpeaker({ alias: 'Loremaster' })
-// or with actor
+// or with an actor:
 speaker: ChatMessage.getSpeaker({ actor: someActor })
-
-// Omit 'style' and 'type' properties entirely - they cause notification errors
+// Omit `style` and `type` entirely.
 ```
 
-Key points:
-- Always use `ChatMessage.getSpeaker()` for speaker data
-- Remove `style` property completely (causes `element.addEventListener is not a function` error)
-- Remove `type` property completely (deprecated in favor of `style`, which itself causes issues)
-- `CONST.CHAT_MESSAGE_TYPES` is deprecated, use `CONST.CHAT_MESSAGE_STYLES` (but better to omit entirely)
+Rules of thumb:
+- Always use `ChatMessage.getSpeaker()` for speaker data.
+- Omit `style` and `type` from `ChatMessage.create()` calls completely. Both deprecated forms throw at render time.
+- Scene controls use the `getSceneControlButtons` hook. Tool entries require `name`, `title`, `icon`, `button`, `visible`, `onClick`.
 
-### Scene Controls
+## Git Commit Guidelines
 
-- Scene controls use `getSceneControlButtons` hook
-- Control groups: tokens, measure, tiles, drawings, walls, lighting, sounds, notes
-- Tools require: name, title, icon, button, visible, onClick properties
+- Claude-related files (`.claude/`, `CLAUDE.md`, `.omc/`) may be committed.
+- **Never** add `Co-Authored-By: Claude`, `Generated with Claude Code`, or any AI attribution lines to commit messages. Keep messages clean and focused on the change.
 
-## Current Status
+## Reference Docs
 
-- **Version**: 0.1.7 (released) — P2 polish: i18n + status bar
-- **P2 Polish Complete**: i18n (92 keys across 4 groups), connection status bar component
-- **Status Bar**: `scripts/status-bar.mjs` — persistent pill showing connection state, tier, quota. 6 states with auto-collapse.
-- **i18n Coverage**: SharedContent, PatreonLogin, Connection, SettingsPanel groups in `lang/en.json`
-
-## Recent Changes
-
-- PR #2 merged: P2 Polish (i18n + status bar) — 940 lines across 11 files
-- PR #1 merged: Shared Content Library UI (v0.1.5)
-- v0.1.6: Auto-reconnect with auth recovery for hosted mode
-- Custom settings UI with inline account panel and section headers
+| Document | Description |
+|----------|-------------|
+| `docs/TOOL_ADAPTER_SYSTEM.md` | How to add support for new game systems |
+| `docs/RULES_DISCREPANCY_SPEC.md` | Rules discrepancy detection testing spec |
+| `README.md` | User-facing setup, hosted vs self-hosted, Patreon tiers |
+| `TODO.md` | Feature roadmap and completed milestones |
+| `module.json` | Foundry manifest — source of truth for current version and compatibility |
