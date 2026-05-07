@@ -274,6 +274,71 @@ export function registerSettings() {
     default: 0
   });
 
+  // ===== Voice Settings =====
+
+  // Voice output toggle — per-user client preference
+  game.settings.register(MODULE_ID, 'voiceEnabled', {
+    name: game.i18n.localize('LOREMASTER.Voice.Toggle.Label'),
+    hint: game.i18n.localize('LOREMASTER.Voice.Toggle.Hint'),
+    scope: 'client',
+    config: true,
+    type: Boolean,
+    default: false
+  });
+
+  // ElevenLabs API key — world-scoped, GM only, self-hosted mode
+  game.settings.register(MODULE_ID, 'elevenLabsApiKey', {
+    name: game.i18n.localize('LOREMASTER.Voice.Provider.ApiKey.Label'),
+    hint: game.i18n.localize('LOREMASTER.Voice.Provider.ApiKey.Hint'),
+    scope: 'world',
+    config: true,
+    type: String,
+    default: ''
+  });
+
+  // ElevenLabs voice name or ID — world-scoped
+  game.settings.register(MODULE_ID, 'voiceId', {
+    name: game.i18n.localize('LOREMASTER.Voice.Provider.VoiceId.Label'),
+    hint: game.i18n.localize('LOREMASTER.Voice.Provider.VoiceId.Hint'),
+    scope: 'world',
+    config: true,
+    type: String,
+    default: 'Rachel'
+  });
+
+  // Voice playback volume — per-user client preference
+  game.settings.register(MODULE_ID, 'voiceVolume', {
+    name: game.i18n.localize('LOREMASTER.Voice.Volume'),
+    scope: 'client',
+    config: true,
+    type: Number,
+    range: { min: 0, max: 1, step: 0.05 },
+    default: 0.8
+  });
+
+  // Push-to-talk hotkey character — per-user client preference
+  game.settings.register(MODULE_ID, 'pttHotkey', {
+    name: game.i18n.localize('LOREMASTER.Voice.Hotkey.Label'),
+    hint: game.i18n.localize('LOREMASTER.Voice.Hotkey.Hint'),
+    scope: 'client',
+    config: true,
+    type: String,
+    default: 'v'
+  });
+
+  // Push-to-talk mode (hold vs toggle) — per-user client preference
+  game.settings.register(MODULE_ID, 'pttMode', {
+    name: game.i18n.localize('LOREMASTER.Voice.Hotkey.Mode.Label'),
+    scope: 'client',
+    config: true,
+    type: String,
+    choices: {
+      'hold': 'LOREMASTER.Voice.Hotkey.Mode.Hold',
+      'toggle': 'LOREMASTER.Voice.Hotkey.Mode.Toggle'
+    },
+    default: 'hold'
+  });
+
   // Enhanced settings config hook — organizes settings into sections,
   // hides mode-irrelevant fields, and injects account panel in hosted mode
   Hooks.on('renderSettingsConfig', (app, html) => {

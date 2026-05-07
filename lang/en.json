@@ -536,6 +536,41 @@
       "NotIncludedList": "PDF files (re-upload needed), Full chat history, API credentials, Embeddings (regenerated automatically)",
       "GMOnly": "Backup management is only available to the GM."
     },
+    "Voice": {
+      "Toggle": {
+        "Label": "Hear AI voice",
+        "Hint": "Play AI responses out loud when canon is published. Per-user setting; off by default."
+      },
+      "PTT": {
+        "Label": "Push to talk",
+        "NotSupported": "Voice input requires Chrome or Edge."
+      },
+      "PermissionDenied": {
+        "Title": "Microphone access denied",
+        "Body": "Loremaster needs microphone access for push-to-talk. Enable it in your browser site settings and reload."
+      },
+      "SettingsHeader": "Voice",
+      "Provider": {
+        "ApiKey": {
+          "Label": "ElevenLabs API key",
+          "Hint": "Required for self-hosted mode. Hosted users do not need to set this."
+        },
+        "VoiceId": {
+          "Label": "Voice ID",
+          "Hint": "ElevenLabs voice name or ID. Default: Rachel."
+        }
+      },
+      "Volume": "Voice volume",
+      "Hotkey": {
+        "Label": "Push-to-talk key",
+        "Hint": "Single character. Default: V.",
+        "Mode": {
+          "Label": "Push-to-talk mode",
+          "Hold": "Hold to talk",
+          "Toggle": "Press to start/stop"
+        }
+      }
+    },
     "SharedContent": {
       "YourDocuments": "Your Documents",
       "SharedLibrary": "Shared Library",
