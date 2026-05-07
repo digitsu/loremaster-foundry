@@ -379,6 +379,12 @@ async function initializeLoremaster() {
           );
         }
       }
+
+      // Voice replay icon: inject a play button on past canon messages whose
+      // MP3 is already cached on the proxy. Fails silently if unavailable.
+      if (message.flags?.[MODULE_ID]?.isCanon) {
+        game.loremaster?.voiceOutput?.decorateChatMessage(message, html).catch(() => {});
+      }
     });
 
     ui.notifications.info(`${MODULE_NAME} is now active`);

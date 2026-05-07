@@ -138,6 +138,67 @@ export class VoiceOutput {
   }
 
   /**
+   * Inject a "replay audio" icon on canon messages whose audio is cached on the proxy.
+   * Called from the renderChatMessageHTML hook in loremaster.mjs whenever a canon
+   * message is rendered (including on initial load and after world reloads).
+   *
+   * The check is intentionally lightweight — getTTSStatus() asks the proxy whether
+   * the MP3 is already cached and returns immediately without triggering generation.
+   * If the proxy is unavailable or the audio is not cached, the function exits
+   * silently so the chat message renders normally.
+   *
+   * The replay button click calls requestTTS() which, because the audio is cached,
+   * returns the URL immediately without a second ElevenLabs call.
+   *
+   * NOTE: voiceEnabled is NOT checked here — the icon appears for all users whose
+   * canon entry has cached audio. Auto-play is gated by voiceEnabled in
+   * _handleCanonPublished(). The replay button is an explicit user opt-in action.
+   *
+   * @param {ChatMessage} message - The Foundry chat message being rendered.
+   * @param {HTMLElement|jQuery} html - The rendered HTML element (V13+: HTMLElement).
+   */
+  async decorateChatMessage(message, html) {
+    if (!message.flags?.loremaster?.isCanon) return;
+
+    // Use the server-assigned canonId if present, fall back to the Foundry message id.
+    const canonId = message.flags.loremaster.canonId || message.id;
+
+    let status;
+    try {
+      status = await this.socketClient.getTTSStatus(canonId);
+    } catch {
+      return;
+    }
+
+    if (!status?.cached) return;
+
+    // Build the replay button using safe DOM construction (no innerHTML).
+    const replayBtn = document.createElement('button');
+    replayBtn.classList.add('lm-replay-audio');
+    replayBtn.title = 'Replay audio';
+
+    const icon = document.createElement('i');
+    icon.classList.add('fas', 'fa-play-circle');
+    replayBtn.appendChild(icon);
+
+    replayBtn.addEventListener('click', async () => {
+      const text = message.content || '';
+      let result;
+      try {
+        result = await this.socketClient.requestTTS(canonId, text);
+      } catch (err) {
+        this._notifyVoiceUnavailable(err);
+        return;
+      }
+      if (result?.audioUrl) this._play(canonId, this._resolveAudioUrl(result.audioUrl));
+    });
+
+    // Support both V13 HTMLElement and older jQuery-wrapped elements.
+    const element = html instanceof HTMLElement ? html : html?.[0];
+    element?.querySelector('.message-content')?.appendChild(replayBtn);
+  }
+
+  /**
    * Stop all currently playing audio immediately.
    * Pauses each active HTMLAudioElement and clears the tracking map.
    */
