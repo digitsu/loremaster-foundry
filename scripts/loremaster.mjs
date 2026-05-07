@@ -26,6 +26,7 @@ import { SharedContentAdmin } from './shared-content-admin.mjs';
 import { statusBar } from './status-bar.mjs';
 import { getAuthManager, AuthState, AUTH_STATE_CHANGED_EVENT } from './patreon-auth.mjs';
 import { openPatreonLogin, registerPatreonLoginHelpers } from './patreon-login-ui.mjs';
+import { VoiceOutput } from './voice-output.mjs';
 
 // Module constants
 const MODULE_ID = 'loremaster';
@@ -312,6 +313,10 @@ async function initializeLoremaster() {
     // Create usage monitor for API usage tracking
     const usageMonitor = new UsageMonitor(socketClient);
 
+    // Create and initialize voice output (plays TTS audio on canon publish)
+    const voiceOutput = new VoiceOutput(socketClient);
+    voiceOutput.initialize();
+
     // Create and initialize GM Prep Journal sync (for GM only)
     const gmPrepJournalSync = new GMPrepJournalSync(socketClient);
     gmPrepJournalSync.initialize();
@@ -339,6 +344,7 @@ async function initializeLoremaster() {
       conversationManager,
       houseRulesJournal,
       usageMonitor,
+      voiceOutput,
       gmPrepJournalSync,
       statReviewPanel,
       MODULE_ID,

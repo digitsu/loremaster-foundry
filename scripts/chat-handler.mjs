@@ -1569,11 +1569,23 @@ export class ChatHandler {
       } : null;
 
       // Publish to canon on the server
-      await this.socketClient.publishToCanon(
+      const canonResult = await this.socketClient.publishToCanon(
         pendingResponse.content,
         pendingResponse.messageId,
         sceneContext
       );
+
+      // Notify voice output so TTS audio can be fetched and played.
+      // canonResult.canonId is the server-assigned UUID for the new canon entry.
+      // Uses optional chaining so this is a no-op if voiceOutput is not yet
+      // initialized (e.g. during the error-fallback path in loremaster.mjs).
+      const canonId = canonResult?.canonId || canonResult?.id;
+      if (canonId) {
+        game.loremaster?.voiceOutput?._handleCanonPublished({
+          canonId,
+          text: pendingResponse.content
+        });
+      }
 
       // Create public chat message for all players
       const formattedContent = formatResponse(pendingResponse.content);

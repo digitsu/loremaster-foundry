@@ -852,6 +852,33 @@ export class SocketClient {
     });
   }
 
+  // ===== Text-to-Speech Methods =====
+
+  /**
+   * Request a TTS audio URL for a canon entry.
+   * The proxy generates (or returns cached) audio for the given canon text.
+   *
+   * @param {string} canonId - Canon message UUID.
+   * @param {string} text - Canon text content (used for cache-miss generation).
+   * @returns {Promise<{audioUrl: string, cached: boolean}>} Audio URL and cache status.
+   */
+  async requestTTS(canonId, text) {
+    this._requireAuth();
+    return this._sendRequest('request-tts', { canonId, text });
+  }
+
+  /**
+   * Check whether a canon entry already has cached TTS audio on the proxy.
+   * Cheaper than requestTTS — does not trigger generation.
+   *
+   * @param {string} canonId - Canon message UUID.
+   * @returns {Promise<{cached: boolean}>} Whether audio is already cached.
+   */
+  async getTTSStatus(canonId) {
+    this._requireAuth();
+    return this._sendRequest('tts-status', { canonId });
+  }
+
   // ===== House Rules Methods =====
 
   /**
