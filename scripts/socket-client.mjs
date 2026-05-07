@@ -260,6 +260,13 @@ export class SocketClient {
         throw new Error('PATREON_AUTH_REQUIRED');
       }
       payload.sessionToken = sessionToken;
+
+      // Voice: send user-chosen voice ID so the proxy can route TTS correctly.
+      // The ElevenLabs API key is the operator's server-side secret in hosted mode.
+      const voiceId = getSetting('voiceId');
+      if (voiceId) {
+        payload.voiceId = voiceId;
+      }
     } else {
       // Self-hosted mode: use API key and license key
       const apiKey = getSetting('apiKey');
@@ -273,6 +280,18 @@ export class SocketClient {
       // Send license key if configured (for production proxy servers)
       if (licenseKey) {
         payload.licenseKey = licenseKey;
+      }
+
+      // Voice: send the user-supplied ElevenLabs API key and chosen voice ID
+      // so the proxy can authenticate with ElevenLabs on this user's behalf.
+      const elevenLabsApiKey = getSetting('elevenLabsApiKey');
+      if (elevenLabsApiKey) {
+        payload.elevenLabsApiKey = elevenLabsApiKey;
+      }
+
+      const voiceId = getSetting('voiceId');
+      if (voiceId) {
+        payload.voiceId = voiceId;
       }
     }
 
