@@ -71,6 +71,10 @@ const STATE_CONFIG = {
  * StatusBar class manages a persistent connection status indicator.
  * Follows the same pattern as ProgressBar: creates a DOM element in initialize(),
  * toggles visibility/state with methods. Singleton instance exported as `statusBar`.
+ *
+ * The bar also exposes a small dropdown menu (opened via a caret button) that
+ * hosts auxiliary toggles such as the "Hear AI voice" toggle. The existing
+ * click-to-expand behaviour on the bar itself is preserved unchanged.
  */
 export class StatusBar {
   /**
@@ -87,34 +91,79 @@ export class StatusBar {
     this.collapseTimer = null;
     /** @type {string} Detail text (tier + quota summary) */
     this.detailText = '';
+    /** @type {HTMLElement|null} The dropdown menu panel element */
+    this._menuEl = null;
+    /** @type {boolean} Whether the dropdown menu is currently open */
+    this._menuOpen = false;
   }
 
   /**
    * Initialize the status bar element in the DOM.
    * Should be called once in the Foundry 'ready' hook.
+   *
+   * Builds the bar content using safe DOM construction. A small caret button
+   * on the right side opens the dropdown menu without interfering with the
+   * existing click-to-expand behaviour on the rest of the bar.
    */
   initialize() {
     // Create the status bar container
     this.element = document.createElement('div');
     this.element.id = 'loremaster-status-bar';
     this.element.className = 'loremaster-status-bar loremaster-status--disabled loremaster-status--collapsed';
-    this.element.innerHTML = `
-      <div class="loremaster-status-content">
-        <i class="fas fa-hat-wizard loremaster-status-icon"></i>
-        <span class="loremaster-status-label">Loremaster</span>
-        <span class="loremaster-status-state"></span>
-        <span class="loremaster-status-detail"></span>
-      </div>
-    `;
 
-    // Click handler: toggle expand/collapse or open settings if auth-required
+    // Build inner content using safe DOM construction (no innerHTML for user data)
+    const content = document.createElement('div');
+    content.className = 'loremaster-status-content';
+
+    const wizardIcon = document.createElement('i');
+    wizardIcon.className = 'fas fa-hat-wizard loremaster-status-icon';
+
+    const label = document.createElement('span');
+    label.className = 'loremaster-status-label';
+    label.textContent = 'Loremaster';
+
+    const stateSpan = document.createElement('span');
+    stateSpan.className = 'loremaster-status-state';
+
+    const detailSpan = document.createElement('span');
+    detailSpan.className = 'loremaster-status-detail';
+
+    // Caret button — opens the dropdown menu without triggering bar expand/collapse
+    const caretBtn = document.createElement('button');
+    caretBtn.className = 'loremaster-status-menu-btn';
+    caretBtn.title = 'Loremaster options';
+    caretBtn.type = 'button';
+    const caretIcon = document.createElement('i');
+    caretIcon.className = 'fas fa-caret-down';
+    caretBtn.appendChild(caretIcon);
+    caretBtn.addEventListener('click', (ev) => {
+      ev.stopPropagation(); // prevent bar-level click-to-expand
+      this._toggleMenu();
+    });
+
+    content.append(wizardIcon, label, stateSpan, detailSpan, caretBtn);
+    this.element.appendChild(content);
+
+    // Click handler on bar body: toggle expand/collapse or open settings if auth-required
     this.element.addEventListener('click', () => {
+      // Close the dropdown if it is open
+      if (this._menuOpen) {
+        this._closeMenu();
+        return;
+      }
       if (this.currentState === 'auth-required') {
         game.settings.sheet.render(true);
         return;
       }
       this.collapsed = !this.collapsed;
       this._updateCollapsed();
+    });
+
+    // Close menu when clicking anywhere outside the status bar
+    document.addEventListener('click', (ev) => {
+      if (this._menuOpen && this.element && !this.element.contains(ev.target)) {
+        this._closeMenu();
+      }
     });
 
     // Insert into the DOM — after #navigation if it exists, else top of body
@@ -298,6 +347,118 @@ export class StatusBar {
   }
 
   /**
+   * Toggle the dropdown menu open or closed.
+   *
+   * @private
+   */
+  _toggleMenu() {
+    if (this._menuOpen) {
+      this._closeMenu();
+    } else {
+      this._openMenu();
+    }
+  }
+
+  /**
+   * Open the dropdown menu, building (or rebuilding) its contents first.
+   *
+   * @private
+   */
+  _openMenu() {
+    // Remove any stale menu element
+    if (this._menuEl && this._menuEl.parentElement) {
+      this._menuEl.parentElement.removeChild(this._menuEl);
+    }
+    this._menuEl = this._buildMenu();
+    this.element.appendChild(this._menuEl);
+    this._menuOpen = true;
+
+    // Rotate caret to indicate open state
+    const caret = this.element.querySelector('.loremaster-status-menu-btn i');
+    if (caret) caret.className = 'fas fa-caret-up';
+  }
+
+  /**
+   * Close the dropdown menu and remove it from the DOM.
+   *
+   * @private
+   */
+  _closeMenu() {
+    if (this._menuEl && this._menuEl.parentElement) {
+      this._menuEl.parentElement.removeChild(this._menuEl);
+    }
+    this._menuEl = null;
+    this._menuOpen = false;
+
+    // Restore caret icon
+    const caret = this.element.querySelector('.loremaster-status-menu-btn i');
+    if (caret) caret.className = 'fas fa-caret-down';
+  }
+
+  /**
+   * Build the dropdown menu element and populate it with menu items.
+   * Currently includes the "Hear AI voice" toggle. Additional items can be
+   * appended here in future tasks.
+   *
+   * @returns {HTMLElement} The constructed menu panel element.
+   * @private
+   */
+  _buildMenu() {
+    const menu = document.createElement('div');
+    menu.className = 'lm-statusbar-menu';
+
+    menu.appendChild(this._buildVoiceToggle());
+
+    return menu;
+  }
+
+  /**
+   * Build a menu item that toggles the "Hear AI voice" (`voiceEnabled`) setting.
+   *
+   * Reads the current value of `game.settings.get('loremaster', 'voiceEnabled')`,
+   * renders the correct icon and on/off label, and wires a click handler that:
+   *   1. Flips the setting.
+   *   2. Calls `game.loremaster.voiceOutput.stopAll()` if toggling off.
+   *   3. Rebuilds the menu so the new state is reflected immediately.
+   *
+   * All DOM construction uses createElement / classList / textContent — no innerHTML.
+   *
+   * @returns {HTMLElement} The constructed menu item element.
+   * @private
+   */
+  _buildVoiceToggle() {
+    const enabled = game.settings.get('loremaster', 'voiceEnabled');
+
+    const item = document.createElement('div');
+    item.classList.add('lm-statusbar-menu-item', 'lm-voice-toggle');
+
+    const icon = document.createElement('i');
+    icon.classList.add('fas', enabled ? 'fa-volume-up' : 'fa-volume-mute');
+
+    const label = document.createElement('span');
+    label.textContent = game.i18n.localize('LOREMASTER.Voice.Toggle.Label');
+
+    const state = document.createElement('span');
+    state.classList.add('lm-toggle-state');
+    state.textContent = enabled ? 'on' : 'off';
+
+    item.append(icon, label, state);
+
+    item.addEventListener('click', async (ev) => {
+      ev.stopPropagation(); // prevent the bar's document-level close handler firing first
+      const next = !game.settings.get('loremaster', 'voiceEnabled');
+      await game.settings.set('loremaster', 'voiceEnabled', next);
+      if (!next) {
+        game.loremaster?.voiceOutput?.stopAll();
+      }
+      // Rebuild the menu in-place so the icon and state label reflect the new value
+      this._openMenu();
+    });
+
+    return item;
+  }
+
+  /**
    * Inject CSS styles for the status bar into the document.
    * Uses Foundry CSS variables for theming.
    *
@@ -441,6 +602,82 @@ export class StatusBar {
       }
       .loremaster-status--disabled {
         opacity: 0.6;
+      }
+
+      /* === Caret / menu button === */
+
+      .loremaster-status-menu-btn {
+        background: none;
+        border: none;
+        padding: 0 2px;
+        margin-left: 2px;
+        cursor: pointer;
+        color: rgba(212, 175, 55, 0.6);
+        font-size: 0.7rem;
+        line-height: 1;
+        flex-shrink: 0;
+        transition: color 0.2s ease;
+      }
+      .loremaster-status-menu-btn:hover {
+        color: #d4af37;
+      }
+
+      /* === Dropdown menu panel === */
+
+      .lm-statusbar-menu {
+        position: absolute;
+        top: calc(100% + 4px);
+        left: 50%;
+        transform: translateX(-50%);
+        background: rgba(26, 26, 46, 0.97);
+        border: 1px solid rgba(201, 132, 26, 0.4);
+        border-radius: 8px;
+        padding: 4px 0;
+        min-width: 180px;
+        z-index: 91;
+        backdrop-filter: blur(4px);
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
+      }
+
+      /* === Menu items === */
+
+      .lm-statusbar-menu-item {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        padding: 6px 12px;
+        cursor: pointer;
+        font-size: 0.75rem;
+        color: #c9c9b8;
+        white-space: nowrap;
+        transition: background 0.15s ease;
+      }
+      .lm-statusbar-menu-item:hover {
+        background: rgba(201, 132, 26, 0.15);
+        color: #d4af37;
+      }
+      .lm-statusbar-menu-item i {
+        width: 14px;
+        text-align: center;
+        color: #d4af37;
+        font-size: 0.8rem;
+      }
+      .lm-statusbar-menu-item span {
+        flex: 1;
+      }
+      .lm-statusbar-menu-item .lm-toggle-state {
+        flex: none;
+        font-size: 0.65rem;
+        font-weight: 600;
+        text-transform: uppercase;
+        color: #6b7280;
+        letter-spacing: 0.05em;
+      }
+      .lm-voice-toggle .lm-toggle-state {
+        color: #6b7280;
+      }
+      .lm-voice-toggle:has(i.fa-volume-up) .lm-toggle-state {
+        color: #4ade80;
       }
     `;
 
