@@ -168,6 +168,29 @@ Loremaster has its own top-level control group in the left toolbar, identified b
 - **Issues**: [GitHub Issues](https://github.com/digitsu/loremaster-foundry/issues)
 - **Email**: support@loremastervtt.com
 
+## Voice (v0.4+)
+
+Loremaster supports a one-way voice mode where Claude's published canon is
+read aloud via ElevenLabs, plus push-to-talk speech-to-text in supported
+browsers.
+
+### Settings
+
+- **Hear AI voice** (per-user, default off): plays canon audio on publish.
+- **ElevenLabs API key** (self-hosted only): your ElevenLabs key. Hosted
+  users get the operator-managed key automatically.
+- **Voice ID** (per-world): ElevenLabs voice name. Default `Rachel`.
+- **Push-to-talk key** (per-user): hotkey to dictate into chat. Default V.
+- **Push-to-talk mode** (per-user): "hold" or "toggle". Default hold.
+
+### Browser support
+
+| Browser | TTS playback | STT (push-to-talk) |
+|---|---|---|
+| Chrome / Edge / Brave | ✅ | ✅ |
+| Firefox | ✅ | ❌ (button greyed out) |
+| Safari | ✅ | ❌ (button greyed out) |
+
 ## License
 
 Copyright (c) 2025 Jerry Chan. All Rights Reserved. See [LICENSE.md](LICENSE.md) for details.

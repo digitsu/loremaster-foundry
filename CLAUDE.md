@@ -65,6 +65,7 @@ Functional groups:
 - **Status / monitoring UI**: `status-bar.mjs` (persistent connection/tier/quota pill, 6 states with auto-collapse), `progress-bar.mjs`, `usage-monitor.mjs` (token usage + cost estimation), `stat-review-panel.mjs`
 - **Onboarding & docs**: `welcome-journal.mjs`, `house-rules-journal.mjs`
 - **Config**: `config.mjs` (settings registration, mode helpers)
+- **Voice**: `voice-input.mjs` (PTT + Web Speech API STT), `voice-output.mjs` (canon-published listener + audio playback + replay icon)
 
 ### Templates, Styles, i18n
 
