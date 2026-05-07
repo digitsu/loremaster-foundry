@@ -5396,3 +5396,21 @@
 .lm-replay-audio:hover {
   color: #4af;
 }
+
+/* Push-to-talk microphone button in the chat sidebar toolbar */
+.lm-ptt-btn {
+  cursor: pointer;
+  padding: 4px 6px;
+  color: #888;
+}
+.lm-ptt-btn.lm-ptt-active {
+  color: #f44;
+  animation: lm-ptt-pulse 0.7s infinite;
+}
+.lm-ptt-btn.lm-ptt-disabled {
+  cursor: not-allowed;
+  opacity: 0.4;
+}
+@keyframes lm-ptt-pulse {
+  50% { opacity: 0.5; }
+}
