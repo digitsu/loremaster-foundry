@@ -323,7 +323,7 @@ export function registerSettings() {
     scope: 'client',
     config: true,
     type: String,
-    default: 'v'
+    default: '`'
   });
 
   // Push-to-talk mode (hold vs toggle) — per-user client preference

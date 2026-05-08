@@ -563,7 +563,7 @@
       "Volume": "Voice volume",
       "Hotkey": {
         "Label": "Push-to-talk key",
-        "Hint": "Single character. Default: V.",
+        "Hint": "Single character. Default: ` (backtick).",
         "Mode": {
           "Label": "Push-to-talk mode",
           "Hold": "Hold to talk",
