@@ -409,7 +409,9 @@ export class SocketClient {
           userName: payload.userName,
           worldName: payload.worldName,
           systemId: payload.systemId,
-          systemTitle: payload.systemTitle
+          systemTitle: payload.systemTitle,
+          elevenLabsApiKey: payload.elevenLabsApiKey,
+          voiceId: payload.voiceId
         },
         ref: requestId
       }));
