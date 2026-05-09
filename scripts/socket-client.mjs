@@ -262,7 +262,9 @@ export class SocketClient {
       payload.sessionToken = sessionToken;
 
       // Voice: send user-chosen voice ID so the proxy can route TTS correctly.
-      // The ElevenLabs API key is the operator's server-side secret in hosted mode.
+      // Empty/missing falls through to the server's default — do NOT send empty
+      // string, because Elixir treats "" as truthy and "" || default returns ""
+      // (the proxy then 404s on /v1/text-to-speech/<empty>).
       const voiceId = getSetting('voiceId');
       if (voiceId) {
         payload.voiceId = voiceId;
