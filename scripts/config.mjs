@@ -303,7 +303,7 @@ export function registerSettings() {
     scope: 'world',
     config: true,
     type: String,
-    default: 'Rachel'
+    default: '21m00Tcm4TlvDq8ikWAM'
   });
 
   // Voice playback volume — per-user client preference

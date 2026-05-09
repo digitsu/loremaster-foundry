@@ -557,7 +557,7 @@
         },
         "VoiceId": {
           "Label": "Voice ID",
-          "Hint": "ElevenLabs voice name or ID. Default: Rachel."
+          "Hint": "ElevenLabs voice ID (the UUID-style ID, not the display name). Find IDs at https://elevenlabs.io/app/voice-lab. Default: Rachel (21m00Tcm4TlvDq8ikWAM)."
         }
       },
       "Volume": "Voice volume",
