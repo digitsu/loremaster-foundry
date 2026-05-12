@@ -78,6 +78,7 @@ Functional groups:
 - **Game-system adapters**: tool handlers in `tool-handlers.mjs` are designed for system-agnostic dispatch via an adapter pattern. Year Zero Engine (Coriolis, Forbidden Lands, Alien) is implemented; D&D 5e and Pathfinder 2e are planned. See `docs/TOOL_ADAPTER_SYSTEM.md` before adding new system support.
 - **Canon system**: published AI responses become permanent campaign history fed back into future Claude context. The publish/iterate/discard flow is concentrated in `chat-handler.mjs`.
 - **Rules discrepancies**: `docs/RULES_DISCREPANCY_SPEC.md` covers the PDF-vs-Foundry conflict detection and GM-ruling persistence flow.
+- **Wire-protocol contract**: `loremaster-proxy-elixir/docs/MESSAGE_PROTOCOL.md` documents every Phoenix channel message type (request payload, reply shape, correlation strategy, and gotchas). Consult this before adding or modifying any `socket-client.mjs` message.
 
 ## Foundry V12+ API Gotchas
 
