@@ -814,6 +814,15 @@ export class ChatHandler {
       // Send private message
       const result = await this.socketClient.sendPrivateMessage(message, context);
 
+      // The proxy's chat-complete payload doesn't always populate a server-side
+      // message_id for single-message (non-batch) chats — falls through to null.
+      // Generate a client-side fallback so the pendingPrivateResponses key, the
+      // button's data-message-id, and the publish-flow lookup all agree on a
+      // non-null string identifier.
+      if (!result.messageId) {
+        result.messageId = `private_${Date.now()}_${Math.random().toString(36).slice(2, 10)}`;
+      }
+
       // Store for potential publishing
       this.pendingPrivateResponses.set(result.messageId, {
         content: result.response,
@@ -853,14 +862,14 @@ export class ChatHandler {
         </div>
         <div class="response-content">${formattedContent}</div>
         <div class="private-controls">
-          <button type="button" class="loremaster-publish-btn" data-message-id="${result.messageId}">
-            <i class="fas fa-bullhorn"></i> ${game.i18n?.localize('LOREMASTER.Private.Publish') || 'Publish to Players'}
+          <button type="button" class="loremaster-publish-btn" data-message-id="${result.messageId}" title="${game.i18n?.localize('LOREMASTER.Private.Publish') || 'Publish to Players'}" aria-label="${game.i18n?.localize('LOREMASTER.Private.Publish') || 'Publish to Players'}">
+            <i class="fas fa-bullhorn"></i>
           </button>
-          <button type="button" class="loremaster-iterate-btn" data-message-id="${result.messageId}">
-            <i class="fas fa-redo"></i> ${game.i18n?.localize('LOREMASTER.Private.Iterate') || 'Refine'}
+          <button type="button" class="loremaster-iterate-btn" data-message-id="${result.messageId}" title="${game.i18n?.localize('LOREMASTER.Private.Iterate') || 'Refine'}" aria-label="${game.i18n?.localize('LOREMASTER.Private.Iterate') || 'Refine'}">
+            <i class="fas fa-redo"></i>
           </button>
-          <button type="button" class="loremaster-discard-btn" data-message-id="${result.messageId}">
-            <i class="fas fa-trash"></i> ${game.i18n?.localize('LOREMASTER.Private.Discard') || 'Discard'}
+          <button type="button" class="loremaster-discard-btn" data-message-id="${result.messageId}" title="${game.i18n?.localize('LOREMASTER.Private.Discard') || 'Discard'}" aria-label="${game.i18n?.localize('LOREMASTER.Private.Discard') || 'Discard'}">
+            <i class="fas fa-trash"></i>
           </button>
         </div>
       </div>
