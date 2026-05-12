@@ -76,9 +76,12 @@ export class VoiceInput {
    * @param {HTMLElement | jQuery} html - The rendered ChatLog HTML root.
    * @returns {void}
    */
-  _injectButton(html) {
-    const element = html instanceof HTMLElement ? html : html?.[0];
-    const chatControls = element?.querySelector('#chat-controls');
+  _injectButton(_html) {
+    // Foundry V13: #chat-controls lives outside the ChatLog application's root
+    // element (it's a sibling, not a descendant), so querying within the hook's
+    // html parameter returns null. Document-level lookup works regardless of
+    // where #chat-controls sits in the DOM tree since the id is globally unique.
+    const chatControls = document.querySelector('#chat-controls');
     if (!chatControls || chatControls.querySelector('.lm-ptt-btn')) return;
 
     const btn = document.createElement('a');
