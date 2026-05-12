@@ -440,6 +440,13 @@ export class SocketClient {
   async sendMessage(message, context = {}, isPrivate = false) {
     this._requireAuth();
 
+    // The proxy's chat-complete push needs a correlation key to match
+    // back to the pending request. Batched chats use batchId; GM Prep uses
+    // scriptId; private/single chats pass clientRequestId. Generate one here
+    // and the proxy echoes it back in chat-complete (see _handlePhoenixMessage
+    // chat-complete handling).
+    const clientRequestId = `chat_${Date.now()}_${++this.requestIdCounter}`;
+
     // Chat completion can legitimately take several minutes when Claude is
     // handling a large context or tool-use loop. Use ASYNC_TIMEOUT_CHAT (5 min)
     // rather than the 60s default so we don't orphan requests that the proxy
@@ -447,7 +454,8 @@ export class SocketClient {
     const result = await this._sendRequest('chat', {
       message,
       context,
-      isPrivate
+      isPrivate,
+      clientRequestId
     }, ASYNC_TIMEOUT_CHAT);
 
     return {
@@ -2589,6 +2597,22 @@ export class SocketClient {
                   }
                 }, ASYNC_TIMEOUT_CHAT);
                 console.log(`${MODULE_ID} | Async request acknowledged, waiting for result (batchId: ${batchId}, isVeto: ${pending.isVeto})`);
+              } else if (response.clientRequestId) {
+                // Private / single-message chat: correlate via the client-generated ID
+                // we attached in sendMessage. Proxy echoes it back in both ack and
+                // the eventual chat-complete push.
+                const clientRequestId = response.clientRequestId;
+                pending.clientRequestId = clientRequestId;
+                this.pendingRequests.delete(ref);
+                this.pendingRequests.set(`chat_${clientRequestId}`, pending);
+                pending.timeoutId = setTimeout(() => {
+                  if (this.pendingRequests.has(`chat_${clientRequestId}`)) {
+                    console.warn(`${MODULE_ID} | Chat request timed out (clientRequestId: ${clientRequestId})`);
+                    this.pendingRequests.delete(`chat_${clientRequestId}`);
+                    pending.reject(new Error('Request timed out — no response from server'));
+                  }
+                }, ASYNC_TIMEOUT_CHAT);
+                console.log(`${MODULE_ID} | Async chat request acknowledged, waiting for result (clientRequestId: ${clientRequestId})`);
               } else if (scriptId) {
                 // GM Prep async - store with scriptId for correlation
                 pending.scriptId = scriptId;
@@ -2750,14 +2774,20 @@ export class SocketClient {
 
     // Handle chat-complete events (async response from Phoenix server)
     if (message.type === 'chat-complete') {
-      // Both chat-batch and veto use this event, with different ID fields
+      // Three correlation paths:
+      //   1. Batched chats + vetoes: batchId / originalBatchId (multi-player flow)
+      //   2. Private single-message chats: clientRequestId (echoed by proxy)
+      //   3. None of the above → orphan log (proxy/client correlation bug)
       const batchId = message.batch_id || message.batchId || message.original_batch_id || message.originalBatchId;
-      if (batchId) {
-        const pending = this.pendingRequests.get(`batch_${batchId}`);
+      const clientRequestId = message.client_request_id || message.clientRequestId;
+      const key = batchId ? `batch_${batchId}` : (clientRequestId ? `chat_${clientRequestId}` : null);
+
+      if (key) {
+        const pending = this.pendingRequests.get(key);
         if (pending) {
-          console.log(`${MODULE_ID} | Chat complete received for batch: ${batchId}`);
+          console.log(`${MODULE_ID} | Chat complete received (${key})`);
           if (pending.timeoutId) clearTimeout(pending.timeoutId);
-          this.pendingRequests.delete(`batch_${batchId}`);
+          this.pendingRequests.delete(key);
           pending.resolve({
             success: true,
             response: message.response,
@@ -2776,14 +2806,16 @@ export class SocketClient {
 
     // Handle chat-error events (async error from Phoenix server)
     if (message.type === 'chat-error') {
-      // Both chat-batch and veto use this event
       const batchId = message.batch_id || message.batchId || message.original_batch_id || message.originalBatchId;
-      if (batchId) {
-        const pending = this.pendingRequests.get(`batch_${batchId}`);
+      const clientRequestId = message.client_request_id || message.clientRequestId;
+      const key = batchId ? `batch_${batchId}` : (clientRequestId ? `chat_${clientRequestId}` : null);
+
+      if (key) {
+        const pending = this.pendingRequests.get(key);
         if (pending) {
-          console.error(`${MODULE_ID} | Chat error for batch ${batchId}:`, message.error);
+          console.error(`${MODULE_ID} | Chat error (${key}):`, message.error);
           if (pending.timeoutId) clearTimeout(pending.timeoutId);
-          this.pendingRequests.delete(`batch_${batchId}`);
+          this.pendingRequests.delete(key);
           pending.reject(new Error(message.error || 'Chat request failed'));
           return;
         }
