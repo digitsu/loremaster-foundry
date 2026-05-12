@@ -159,11 +159,14 @@ export class StatusBar {
       this._updateCollapsed();
     });
 
-    // Close menu when clicking anywhere outside the status bar
+    // Close menu when clicking anywhere outside the status bar AND outside
+    // the dropdown menu itself (the menu lives in document.body now, not
+    // inside this.element, so we must check it separately).
     document.addEventListener('click', (ev) => {
-      if (this._menuOpen && this.element && !this.element.contains(ev.target)) {
-        this._closeMenu();
-      }
+      if (!this._menuOpen || !this.element) return;
+      const insideBar = this.element.contains(ev.target);
+      const insideMenu = this._menuEl && this._menuEl.contains(ev.target);
+      if (!insideBar && !insideMenu) this._closeMenu();
     });
 
     // Insert into the DOM — after #navigation if it exists, else top of body
@@ -370,7 +373,18 @@ export class StatusBar {
       this._menuEl.parentElement.removeChild(this._menuEl);
     }
     this._menuEl = this._buildMenu();
-    this.element.appendChild(this._menuEl);
+
+    // Append to body and position with `fixed` (viewport-relative) so the
+    // dropdown isn't clipped by the status bar's 1-line height or overlaid
+    // by the bar's own contents. Anchored to the caret button's bounds.
+    const caretBtn = this.element.querySelector('.loremaster-status-menu-btn');
+    const rect = caretBtn ? caretBtn.getBoundingClientRect() : { bottom: 30, right: 100 };
+    this._menuEl.style.position = 'fixed';
+    this._menuEl.style.top = `${rect.bottom + 4}px`;
+    this._menuEl.style.left = `${rect.right}px`;
+    this._menuEl.style.transform = 'translateX(-100%)'; // right-align under the caret
+
+    document.body.appendChild(this._menuEl);
     this._menuOpen = true;
 
     // Rotate caret to indicate open state
