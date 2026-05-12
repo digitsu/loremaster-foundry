@@ -440,11 +440,15 @@ export class SocketClient {
   async sendMessage(message, context = {}, isPrivate = false) {
     this._requireAuth();
 
+    // Chat completion can legitimately take several minutes when Claude is
+    // handling a large context or tool-use loop. Use ASYNC_TIMEOUT_CHAT (5 min)
+    // rather than the 60s default so we don't orphan requests that the proxy
+    // is still processing.
     const result = await this._sendRequest('chat', {
       message,
       context,
       isPrivate
-    });
+    }, ASYNC_TIMEOUT_CHAT);
 
     return {
       response: result.response,
