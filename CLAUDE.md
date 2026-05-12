@@ -104,6 +104,54 @@ Rules of thumb:
 - Omit `style` and `type` from `ChatMessage.create()` calls completely. Both deprecated forms throw at render time.
 - Scene controls use the `getSceneControlButtons` hook. Tool entries require `name`, `title`, `icon`, `button`, `visible`, `onClick`.
 
+### Chat messages persist their content HTML forever
+
+`ChatMessage.content` is stored in the world DB at the moment the message is
+created. The `renderChatMessageHTML` hook re-binds JS handlers on every render,
+but **the HTML inside `content` is whatever was templated at creation time and
+is never regenerated**. This bites in two ways:
+
+1. **Stale data attributes**: if a buggy version of the module rendered a
+   button with `data-message-id="${undefined}"` (literal string `"undefined"`),
+   that broken attribute is now baked into every old message in the world DB.
+   Even after the bug is fixed, those old messages render with the broken
+   attribute and the new event handler can't recover the correct ID.
+2. **Stale template structure**: if you change a template from a text+icon
+   button to an icon-only one, old messages still render with the old text
+   AND child-element structure. Any code that walks the DOM (e.g.
+   `btn.children[0].tagName === 'I'`) will get the old shape.
+
+**Symptom**: clicking buttons on old messages does nothing — not even a console
+log fires — because the click handler reads `event.currentTarget.dataset.X`,
+gets a stale value, and the lookup fails silently. New messages from the
+same session work fine.
+
+**How to detect** during dev/testing:
+
+```javascript
+// In browser console, compare a stale message's button vs a fresh one.
+const all = document.querySelectorAll('.loremaster-publish-btn');
+console.log('Total:', all.length);
+all.forEach((b, i) => console.log(
+  `[${i}] id=${b.dataset.messageId} children=${b.children.length}`,
+  'text=', JSON.stringify(b.textContent.trim())
+));
+```
+
+**How to avoid**:
+
+- When changing the HTML structure of any persisted chat-message content
+  (buttons, data attributes, classes), assume **all existing messages in
+  affected worlds will keep the old structure forever**. Test against fresh
+  messages only; verify by either deleting old test messages or filtering for
+  messages created after the fix landed.
+- Better long-term: **render action buttons via the `renderChatMessageHTML`
+  hook from flags**, not via stored HTML. The hook re-runs on every render so
+  the buttons always match current code. The flag (e.g.
+  `flags.loremaster.isPrivateResponse`) is the durable contract; the HTML
+  isn't. We don't currently do this for the private-response controls and it's
+  a known refactor target.
+
 ## Git Commit Guidelines
 
 - Claude-related files (`.claude/`, `CLAUDE.md`, `.omc/`) may be committed.
