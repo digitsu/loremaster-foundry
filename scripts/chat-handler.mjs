@@ -97,6 +97,41 @@ const THINKING_PHRASES = [
 ];
 
 /**
+ * Random thinking phrases for the private GM (@lm!) flow. Posted as a public
+ * chat message so all players can see something is happening at the table
+ * without revealing the GM's actual private question. The `{name}` placeholder
+ * is replaced with the asker's (HTML-escaped) display name.
+ */
+const PRIVATE_THINKING_PHRASES = [
+  '{name} confers privately with the Loremaster...',
+  '{name} whispers a question to the Loremaster...',
+  'The Loremaster huddles with {name} for a private consultation...',
+  '{name} consults the Loremaster in confidence...',
+  'A private query passes between {name} and the Loremaster...',
+  '{name} steps aside to discuss matters with the Loremaster...',
+  'The Loremaster leans in to hear a private request from {name}...'
+];
+
+/**
+ * Escape HTML special characters so user-controlled strings (e.g. Foundry
+ * display names) can be safely interpolated into chat-message content templates.
+ * Returns the input unchanged if it isn't a string.
+ *
+ * @param {string} text - The string to escape.
+ * @returns {string} An HTML-safe version of `text`.
+ */
+function escapeHtml(text) {
+  if (typeof text !== 'string') return text;
+  return text.replace(/[&<>"']/g, (c) => ({
+    '&': '&amp;',
+    '<': '&lt;',
+    '>': '&gt;',
+    '"': '&quot;',
+    "'": '&#39;'
+  }[c]));
+}
+
+/**
  * Extended wait phrases shown when response takes longer than expected.
  * Indicates to users that the system is still working.
  */
@@ -144,6 +179,7 @@ export class ChatHandler {
     this.thinkingMessageId = null; // ID of the current thinking message
     this.thinkingStartTime = null; // When thinking started (for elapsed time)
     this.thinkingUpdateInterval = null; // Interval for updating extended wait messages
+    this.privateThinkingMessageId = null; // ID of the current private-thinking message (@lm! flow)
   }
 
   /**
@@ -805,8 +841,14 @@ export class ChatHandler {
   async _processPrivateMessage(message, userContext) {
     console.log(`${MODULE_ID} | Processing private GM message`);
 
+    // Public-facing feedback so other players see something is happening at the
+    // table without the GM's private question being revealed. Mirrors the
+    // public-batch flow's _showThinkingMessage UX.
+    const askerName = userContext?.name || game.user?.name || 'The Gamemaster';
+
     try {
       this._showTypingIndicator();
+      await this._showPrivateThinkingMessage(askerName);
 
       // Build context
       const context = this._buildContext();
@@ -842,6 +884,7 @@ export class ChatHandler {
       ui.notifications.error('Failed to get private Loremaster response.');
     } finally {
       this._hideTypingIndicator();
+      await this._hidePrivateThinkingMessage();
     }
   }
 
@@ -1335,6 +1378,66 @@ export class ChatHandler {
         console.error(`${MODULE_ID} | Failed to delete thinking message:`, error);
       }
       this.thinkingMessageId = null;
+    }
+  }
+
+  /**
+   * Show a public-facing thinking message for the private GM (@lm!) flow.
+   * The GM's actual private question is never echoed — just an indication
+   * that {askerName} is consulting Loremaster. Lets table participants see
+   * that something is happening without revealing the GM's prompt.
+   *
+   * @param {string} askerName - Display name of the user who issued @lm!
+   *   (HTML-escaped before interpolation; safe to pass user-controlled input).
+   * @private
+   */
+  async _showPrivateThinkingMessage(askerName) {
+    await this._hidePrivateThinkingMessage();
+
+    const safeName = escapeHtml(askerName || 'The Gamemaster');
+    const template = PRIVATE_THINKING_PHRASES[Math.floor(Math.random() * PRIVATE_THINKING_PHRASES.length)];
+    const phrase = template.replace('{name}', safeName);
+
+    const messageData = {
+      content: `<div class="loremaster-thinking-message loremaster-private-thinking"><em>${phrase}</em></div>`,
+      speaker: ChatMessage.getSpeaker({ alias: 'Loremaster' }),
+      user: game.user.id,
+      flags: {
+        [MODULE_ID]: {
+          isThinkingMessage: true,
+          isPrivateThinking: true
+        }
+      }
+    };
+
+    try {
+      const message = await ChatMessage.create(messageData);
+      this.privateThinkingMessageId = message.id;
+      console.log(`${MODULE_ID} | Showing private thinking message: "${phrase}"`);
+    } catch (error) {
+      console.error(`${MODULE_ID} | Failed to create private thinking message:`, error);
+    }
+  }
+
+  /**
+   * Remove the private-thinking message from chat. Called from the finally
+   * block of `_processPrivateMessage` so it cleans up on both success and
+   * error paths.
+   *
+   * @private
+   */
+  async _hidePrivateThinkingMessage() {
+    if (!this.privateThinkingMessageId) return;
+
+    try {
+      const message = game.messages.get(this.privateThinkingMessageId);
+      if (message) {
+        await message.delete();
+      }
+    } catch (error) {
+      console.warn(`${MODULE_ID} | Failed to delete private thinking message:`, error);
+    } finally {
+      this.privateThinkingMessageId = null;
     }
   }
 
