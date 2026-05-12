@@ -634,7 +634,7 @@ export class StatusBar {
         border-radius: 8px;
         padding: 4px 0;
         min-width: 180px;
-        z-index: 91;
+        z-index: 200; /* above Foundry's sidebar/hotbar (~100) */
         backdrop-filter: blur(4px);
         box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
       }
