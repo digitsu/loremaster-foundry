@@ -36,6 +36,17 @@ export class BatchUI {
    * Creates the DOM element and attaches event listeners.
    */
   initialize() {
+    // GM-only: the batch indicator (timer + Send Now / Clear buttons + message
+    // preview) is the GM's flow-control panel. Players' @lm messages still get
+    // synced into the batch via socket, but they don't see the countdown or
+    // the send/clear controls and can't trigger a send. Skipping DOM injection
+    // entirely (rather than rendering with disabled buttons) keeps the player
+    // chat surface clean.
+    if (!game.user?.isGM) {
+      console.log(`${MODULE_ID} | Batch UI: non-GM client, skipping indicator render`);
+      return;
+    }
+
     this._createIndicator();
     console.log(`${MODULE_ID} | Batch UI initialized`);
   }
