@@ -26,6 +26,7 @@ import { SharedContentAdmin } from './shared-content-admin.mjs';
 import { statusBar } from './status-bar.mjs';
 import { getAuthManager, AuthState, AUTH_STATE_CHANGED_EVENT } from './patreon-auth.mjs';
 import { openPatreonLogin, registerPatreonLoginHelpers } from './patreon-login-ui.mjs';
+import { stripAudioTagsFromMessage } from './message-formatter.mjs';
 import { VoiceOutput } from './voice-output.mjs';
 import { VoiceInput } from './voice-input.mjs';
 
@@ -371,6 +372,12 @@ async function initializeLoremaster() {
     // Set up hook to add veto controls to AI responses
     // Use renderChatMessageHTML for Foundry V13+ (passes HTMLElement instead of jQuery)
     Hooks.on('renderChatMessageHTML', (message, html, data) => {
+      // Strip ElevenLabs v3 audio tags from displayed prose. Idempotent.
+      const renderedElement = html instanceof HTMLElement ? html : html?.[0];
+      if (message.flags?.[MODULE_ID]?.isAIResponse || message.flags?.[MODULE_ID]?.isCanon) {
+        stripAudioTagsFromMessage(renderedElement);
+      }
+
       if (message.flags?.[MODULE_ID]?.isAIResponse) {
         const messageId = message.flags[MODULE_ID].batchId || message.id;
 

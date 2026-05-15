@@ -1,9 +1,63 @@
 /**
- * Loremaster Message Formatter
+ * message-formatter.mjs — render-time transformations and formatting utilities
+ * for Loremaster AI responses in Foundry VTT chat.
  *
- * Formats AI responses for display in Foundry VTT chat.
- * Converts markdown to HTML and adds appropriate styling.
+ * Provides two main capabilities:
+ * 1. stripAudioTagsFromMessage() — strips ElevenLabs v3 audio tags (e.g.
+ *    [whispers], [excited]) from rendered chat DOM so readers see clean prose,
+ *    while the persisted ChatMessage.content keeps the brackets for TTS reuse.
+ *    Hooks into renderChatMessageHTML. Idempotent: safe to call multiple times
+ *    on the same message; only touches text-node content, never button/data
+ *    attributes (so the v0.4 replay icon + canon data-message-id stay intact).
+ * 2. formatResponse() and related helpers — convert markdown AI responses to
+ *    styled HTML for chat display.
  */
+
+// ---------------------------------------------------------------------------
+// Audio-tag stripping (ElevenLabs v3 / Voice V2)
+// ---------------------------------------------------------------------------
+
+// Allow-list of audio tag tokens that ElevenLabs v3 interprets. Mirrors the
+// parser allow-list in the v2 spec §4.2 and the server-side AudioTagPrompt
+// module. Add tokens here as ElevenLabs publishes new ones; do NOT add speaker
+// names — those are stripped via different regex in Phase 2.
+const AUDIO_TAG_REGEX =
+  /\[(whispers|excited|sighs|laughs|crying|shouting|nervously|sarcastic|pleading|tired|breathless|serious|surprised)\]/gi;
+
+/**
+ * Strip ElevenLabs v3 audio tags from the rendered chat-message DOM.
+ * Walks text nodes inside .message-content in-place; preserves all other DOM
+ * structure. Idempotent — safe to call on the same element multiple times.
+ *
+ * @param {HTMLElement} element - the rendered chat message element passed by
+ *   the renderChatMessageHTML hook.
+ * @returns {void}
+ */
+export function stripAudioTagsFromMessage(element) {
+  if (!(element instanceof HTMLElement)) return;
+  const content = element.querySelector('.message-content');
+  if (!content) return;
+
+  const walker = document.createTreeWalker(content, NodeFilter.SHOW_TEXT);
+  const toReplace = [];
+  let node;
+  while ((node = walker.nextNode())) {
+    if (AUDIO_TAG_REGEX.test(node.nodeValue)) {
+      toReplace.push(node);
+    }
+  }
+  // Reset regex state — the g flag makes test() stateful.
+  AUDIO_TAG_REGEX.lastIndex = 0;
+
+  for (const textNode of toReplace) {
+    textNode.nodeValue = textNode.nodeValue.replace(AUDIO_TAG_REGEX, '');
+    AUDIO_TAG_REGEX.lastIndex = 0;
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Markdown → HTML formatting (pre-existing helpers)
+// ---------------------------------------------------------------------------
 
 const MODULE_ID = 'loremaster';
 
