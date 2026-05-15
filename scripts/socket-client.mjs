@@ -269,6 +269,11 @@ export class SocketClient {
       if (voiceId) {
         payload.voiceId = voiceId;
       }
+
+      // Voice emote tags: boolean false must be sent explicitly so the server
+      // knows the user opted out. Missing/true both mean "enabled" server-side.
+      const useEmoteTags = getSetting('useEmoteTags');
+      payload.useEmoteTags = useEmoteTags !== false;
     } else {
       // Self-hosted mode: use API key and license key
       const apiKey = getSetting('apiKey');
@@ -295,6 +300,11 @@ export class SocketClient {
       if (voiceId) {
         payload.voiceId = voiceId;
       }
+
+      // Voice emote tags: boolean false must be sent explicitly so the server
+      // knows the user opted out. Missing/true both mean "enabled" server-side.
+      const useEmoteTags = getSetting('useEmoteTags');
+      payload.useEmoteTags = useEmoteTags !== false;
     }
 
     let result;
@@ -413,7 +423,8 @@ export class SocketClient {
           systemId: payload.systemId,
           systemTitle: payload.systemTitle,
           elevenLabsApiKey: payload.elevenLabsApiKey,
-          voiceId: payload.voiceId
+          voiceId: payload.voiceId,
+          useEmoteTags: payload.useEmoteTags
         },
         ref: requestId
       }));
