@@ -339,6 +339,16 @@ export function registerSettings() {
     default: 'hold'
   });
 
+  // Whether to use ElevenLabs v3 audio tags for emotional delivery — per-world setting
+  game.settings.register(MODULE_ID, 'useEmoteTags', {
+    name: game.i18n.localize('LOREMASTER.Voice.EmoteTags.Label'),
+    hint: game.i18n.localize('LOREMASTER.Voice.EmoteTags.Hint'),
+    scope: 'world',
+    config: true,
+    type: Boolean,
+    default: true
+  });
+
   // Enhanced settings config hook — organizes settings into sections,
   // hides mode-irrelevant fields, and injects account panel in hosted mode
   Hooks.on('renderSettingsConfig', (app, html) => {

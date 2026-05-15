@@ -560,6 +560,10 @@
           "Hint": "ElevenLabs voice ID (the UUID-style ID, not the display name). Find IDs at https://elevenlabs.io/app/voice-lab. Default: Einstein (n4gY9MeIbTbAMJ5rlJ51)."
         }
       },
+      "EmoteTags": {
+        "Label": "Use ElevenLabs v3 audio tags",
+        "Hint": "When on, Loremaster uses ElevenLabs v3 (more expressive) and Claude is instructed to add tags like [whispers], [excited] for emotional delivery. When off, falls back to eleven_turbo_v2_5 with no emote variation. Per-world setting; default on."
+      },
       "Volume": "Voice volume",
       "Hotkey": {
         "Label": "Push-to-talk key",
