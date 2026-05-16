@@ -360,6 +360,35 @@ These three items are blockers for the v0.5.0 deploy, not for the design.
 7. Telemetry events fire for at least: segment_generated (both cache states), unknown_npc, emote_tag_seen.
 8. `useEmoteTags = false` still works (turbo, single voice, no emote tags); Phase 2 speaker routing should be orthogonal to the emote-tag knob (turbo can still route by speaker, just without emotional cues).
 
+## 13b. Phase 1 known limitation (discovered during v0.5.0 smoke testing)
+
+Loremaster's existing chat pipeline produces TWO ChatMessage records per query that involves NPC dialog:
+
+1. **NPC speech message** — `flags.loremaster.isAISpeech: true`, `speaker.alias = <NPC name>`. Created by `scripts/tool-handlers.mjs` when Claude calls a `speak_as_npc`-style tool. This is where audio tags live (because Claude tags the NPC's emotive lines).
+2. **Narrator response message** — `flags.loremaster.isAIResponse: true` (and `isCanon: true` after Publish), `speaker.alias = "Loremaster"`. Created by the chat-complete/private-response pipeline. Contains the framing narration.
+
+**v0.5.0 only TTS's the narrator message (canon publish).** NPC speech messages — which carry the audio tags Claude was instructed to use — do NOT get TTS in v0.5.0 because the voice-output listener only fires on canon-publish. Result: the audio variation v0.5.0 promises is delivered ONLY for narration, not for the actual dialog where tags would be most impactful.
+
+**Phase 2 must address this directly.** The original Phase 2 design (§5, §7.2) assumed `[Speaker]` inline tags in a single response. The reality is Claude uses a tool whose metadata already contains the speaker. Phase 2 routing should:
+
+- Listen for `isAISpeech` messages in addition to canon publishes.
+- Read the NPC name from `speaker.alias` (already populated by the tool handler) rather than parsing `[Speaker]` tags from text.
+- Route each `isAISpeech` message to the per-NPC voice ID from `npcVoices` registry; fall back to narrator voice if not assigned.
+- Continue TTS'ing canon-published narrator messages with the hardcoded narrator voice.
+
+This means Phase 2's "segmentation parser" (§5.2 + §7.2) can be **deleted from the design**. Speakers are already segmented by the existing tool architecture into separate ChatMessage records; no in-message parsing is needed. Phase 2 becomes simpler: add voice routing + the GM dialog, no parser required. The `[Speaker]` tag instruction can be removed from the system prompt as well.
+
+**Discovery shape**: 5 recent messages from a `@lm! Kembouri whispers...` query:
+```
+[0] speaker: Gamemaster | flags: {isPlayerMessage}                              ← user's echoed prompt
+[1] speaker: Kembouri   | flags: {isAISpeech}                                    ← NPC dialog (audio tags here)
+[2] speaker: Loremaster | flags: {isAIResponse, isBatchResponse, batchId: ...}   ← batched narrator
+[3] speaker: Kembouri   | flags: {isAISpeech}                                    ← second NPC speech (later query)
+[4] speaker: Loremaster | flags: {isAIResponse, isCanon, originalMessageId: ...} ← published canon narrator (TTS'd)
+```
+
+Only `[4]` triggers v0.5.0's TTS pipeline.
+
 ## 14. Dependencies and risks
 
 | Risk | Mitigation |
