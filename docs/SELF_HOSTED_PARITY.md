@@ -86,7 +86,15 @@ Worth surfacing in marketing copy + welcome journal:
 > - Server-side persisted backups (self-hosted gets local file downloads instead)
 > - Patreon tier system (you have a license — that *is* your tier)
 
-**Welcome-journal additions**: a paragraph under "First-time setup" listing required env vars on the proxy (`ANTHROPIC_API_KEY`, `VOYAGE_API_KEY` for RAG, `ELEVENLABS_API_KEY` for voice) and what each enables.
+**Welcome-journal additions**: a paragraph under "First-time setup" listing required env vars on the proxy and what each enables. **Verified env-var names** (corrected from the first draft; see proxy `docs/DEPLOY.md` for the full table):
+
+- `DEPLOYMENT_MODE=self_hosted` — **critical**, defaults to `hosted` if unset (boots in hosted mode with Patreon enforcement active).
+- `ENCRYPTION_KEY` — required hex-encoded 32-byte Cloak vault key; proxy raises at startup if missing.
+- `OPERATOR_CLAUDE_API_KEY` — optional operator-default; in self-hosted mode the client sends its own Anthropic key per world.
+- `OPERATOR_ELEVENLABS_API_KEY` — optional operator-default for voice; same per-world override pattern.
+- `VOYAGE_API_KEY` — enables RAG embeddings; absence triggers graceful text-only fallback.
+- `ENABLE_RAG` — explicit toggle; auto-enables when `VOYAGE_API_KEY` is set.
+- `LICENSE_SECRET_KEY` / `GUMROAD_PRODUCT_ID` — license validation; permissive if absent for private deployments.
 
 ---
 

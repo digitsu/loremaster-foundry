@@ -35,6 +35,21 @@ An AI-powered Game Master assistant for Foundry VTT. Loremaster uses Claude AI t
 - **Export to Journal** - Save conversation logs as Foundry journals
 - **Usage Monitoring** - Track API token usage and costs
 
+## What's New in v0.6.0
+
+Headline features since v0.5.x — **all of these work in self-hosted**, most automatically:
+
+- **Voice Output v2** — emotional audio tags (whispered, excited, etc.) via ElevenLabs v3
+- **Voice Input** — push-to-talk speech-to-text (default hotkey: backtick `` ` ``)
+- **Character Stat Sync** — Loremaster reads your characters and proposes changes; GM reviews and approves in a dedicated panel
+- **PDF auto-compression** — large adventure PDFs (up to 64 MB) upload cleanly without manual prep
+- **OCR fallback for scanned PDFs** — text extracted even from image-only PDFs (proxy needs the OCR-enabled image)
+- **Phoenix protocol auto-detect** — no more guessing `ws://` vs `wss://` in your proxy URL
+- **Local shared library** *(new in v0.6.0)* — publish a PDF once, activate it in any world you GM. Same UI hosted users have; scoped to your own proxy.
+- **Friendlier pre-flight errors** — clearer message if your Claude key isn't set
+
+Full hosted-vs-self-hosted breakdown lives in `docs/SELF_HOSTED_PARITY.md`.
+
 ## Requirements
 
 - Foundry VTT v13 or later
@@ -101,14 +116,22 @@ Your session stays connected until you log out. Quota resets monthly on your bil
 
 ### Self-Hosted Setup
 
-1. **Download and run** the proxy server from [Gumroad](https://burninator.gumroad.com/l/glzbu) (setup instructions included)
+1. **Download and run** the proxy server from [Gumroad](https://burninator.gumroad.com/l/glzbu) (setup instructions included). Full env-var reference is in the proxy's `docs/DEPLOY.md`. **Critical**: set `DEPLOYMENT_MODE=self_hosted` — without it the proxy boots in hosted mode and rejects you.
 2. **Enable the module** in your Foundry world
 3. **Open Module Settings** (Settings > Module Settings > Loremaster)
 4. **Set Server Mode** to "Self-Hosted"
-5. **Enter your Proxy URL** (e.g., `http://localhost:3001`)
+5. **Enter your Proxy URL** (e.g., `http://localhost:3001`). The Phoenix protocol is now auto-detected from the URL — no more guessing `ws://` vs `wss://`.
 6. **Enter your Claude API Key** from [Anthropic](https://console.anthropic.com/)
 7. **Enter your License Key** (provided with Gumroad purchase)
 8. **Enable Loremaster** and save settings
+
+**Optional proxy env vars for full feature parity:**
+
+| Env var | Unlocks |
+|---|---|
+| `VOYAGE_API_KEY` | RAG / semantic PDF search (without it, falls back to text-only) |
+| `OPERATOR_ELEVENLABS_API_KEY` *(or per-world setting)* | Voice output (TTS) for all players |
+| `ENCRYPTION_KEY` | **Required** — hex-encoded 32 bytes; generate with `openssl rand -hex 32` |
 
 ### Module Settings Reference
 
@@ -168,19 +191,27 @@ Loremaster has its own top-level control group in the left toolbar, identified b
 - **Issues**: [GitHub Issues](https://github.com/digitsu/loremaster-foundry/issues)
 - **Email**: support@loremastervtt.com
 
-## Voice (v0.4+)
+## Voice (v0.4 → v0.6)
 
 Loremaster supports a one-way voice mode where Claude's published canon is
 read aloud via ElevenLabs, plus push-to-talk speech-to-text in supported
-browsers.
+browsers. **v0.5** added emotional **audio tags** (whispered, excited,
+etc.) rendered through ElevenLabs' v3 model — Claude can now write
+`[whispers] you sure about this?` and it lands in your players' ears as
+audio, while the displayed chat content shows the clean text.
 
 ### Settings
 
 - **Hear AI voice** (per-user, default off): plays canon audio on publish.
 - **ElevenLabs API key** (self-hosted only): your ElevenLabs key. Hosted
   users get the operator-managed key automatically.
-- **Voice ID** (per-world): ElevenLabs voice name. Default `Rachel`.
-- **Push-to-talk key** (per-user): hotkey to dictate into chat. Default V.
+- **Voice ID** (per-world): ElevenLabs voice ID. Default `Einstein`
+  (`n4gY9MeIbTbAMJ5rlJ51`).
+- **Use emote tags** (per-world, default on): when on, ElevenLabs renders
+  `[whispers]`, `[excited]`, etc. via the v3 model. Tags are stripped from
+  the displayed chat content.
+- **Push-to-talk key** (per-user): hotkey to dictate into chat. Default
+  backtick (`` ` ``) — chosen to avoid Foundry V13 keybind collisions.
 - **Push-to-talk mode** (per-user): "hold" or "toggle". Default hold.
 
 ### Browser support

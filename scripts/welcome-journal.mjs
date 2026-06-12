@@ -13,6 +13,86 @@ const MODULE_ID = 'loremaster';
  */
 const JOURNAL_PAGES = [
   {
+    name: "What's New in v0.6.0",
+    type: 'text',
+    sort: 50,
+    text: {
+      format: 1,
+      content: `
+<h1>What's New in v0.6.0</h1>
+
+<p>If you're upgrading from v0.5.x, here's everything that changed — and how to switch the new features on.</p>
+
+<h2>Headline Features</h2>
+
+<ul>
+  <li><strong>Voice Output v2 — emotional audio tags.</strong> Claude can now write
+    <code>[whispers] you sure about this?</code> and ElevenLabs renders it as audio
+    via the v3 model. The chat content shows the clean text. Default <strong>on</strong>;
+    toggle under <em>Use emote tags</em>.</li>
+  <li><strong>Voice Input — push-to-talk speech-to-text.</strong> Default hotkey is
+    backtick (<code>\`</code>) — chosen to avoid Foundry V13 keybind collisions. Configure
+    under <em>Push-to-talk key</em>.</li>
+  <li><strong>Character Stat Sync.</strong> Loremaster reads your actors and can propose
+    stat changes during play. As GM you review and approve in the new GM Review Panel
+    before anything writes back to the actor.</li>
+  <li><strong>Local Shared Library (self-hosted only).</strong> Publish a PDF once and
+    activate it in any world you GM. Same UI as the hosted shared library, scoped to
+    your own proxy.</li>
+  <li><strong>PDF improvements.</strong> Auto-compression for large PDFs, OCR fallback
+    for scanned PDFs (needs the OCR-enabled proxy image), and the upload cap is now
+    <strong>64 MB</strong> (was 16 MB).</li>
+  <li><strong>Phoenix protocol auto-detect.</strong> The proxy URL field figures out
+    <code>ws://</code> vs <code>wss://</code> for you. No more manual editing.</li>
+  <li><strong>Pre-flight API key check.</strong> Self-hosted users get a clear error
+    that opens settings, instead of a cryptic socket failure, if the Claude key is
+    missing.</li>
+</ul>
+
+<h2>Self-Hosted Users: Action Required</h2>
+
+<p>To get the v0.6.0 server-side features, <strong>redeploy your proxy</strong> using the
+latest image. Then check your environment variables:</p>
+
+<table>
+  <tr><th>Env var</th><th>What it unlocks</th></tr>
+  <tr>
+    <td><code>DEPLOYMENT_MODE=self_hosted</code></td>
+    <td><strong>Critical.</strong> Without this, the proxy boots in hosted mode and rejects you.</td>
+  </tr>
+  <tr>
+    <td><code>ENCRYPTION_KEY</code></td>
+    <td><strong>Required.</strong> Hex-encoded 32 bytes. Generate with <code>openssl rand -hex 32</code>.</td>
+  </tr>
+  <tr>
+    <td><code>VOYAGE_API_KEY</code></td>
+    <td>Semantic PDF search (RAG). Without it, the proxy falls back to text-only and still works.</td>
+  </tr>
+  <tr>
+    <td><code>OPERATOR_ELEVENLABS_API_KEY</code> <em>or</em> per-world setting</td>
+    <td>Voice output (TTS). Either option works; per-world is more flexible.</td>
+  </tr>
+</table>
+
+<p>Full env-var reference and feature gating: see <code>docs/DEPLOY.md</code> in the
+proxy repo.</p>
+
+<h2>What Self-Hosted Still Doesn't Have</h2>
+
+<ul>
+  <li>Server-persisted backups (you get a JSON file download instead)</li>
+  <li>Patreon tier system — you have a license, that's your tier</li>
+  <li>Monthly token quota tracking pill — self-hosted pays Anthropic per token directly</li>
+  <li>Community-wide shared library — by design (no community on a single-user proxy)</li>
+</ul>
+
+<p>For the full hosted-vs-self-hosted breakdown, see <code>docs/SELF_HOSTED_PARITY.md</code> in the module repo.</p>
+
+<p><em>Continue to the next pages for the regular feature walkthrough.</em></p>
+`
+    }
+  },
+  {
     name: 'Welcome to Loremaster',
     type: 'text',
     sort: 100,
