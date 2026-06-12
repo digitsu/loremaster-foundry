@@ -13,7 +13,7 @@ The three hosted-only features today:
 
 1. **Patreon OAuth + tier system** (replaced by Gumroad license in self-hosted) — by design, won't change
 2. **Backup server-side persistence** (self-hosted gets local JSON download) — could be exposed via a setting, deferred
-3. **Shared Content library admin UI** — addressed in v0.6.0 by exposing as a per-world setting (`localSharedLibrary`)
+3. **Shared Content library activation in self-hosted** — addressed in v0.6.0 by bypassing the Patreon tier check on the proxy when `hosted_mode == false`. No client setting needed; the existing UI just works.
 
 ---
 
@@ -43,7 +43,7 @@ Column legend for **Self-hosted**:
 | Pre-flight self-hosted API key check | client | ✅ | none | `client: b08b823 fix: pre-flight self-hosted API key check; open settings instead of cryptic error` |
 | Adventure module registration (today's prod fix) | proxy | 🔁 | proxy redeploy | `proxy: 494db0a fix(content): accept :registered_by` (this branch) |
 | Backups — create / list / restore (server-side persisted) | client + proxy | ❌ | hosted-only | `client/scripts/content-manager.mjs:2557 if (isHostedMode())` — self-hosted gets a JSON file download instead |
-| Shared Content library — admin UI (publish PDFs to library) | client + proxy | **moving to ✅** in v0.6.0 | none after refactor | client guard at `content-manager.mjs:208`; proxy gate `world_channel.ex:8421 check_tier_limit` — v0.6.0 refactor: new `localSharedLibrary` setting; proxy bypasses tier check when `hosted_mode == false` |
+| Shared Content library — browse + activate + publish | client + proxy | **✅ in v0.6.0** | admin email in `ADMIN_EMAILS` proxy env for publish actions | Recon turned up that the client UI was never gated on `isHostedMode` — the only blocker was proxy tier-check enforcement on activate. v0.6.0 fix: `SharedContentManager.activate/4` accepts `enforce_tier_limit:`; channel handler passes `socket.assigns.hosted_mode`; `get_tier_info/2` returns `unlimited` for self-hosted. Branch: `feat/v0.6.0-self-host-shared-library` (`d2a85fb`). |
 | Patreon OAuth + tier display ("Knave/Knight/Lord") | client + proxy | ❌ | hosted-only by design | `scripts/patreon-auth.mjs`; `scripts/patreon-login-ui.mjs`. Replaced by Gumroad license in self-hosted |
 | Quota status-bar pill | client | ⚠ | shows `—` (no per-period limits in self-hosted) | `scripts/status-bar.mjs`. Self-hosted pays Anthropic per token directly, no enforced cap |
 | Tier-gated feature unlocks (e.g. shared library activation cap, RAG model selection) | proxy | ⚠ → ✅ in v0.6.0 | bypassed in non-hosted | `proxy: world_channel.ex:8421` |
