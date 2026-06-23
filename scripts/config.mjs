@@ -789,7 +789,15 @@ function _injectAccountPanel(root, section) {
   // Render initial state
   _renderAccountPanel(panelContainer, authManager);
 
-  // Subscribe to auth state changes for live updates
+  // Subscribe to auth state changes for live updates. Unsubscribe any prior
+  // subscription first: renderSettingsConfig fires on every settings (re-)render,
+  // and the auth manager is a session-long singleton. Without this, each render
+  // leaks another live callback onto it — driving runaway re-renders and
+  // contributing to repeated OAuth popups.
+  if (_settingsAuthUnsubscribe) {
+    _settingsAuthUnsubscribe();
+    _settingsAuthUnsubscribe = null;
+  }
   _settingsAuthUnsubscribe = authManager.onStateChange(() => {
     const panel = document.getElementById('loremaster-settings-account-panel');
     if (panel) {
@@ -1135,8 +1143,13 @@ function _attachAccountPanelListeners(container, authManager) {
         break;
 
       case 'manage-shared':
-        if (game.loremaster?.openSharedContentAdmin) {
-          game.loremaster.openSharedContentAdmin();
+        // The "Manage" link lets a user manage their OWN activated shared
+        // content via the Content Manager's Browse Shared Library view. It must
+        // NOT open SharedContentAdmin (the admin approval queue): that calls
+        // admin-only endpoints and fails for non-admins with "Admin access
+        // required" / "Failed to load admin data".
+        if (game.loremaster?.openContentManager) {
+          game.loremaster.openContentManager();
         } else {
           ui.notifications.warn(`${MODULE_NAME}: ${game.i18n?.localize('LOREMASTER.PatreonLogin.ContentManagerUnavailable') || 'Content Manager not available'}`);
         }

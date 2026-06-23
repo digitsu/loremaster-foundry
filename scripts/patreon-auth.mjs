@@ -297,6 +297,15 @@ export class PatreonAuthManager {
    * @returns {boolean} True if popup was opened successfully.
    */
   startOAuthFlow() {
+    // Hard idempotency cap: never open a second OAuth popup. If one is already
+    // open, focus it instead of spawning another. This deterministically
+    // prevents the "swarm of identical Patreon login windows" symptom even if
+    // this method is invoked many times in quick succession (e.g. from stacked
+    // click handlers or leaked state-change subscriptions).
+    if (this._oauthPopup && !this._oauthPopup.closed) {
+      this._oauthPopup.focus();
+      return false;
+    }
     if (this.state === AuthState.LOGGING_IN) {
       console.warn(`${MODULE_NAME} | OAuth flow already in progress`);
       return false;
