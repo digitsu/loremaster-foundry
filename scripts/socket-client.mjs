@@ -17,6 +17,7 @@ import {
   clearPatreonUser,
   getHostedProxyUrl
 } from './config.mjs';
+import { estimateBufferedTransferProgress, formatUploadSpeed } from './upload-progress-utils.mjs';
 
 const MODULE_ID = 'loremaster';
 
@@ -598,9 +599,11 @@ export class SocketClient {
    * @param {string} displayName - User-provided display name.
    * @param {string} fileData - Base64-encoded PDF file data.
    * @param {Function} onProgress - Progress callback: (stage, progress, message) => void.
+   * @param {object} options - Optional upload metadata.
+   * @param {number} options.originalSize - Original PDF size in bytes.
    * @returns {Promise<object>} Upload result with PDF record details.
    */
-  async uploadPDF(filename, category, displayName, fileData, onProgress = null) {
+  async uploadPDF(filename, category, displayName, fileData, onProgress = null, options = {}) {
     this._requireAuth();
 
     const requestId = `req_${++this.requestIdCounter}`;
@@ -611,6 +614,14 @@ export class SocketClient {
     }
 
     return new Promise((resolve, reject) => {
+      let transferHeartbeatId = null;
+      const stopTransferHeartbeat = () => {
+        if (transferHeartbeatId) {
+          clearInterval(transferHeartbeatId);
+          transferHeartbeatId = null;
+        }
+      };
+
       // Set up timeout (8 minutes). The proxy runs Ghostscript compression on
       // oversized PDFs before uploading to Claude, which can add 30-90 s on
       // image-heavy RPG modules on top of the raw transport time. If we hit
@@ -620,6 +631,7 @@ export class SocketClient {
       // actionable instead of the bare "timeout".
       const timeout = 480000;
       const timeoutId = setTimeout(() => {
+        stopTransferHeartbeat();
         this.pendingRequests.delete(requestId);
         this.progressCallbacks.delete(requestId);
         reject(new Error(
@@ -631,12 +643,14 @@ export class SocketClient {
       // Store pending request
       this.pendingRequests.set(requestId, {
         resolve: (data) => {
+          stopTransferHeartbeat();
           clearTimeout(timeoutId);
           this.pendingRequests.delete(requestId);
           this.progressCallbacks.delete(requestId);
           resolve(data);
         },
         reject: (error) => {
+          stopTransferHeartbeat();
           clearTimeout(timeoutId);
           this.pendingRequests.delete(requestId);
           this.progressCallbacks.delete(requestId);
@@ -645,14 +659,58 @@ export class SocketClient {
       });
 
       // Send request in appropriate protocol format (includes systemId for shared library tagging)
-      this._sendRawMessage('pdf-upload', requestId, {
+      onProgress?.('transfer', 15, game.i18n.format('LOREMASTER.ContentManager.UploadTransferStarting', { name: displayName }));
+      const queuedBytes = this._sendRawMessage('pdf-upload', requestId, {
         filename,
         category,
         displayName,
         fileData,
         systemId: game.system?.id || null
       });
+
+      const totalQueuedBytes = Math.max(queuedBytes || 0, this.ws?.bufferedAmount || 0);
+      let lastBufferedBytes = this.ws?.bufferedAmount || totalQueuedBytes;
+      let lastSampleAt = Date.now();
+
+      transferHeartbeatId = setInterval(() => {
+        const bufferedBytes = this.ws?.bufferedAmount || 0;
+        const now = Date.now();
+        const elapsedSeconds = Math.max(0.001, (now - lastSampleAt) / 1000);
+        const drainedBytes = Math.max(0, lastBufferedBytes - bufferedBytes);
+        const speed = formatUploadSpeed(drainedBytes / elapsedSeconds);
+        const progress = estimateBufferedTransferProgress(totalQueuedBytes, bufferedBytes, 15, 45);
+        const originalSize = options.originalSize ? ` (${this._formatBytes(options.originalSize)} PDF)` : '';
+        const speedSuffix = speed ? ` at ${speed}` : '';
+
+        onProgress?.('transfer', progress, game.i18n.format('LOREMASTER.ContentManager.UploadTransfer', {
+          name: displayName,
+          size: originalSize,
+          speed: speedSuffix
+        }));
+
+        lastBufferedBytes = bufferedBytes;
+        lastSampleAt = now;
+
+        if (bufferedBytes <= 0) {
+          stopTransferHeartbeat();
+          onProgress?.('transfer-complete', 45, game.i18n.localize('LOREMASTER.ContentManager.UploadSent'));
+        }
+      }, 750);
     });
+  }
+
+  /**
+   * Format byte counts for user-facing upload progress messages.
+   *
+   * @param {number} bytes - Byte count.
+   * @returns {string} Formatted byte count.
+   * @private
+   */
+  _formatBytes(bytes) {
+    if (!Number.isFinite(bytes) || bytes < 0) return '0 B';
+    if (bytes < 1024) return `${Math.round(bytes)} B`;
+    if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+    return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
   }
 
   /**
@@ -2446,6 +2504,7 @@ export class SocketClient {
    * @param {string} type - Message type/event name.
    * @param {string} requestId - Request ID for tracking responses.
    * @param {object} payload - Message payload.
+   * @returns {number} Serialized message byte estimate queued into WebSocket.
    * @private
    */
   _sendRawMessage(type, requestId, payload) {
@@ -2468,7 +2527,9 @@ export class SocketClient {
       };
     }
 
-    this.ws.send(JSON.stringify(message));
+    const serialized = JSON.stringify(message);
+    this.ws.send(serialized);
+    return serialized.length;
   }
 
   /**

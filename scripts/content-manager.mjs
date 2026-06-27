@@ -10,6 +10,7 @@ import { showCastSelectionIfNeeded } from './cast-selection-dialog.mjs';
 import { progressBar } from './progress-bar.mjs';
 import { isHostedMode } from './config.mjs';
 import { SharedContentAdmin } from './shared-content-admin.mjs';
+import { monotonicPercent } from './upload-progress-utils.mjs';
 
 const MODULE_ID = 'loremaster';
 
@@ -585,23 +586,42 @@ export class ContentManager extends Application {
 
     try {
       this.isUploading = true;
+      this.uploadProgress = { stage: 'preparing', progress: 0, message: game.i18n.localize('LOREMASTER.ContentManager.Uploading') };
       this._updateUploadUI(true);
+      progressBar.show('pdf-upload', game.i18n.format('LOREMASTER.ContentManager.UploadTransferStarting', { name: displayName }), 'fa-file-pdf');
+      this._updateProgressUI('preparing', 1, game.i18n.format('LOREMASTER.ContentManager.UploadPreparing', { name: displayName }));
 
-      // Convert file to base64
-      const fileData = await this._fileToBase64(this._selectedFile);
+      const onProgress = (stage, progress, message) => {
+        this._updateProgressUI(stage, progress, message);
+        progressBar.update('pdf-upload', this.uploadProgress?.progress ?? progress, message);
+      };
 
-      // Upload with progress callback
+      // Convert file to base64. FileReader gives us real client-side progress,
+      // which is the part users currently experience as a mysterious 0% pause.
+      const fileData = await this._fileToBase64(this._selectedFile, (readProgress) => {
+        onProgress(
+          'reading',
+          1 + (readProgress * 0.14),
+          game.i18n.format('LOREMASTER.ContentManager.UploadReading', {
+            name: displayName,
+            percent: Math.round(readProgress * 100)
+          })
+        );
+      });
+
+      // Upload with progress callback. socket-client adds a WebSocket buffered
+      // amount heartbeat while the large frame drains to the proxy, then the
+      // proxy's own progress events take over for parsing/compression/storage.
       const result = await this.socketClient.uploadPDF(
         this._selectedFile.name,
         category,
         displayName,
         fileData,
-        (stage, progress, message) => {
-          this.uploadProgress = { stage, progress, message };
-          this._updateProgressUI(stage, progress, message);
-        }
+        onProgress,
+        { originalSize: this._selectedFile.size }
       );
 
+      progressBar.complete('pdf-upload', game.i18n.format('LOREMASTER.ContentManager.UploadComplete', { name: result.pdf?.displayName || result.displayName || displayName }));
       ui.notifications.info(game.i18n.format('LOREMASTER.ContentManager.UploadSuccess', {
         name: result.pdf?.displayName || result.displayName || displayName
       }));
@@ -612,6 +632,7 @@ export class ContentManager extends Application {
 
     } catch (error) {
       console.error(`${MODULE_ID} | Upload failed:`, error);
+      progressBar.error('pdf-upload', game.i18n.localize('LOREMASTER.ContentManager.UploadFailed'));
       ui.notifications.error(game.i18n.format('LOREMASTER.ContentManager.UploadError', {
         error: error.message
       }));
@@ -866,13 +887,20 @@ export class ContentManager extends Application {
    * Convert a File to base64 string.
    *
    * @param {File} file - The file to convert.
+   * @param {Function} onProgress - Optional callback receiving a 0-1 read ratio.
    * @returns {Promise<string>} Base64-encoded file data.
    * @private
    */
-  _fileToBase64(file) {
+  _fileToBase64(file, onProgress = null) {
     return new Promise((resolve, reject) => {
       const reader = new FileReader();
+      reader.onprogress = (event) => {
+        if (onProgress && event.lengthComputable && event.total > 0) {
+          onProgress(event.loaded / event.total);
+        }
+      };
       reader.onload = () => {
+        if (onProgress) onProgress(1);
         // Remove data URL prefix
         const base64 = reader.result.split(',')[1];
         resolve(base64);
@@ -918,10 +946,15 @@ export class ContentManager extends Application {
    * @private
    */
   _updateProgressUI(stage, progress, message) {
+    const previous = this.uploadProgress?.progress || 0;
+    const displayProgress = Math.round(monotonicPercent(previous, progress));
     const html = $(this.element);
-    html.find('.progress-bar-fill').css('width', `${progress}%`);
+    html.find('.progress-bar-fill').css('width', `${displayProgress}%`);
     html.find('.progress-message').text(message);
-    html.find('.progress-percent').text(`${progress}%`);
+    html.find('.progress-percent').text(`${displayProgress}%`);
+    if (this.uploadProgress) {
+      this.uploadProgress = { stage, progress: displayProgress, message };
+    }
   }
 
   /**
@@ -931,6 +964,7 @@ export class ContentManager extends Application {
    */
   _resetUploadForm() {
     this._selectedFile = null;
+    this.uploadProgress = null;
     const html = $(this.element);
     html.find('.file-input').val('');
     html.find('.display-name-input').val('');
