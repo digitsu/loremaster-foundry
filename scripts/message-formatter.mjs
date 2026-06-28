@@ -62,6 +62,37 @@ export function stripAudioTagsFromMessage(element) {
 const MODULE_ID = 'loremaster';
 
 /**
+ * Normalize an HTML fragment into well-formed, balanced markup.
+ *
+ * Our markdown converter (and any HTML Claude echoes back from conversation
+ * history) can emit malformed fragments — stray `</p>` with no opening tag,
+ * an unclosed trailing `<p>`, block elements such as `<ul>`/`<li>` illegally
+ * nested inside `<p>`, etc. Foundry V13's chat-render pipeline (and the dnd5e
+ * system's `_displayChatActionButtons`) throws `html.querySelector is not a
+ * function` on such content, aborting the render so the message displays only
+ * partially ("half the message"). Round-tripping the fragment through a detached
+ * DOM element forces the browser's HTML parser to produce a valid, balanced
+ * tree, which we then re-serialize. Idempotent on already-valid HTML.
+ *
+ * @param {string} html - Possibly-malformed HTML fragment.
+ * @returns {string} Well-formed, balanced HTML (unchanged if no DOM available).
+ */
+function ensureBalancedHtml(html) {
+  if (typeof html !== 'string' || !html) return html;
+  // `document` is always present in the Foundry browser runtime; guard anyway so
+  // the function degrades gracefully in non-DOM contexts (e.g. unit tests).
+  if (typeof document === 'undefined') return html;
+  try {
+    const container = document.createElement('div');
+    container.innerHTML = html;
+    return container.innerHTML;
+  } catch (err) {
+    console.warn('loremaster | ensureBalancedHtml failed, returning raw HTML:', err);
+    return html;
+  }
+}
+
+/**
  * Format an AI response for display in Foundry chat.
  * Detects if response is already HTML-formatted and skips processing if so.
  * Handles arrays and objects by rendering them as structured HTML.
@@ -163,9 +194,9 @@ export function formatResponse(text) {
   const trimmed = text.trim();
   if (trimmed.startsWith('<div class="loremaster-response">') ||
       trimmed.startsWith('<div class=\'loremaster-response\'>')) {
-    // Already formatted - return as-is
+    // Already formatted - return as-is (balanced so a malformed echo can't break render)
     console.log('loremaster | Response already HTML-formatted, skipping formatResponse');
-    return trimmed;
+    return ensureBalancedHtml(trimmed);
   }
 
   // Also check for partial HTML formatting (has HTML tags but no wrapper)
@@ -174,7 +205,7 @@ export function formatResponse(text) {
       trimmed.startsWith('<p class="loremaster-paragraph">')) {
     // Has our formatting classes - just wrap it
     console.log('loremaster | Response has HTML formatting, wrapping only');
-    return `<div class="loremaster-response">${trimmed}</div>`;
+    return ensureBalancedHtml(`<div class="loremaster-response">${trimmed}</div>`);
   }
 
   let formatted = text;
@@ -188,7 +219,10 @@ export function formatResponse(text) {
   // Wrap in container div for styling
   formatted = `<div class="loremaster-response">${formatted}</div>`;
 
-  return formatted;
+  // Balance the markup before it becomes ChatMessage.content. convertMarkdown's
+  // regex-based block handling can emit malformed HTML (stray/unclosed <p>,
+  // <ul>/<li> nested in <p>) that breaks Foundry V13's chat render pipeline.
+  return ensureBalancedHtml(formatted);
 }
 
 /**

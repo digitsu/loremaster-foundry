@@ -132,6 +132,49 @@ function escapeHtml(text) {
 }
 
 /**
+ * Convert a possibly-HTML chat submission into plain text.
+ *
+ * Foundry V13's rich-text (ProseMirror) chat input can deliver the typed
+ * message to the `chatMessage` hook wrapped in HTML (e.g. `<p>@lm look around</p>`).
+ * That breaks prefix detection — `"<p>@lm ...".startsWith("@lm")` is false — so
+ * a prefixed message is silently treated as ordinary chat and Loremaster ignores
+ * it. It also leaks tags such as `</p>` into the prompt we send to Claude and
+ * into the player message we re-render. Normalizing to plain text up front fixes
+ * all three. Block-level close tags and `<br>` become newlines so multi-paragraph
+ * input keeps its line breaks; remaining tags are stripped and entities decoded.
+ *
+ * @param {string} raw - The raw message string from the `chatMessage` hook.
+ * @returns {string} Plain-text equivalent (input returned unchanged if not a string).
+ */
+function htmlToPlainText(raw) {
+  if (typeof raw !== 'string') return raw;
+  // Fast path: nothing to decode or strip.
+  if (!raw.includes('<') && !raw.includes('&')) return raw;
+
+  // Preserve line structure before stripping tags.
+  let working = raw
+    .replace(/<\s*br\s*\/?>/gi, '\n')
+    .replace(/<\/\s*(p|div|h[1-6]|li|blockquote|ul|ol)\s*>/gi, '\n');
+
+  if (typeof document !== 'undefined') {
+    const tmp = document.createElement('div');
+    tmp.innerHTML = working;
+    working = tmp.textContent || '';
+  } else {
+    // Non-DOM fallback (tests): strip tags, decode the few entities we emit.
+    working = working
+      .replace(/<[^>]*>/g, '')
+      .replace(/&amp;/g, '&')
+      .replace(/&lt;/g, '<')
+      .replace(/&gt;/g, '>')
+      .replace(/&quot;/g, '"')
+      .replace(/&#0?39;/g, "'");
+  }
+
+  return working.replace(/\n{2,}/g, '\n').trim();
+}
+
+/**
  * Extended wait phrases shown when response takes longer than expected.
  * Indicates to users that the system is still working.
  */
@@ -247,6 +290,11 @@ export class ChatHandler {
    * @private
    */
   _onChatMessage(chatLog, message, chatData) {
+    // Foundry V13's rich-text chat input can hand us HTML-wrapped content
+    // (e.g. "<p>@lm ...</p>"), which breaks prefix matching and pollutes the
+    // prompt/display. Normalize to plain text before any detection or routing.
+    message = htmlToPlainText(message);
+
     const triggerPrefix = getSetting('triggerPrefix');
     const privateTriggerPrefix = triggerPrefix + '!'; // e.g., @lm! for private
     const commandPrefix = '/lm '; // Slash command prefix
