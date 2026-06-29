@@ -16,7 +16,7 @@
  * so the browser fetches audio from the correct host.
  */
 
-import { getSetting } from './config.mjs';
+import { getSetting, getProxyUrl } from './config.mjs';
 
 const MODULE_ID = 'loremaster';
 
@@ -97,7 +97,7 @@ export class VoiceOutput {
   _resolveAudioUrl(audioUrl) {
     if (!audioUrl.startsWith('/')) return audioUrl;
 
-    const proxyUrl = getSetting('proxyUrl') || '';
+    const proxyUrl = getProxyUrl() || '';
     const httpProxyUrl = proxyUrl
       .replace(/^wss:\/\//, 'https://')
       .replace(/^ws:\/\//, 'http://')

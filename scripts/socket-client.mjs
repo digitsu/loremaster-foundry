@@ -15,7 +15,8 @@ import {
   getPatreonUser,
   setPatreonUser,
   clearPatreonUser,
-  getHostedProxyUrl
+  getHostedProxyUrl,
+  getProxyUrl
 } from './config.mjs';
 import { estimateBufferedTransferProgress, formatUploadSpeed } from './upload-progress-utils.mjs';
 
@@ -93,7 +94,9 @@ export class SocketClient {
    * @returns {Promise<boolean>} True if connection successful.
    */
   async connect() {
-    const proxyUrl = getSetting('proxyUrl');
+    // Mode-aware: hosted mode always resolves to the hosted URL, ignoring any
+    // stale self-hosted override still persisted in the proxyUrl setting.
+    const proxyUrl = getProxyUrl();
 
     if (!proxyUrl) {
       throw new Error('Proxy URL not configured. Please set the proxy URL in module settings.');

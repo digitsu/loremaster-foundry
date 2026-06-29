@@ -70,12 +70,12 @@ export function registerSettings() {
     default: 'hosted',
     requiresReload: true,
     onChange: (value) => {
-      // Auto-set proxy URL when switching to hosted mode, but only if
-      // it's still at a self-hosted-looking URL (don't clobber overrides)
+      // Hosted (Patreon) mode is locked to the official hosted service. Reset
+      // the proxy URL whenever we switch into hosted mode so any self-hosted
+      // override (e.g. a dev/LAN proxy) is cleared — otherwise the stale URL
+      // lingers and users have no idea what the correct hosted URL is.
       if (value === 'hosted') {
-        const current = game.settings.get(MODULE_ID, 'proxyUrl');
-        const looksLocal = !current || current.includes('localhost') || current.includes('127.0.0.1');
-        if (looksLocal) {
+        if (game.settings.get(MODULE_ID, 'proxyUrl') !== HOSTED_PROXY_URL) {
           game.settings.set(MODULE_ID, 'proxyUrl', HOSTED_PROXY_URL);
         }
       }
@@ -85,7 +85,7 @@ export function registerSettings() {
   // Proxy server URL (visible in both modes — override for dev/testing)
   game.settings.register(MODULE_ID, 'proxyUrl', {
     name: 'Proxy Server URL',
-    hint: 'URL of the Loremaster proxy server. Defaults to the hosted service in hosted mode. Override to point at a dev or custom proxy.',
+    hint: 'URL of the Loremaster proxy server. Locked to the hosted service in Hosted (Patreon) mode; set your own proxy URL in Self-Hosted mode.',
     scope: 'world',
     config: true,
     type: String,
@@ -479,6 +479,10 @@ export function getHostedProxyUrl() {
  * @returns {string} The proxy URL to use.
  */
 export function getProxyUrl() {
+  // Hosted (Patreon) mode is locked to the official hosted service. Ignore any
+  // self-hosted override that may still be persisted from a prior mode switch
+  // so every connection (socket, auth, voice audio) reaches the right endpoint.
+  if (getSetting('serverMode') === 'hosted') return HOSTED_PROXY_URL;
   return getSetting('proxyUrl') || HOSTED_PROXY_URL;
 }
 
@@ -637,6 +641,10 @@ function _applyModeLayout(root, loremasterSection, isHosted) {
     }
   }
 
+  // Lock (grey out) the proxy URL field in hosted mode, leave it editable
+  // in self-hosted mode.
+  _applyProxyUrlLock(root, isHosted);
+
   // Insert section headers
   _insertSectionHeaders(root, isHosted);
 
@@ -712,6 +720,46 @@ function _hideFormGroup(root, settingKey) {
   const formGroup = input.closest('.form-group');
   if (formGroup) {
     formGroup.style.display = 'none';
+  }
+}
+
+/**
+ * Lock or unlock the proxy URL field based on server mode.
+ *
+ * In Hosted (Patreon) mode the URL is fixed to the hosted service, so the field
+ * is reset to the hosted default and disabled (greyed out) — this prevents
+ * confusion about which URL to use. In Self-Hosted mode it is re-enabled and
+ * restored to the user's stored value. Also self-heals the stored setting when
+ * a stale self-hosted URL is still persisted under hosted mode (idempotent: the
+ * `!==` guard guarantees it converges and never loops on re-render).
+ *
+ * @param {HTMLElement} root - The settings dialog root element.
+ * @param {boolean} isHosted - Whether hosted mode is selected.
+ */
+function _applyProxyUrlLock(root, isHosted) {
+  const input = root.querySelector(`[name="${MODULE_ID}.proxyUrl"]`);
+  if (!input) return;
+
+  if (isHosted) {
+    // Reset the displayed value and lock the field.
+    input.value = HOSTED_PROXY_URL;
+    input.disabled = true;
+    input.classList.add('loremaster-locked-field');
+    input.title = 'Locked to the Loremaster hosted service in Hosted (Patreon) mode.';
+
+    // Self-heal a stale stored override, but only when hosted mode is actually
+    // persisted — not on a tentative (unsaved) dropdown change, where the
+    // serverMode onChange will reset proxyUrl on save instead.
+    if (game.settings.get(MODULE_ID, 'serverMode') === 'hosted'
+        && game.settings.get(MODULE_ID, 'proxyUrl') !== HOSTED_PROXY_URL) {
+      game.settings.set(MODULE_ID, 'proxyUrl', HOSTED_PROXY_URL);
+    }
+  } else {
+    // Re-enable and restore the user's configured URL for editing.
+    input.disabled = false;
+    input.classList.remove('loremaster-locked-field');
+    input.title = '';
+    input.value = game.settings.get(MODULE_ID, 'proxyUrl') || '';
   }
 }
 
@@ -1430,6 +1478,12 @@ function _injectSettingsStyles(section) {
     /* ============================
        Loremaster Settings Sections
        ============================ */
+
+    /* Proxy URL field when locked to the hosted service (Hosted mode) */
+    .loremaster-locked-field {
+      opacity: 0.6;
+      cursor: not-allowed;
+    }
 
     .loremaster-settings-section {
       display: flex;
