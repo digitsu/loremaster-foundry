@@ -360,6 +360,7 @@ async function initializeLoremaster() {
       syncWorldData: () => dataExtractor.showSyncDialog(),
       listSyncedFiles: () => dataExtractor.listSyncedFiles(),
       openContentManager: () => contentManager.render(true),
+      recoverGMPrepJournals: () => contentManager.recoverOrphanedGMPrepJournals(),
       openSharedContentAdmin: () => sharedContentAdmin.render(true),
       openConversationManager: () => conversationManager.render(true),
       openHouseRulesJournal: () => houseRulesJournal.open(),

@@ -171,6 +171,7 @@
       "InvalidFileType": "Please select a PDF file",
       "FileTooLarge": "File is too large (max {max})",
       "GenerateEmbeddings": "Generate semantic embeddings for existing content",
+      "RecoverGMPrep": "Recover GM Prep journals — rebuild any missing journal entries from scripts saved on the server",
       "EmbeddingsStarting": "Generating embeddings for content. This may take a few minutes...",
       "EmbeddingsSuccess": "Generated {count} new embeddings",
       "EmbeddingsNothingToDo": "All content already has embeddings",

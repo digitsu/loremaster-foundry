@@ -1140,8 +1140,16 @@ export class SocketClient {
         reject(new Error('GM Prep generation timeout'));
       }, timeout);
 
-      // Store pending request
+      // Store pending request.
+      // - pdfId is threaded onto the pending so that, if the async completion
+      //   event is lost (e.g. Cloudflare tears down an idle WebSocket during a
+      //   long generation), timeout/reconnect recovery can poll status by pdfId.
+      // - initTimeoutId is the short bootstrap timeout above. It is cancelled
+      //   once the async ack moves this pending to its script_<id> key, after
+      //   which the idle-reset ASYNC_TIMEOUT_GM_PREP timer governs the lifecycle.
       this.pendingRequests.set(requestId, {
+        pdfId,
+        initTimeoutId: timeoutId,
         resolve: (data) => {
           clearTimeout(timeoutId);
           this.pendingRequests.delete(requestId);
@@ -1223,6 +1231,20 @@ export class SocketClient {
     }
 
     return this._sendRequest('update-gm-prep-journal', { scriptId, journalUuid });
+  }
+
+  /**
+   * List all GM Prep scripts for the current world.
+   * Used by journal recovery to find completed scripts that are missing a
+   * corresponding Foundry journal.
+   *
+   * @returns {Promise<object>} Object with `scripts` array
+   *   ([{ id, pdfId, adventureName, generationStatus, createdAt }]).
+   */
+  async listGMPrep() {
+    this._requireAuth();
+
+    return this._sendRequest('list-gm-prep', {});
   }
 
   // ===== Active Adventure Methods =====
@@ -2650,8 +2672,19 @@ export class SocketClient {
             });
           } else {
             // Check if this is an async acknowledgment (status: "processing" or "generating")
-            // For async operations, DON'T resolve yet - wait for the actual result event
-            if (response?.status === 'processing' || response?.status === 'generating') {
+            // For async operations, DON'T resolve yet - wait for the actual result event.
+            //
+            // A genuine async ack ALWAYS carries a correlation id (batchId /
+            // originalBatchId for chat & veto, scriptId for GM Prep, or a
+            // clientRequestId for private chat). A "generating"/"processing"
+            // status WITHOUT any correlation id is a normal final reply — e.g.
+            // get-gm-prep-status reporting an in-flight script — and must be
+            // resolved, not held. Guarding on the correlation id keeps such
+            // status polls from hanging until their request timeout.
+            const asyncCorrelationId =
+              response?.batchId || response?.originalBatchId ||
+              response?.scriptId || response?.clientRequestId;
+            if ((response?.status === 'processing' || response?.status === 'generating') && asyncCorrelationId) {
               // Store correlation ID for async result matching
               // Chat uses batchId, Veto uses originalBatchId, GM Prep uses scriptId
               const batchId = response.batchId || response.originalBatchId;
@@ -2689,19 +2722,29 @@ export class SocketClient {
                 }, ASYNC_TIMEOUT_CHAT);
                 console.log(`${MODULE_ID} | Async chat request acknowledged, waiting for result (clientRequestId: ${clientRequestId})`);
               } else if (scriptId) {
-                // GM Prep async - store with scriptId for correlation
+                // GM Prep async - store with scriptId for correlation.
+                // pdfId was threaded on in generateGMPrep() and is retained on
+                // the pending for status-poll recovery.
                 pending.scriptId = scriptId;
                 pending.adventureName = response.adventureName;
                 // Move to scriptId key for later resolution by gm-prep-complete
                 this.pendingRequests.delete(ref);
                 this.pendingRequests.set(`script_${scriptId}`, pending);
-                // Attach timeout — GM Prep generation is long-running (issue #6)
+                // The short bootstrap timeout from generateGMPrep has served its
+                // purpose (the ack arrived); cancel it so only the idle-reset
+                // timer below governs this long-running generation.
+                if (pending.initTimeoutId) {
+                  clearTimeout(pending.initTimeoutId);
+                  pending.initTimeoutId = null;
+                }
+                // Arm an idle-reset timeout. Progress events re-arm it (see
+                // _handleGMPrepProgress), so ASYNC_TIMEOUT_GM_PREP now means "no
+                // progress for that long", not a flat wall-clock cap. On expiry
+                // we reconcile against server state rather than rejecting
+                // outright — the completion event may have been lost to a
+                // dropped WebSocket (Cloudflare idle timeout).
                 pending.timeoutId = setTimeout(() => {
-                  if (this.pendingRequests.has(`script_${scriptId}`)) {
-                    console.warn(`${MODULE_ID} | GM Prep request timed out (scriptId: ${scriptId})`);
-                    this.pendingRequests.delete(`script_${scriptId}`);
-                    pending.reject(new Error('GM Prep generation timed out — no response from server'));
-                  }
+                  this._reconcileGMPrepPending(scriptId);
                 }, ASYNC_TIMEOUT_GM_PREP);
                 console.log(`${MODULE_ID} | GM Prep request acknowledged, waiting for completion (scriptId: ${scriptId})`);
               }
@@ -3109,6 +3152,115 @@ export class SocketClient {
         break; // Only call the most recent one
       }
     }
+
+    // Idle-reset: any progress proves the generation is still alive, so re-arm
+    // the idle timeout for every in-flight GM Prep pending. This makes
+    // ASYNC_TIMEOUT_GM_PREP mean "no progress for that long" rather than a flat
+    // total cap, so a slow-but-progressing generation never trips the timer.
+    // (Progress messages carry no scriptId, so re-arm all script_ pendings; in
+    // practice there is at most one active generation.)
+    for (const key of this.pendingRequests.keys()) {
+      if (key.startsWith('script_')) {
+        this._rearmGMPrepTimeout(key.slice('script_'.length));
+      }
+    }
+  }
+
+  /**
+   * Re-arm the idle timeout for an in-flight GM Prep generation.
+   * Clears any existing timer and starts a fresh ASYNC_TIMEOUT_GM_PREP window
+   * whose expiry triggers status-poll reconciliation rather than a hard reject.
+   *
+   * @param {string} scriptId - The server-side GM Prep script ID.
+   * @private
+   */
+  _rearmGMPrepTimeout(scriptId) {
+    const pending = this.pendingRequests.get(`script_${scriptId}`);
+    if (!pending) return;
+    if (pending.timeoutId) clearTimeout(pending.timeoutId);
+    pending.timeoutId = setTimeout(() => {
+      this._reconcileGMPrepPending(scriptId);
+    }, ASYNC_TIMEOUT_GM_PREP);
+  }
+
+  /**
+   * Reconcile an in-flight GM Prep pending against authoritative server state.
+   *
+   * Invoked when the idle timeout expires or after a reconnect, to recover from
+   * a lost `gm-prep-complete` event (e.g. Cloudflare tearing down an idle
+   * WebSocket during a multi-minute generation). Polls the script's status by
+   * pdfId and resolves, rejects, or keeps waiting accordingly. Guards against
+   * double-resolution throughout: if the pending is already gone (the happy-path
+   * handler won the race), it returns without acting.
+   *
+   * @param {string} scriptId - The server-side GM Prep script ID.
+   * @returns {Promise<void>}
+   * @private
+   */
+  async _reconcileGMPrepPending(scriptId) {
+    const pendingKey = `script_${scriptId}`;
+    const pending = this.pendingRequests.get(pendingKey);
+    if (!pending) return; // Already settled elsewhere — never double-resolve.
+
+    // Without a pdfId we cannot poll; fall back to the original timeout reject.
+    if (!pending.pdfId) {
+      if (pending.timeoutId) clearTimeout(pending.timeoutId);
+      this.pendingRequests.delete(pendingKey);
+      pending.reject(new Error('GM Prep generation timed out — no response from server'));
+      return;
+    }
+
+    const recoveryHint =
+      'GM Prep generation timed out. The script may have completed on the server — ' +
+      'open Content Manager and click "Recover GM Prep journals" to rebuild the journal.';
+
+    try {
+      const st = await this.getGMPrepStatus(pending.pdfId);
+      // The happy-path gm-prep-complete handler may have settled while we awaited.
+      if (!this.pendingRequests.has(pendingKey)) return;
+      const status = st?.status;
+
+      if (status === 'complete') {
+        const full = await this.getGMPrep({ pdfId: pending.pdfId });
+        if (!this.pendingRequests.has(pendingKey)) return;
+        if (pending.timeoutId) clearTimeout(pending.timeoutId);
+        this.pendingRequests.delete(pendingKey);
+        console.log(`${MODULE_ID} | GM Prep recovered via status poll (scriptId: ${scriptId})`);
+        pending.resolve({
+          success: true,
+          scriptId: pending.scriptId ?? scriptId,
+          scriptContent: full.scriptContent,
+          adventureName: full.adventureName || pending.adventureName,
+          recovered: true
+        });
+        return;
+      }
+
+      if (status === 'failed') {
+        if (pending.timeoutId) clearTimeout(pending.timeoutId);
+        this.pendingRequests.delete(pendingKey);
+        pending.reject(new Error(st.errorMessage || 'GM Prep generation failed'));
+        return;
+      }
+
+      if (status === 'generating') {
+        // Still running — keep waiting for another idle window.
+        this._rearmGMPrepTimeout(scriptId);
+        return;
+      }
+
+      // Unknown / unexpected status: bail with actionable recovery guidance.
+      if (pending.timeoutId) clearTimeout(pending.timeoutId);
+      this.pendingRequests.delete(pendingKey);
+      pending.reject(new Error(recoveryHint));
+    } catch (error) {
+      // A polling failure (e.g. still-disconnected socket) must not double-settle.
+      if (!this.pendingRequests.has(pendingKey)) return;
+      if (pending.timeoutId) clearTimeout(pending.timeoutId);
+      this.pendingRequests.delete(pendingKey);
+      console.warn(`${MODULE_ID} | GM Prep reconciliation failed (scriptId: ${scriptId}):`, error);
+      pending.reject(new Error(recoveryHint));
+    }
   }
 
   /**
@@ -3307,12 +3459,17 @@ export class SocketClient {
    * @private
    */
   _handleDisconnect() {
-    // Reject all pending requests and clear their timeouts
-    for (const [, pending] of this.pendingRequests) {
+    // Reject all pending requests EXCEPT long-running GM Prep generations.
+    // A dropped socket (often a Cloudflare idle-timeout tear-down mid-generation)
+    // must not kill a GM Prep the server is still finishing: those pendings are
+    // kept alive so reconnect reconciliation can recover the saved script once
+    // the socket returns. Their idle timers keep running as a backstop.
+    for (const [key, pending] of this.pendingRequests) {
+      if (key.startsWith('script_')) continue;
       if (pending.timeoutId) clearTimeout(pending.timeoutId);
       pending.reject(new Error('Connection lost'));
+      this.pendingRequests.delete(key);
     }
-    this.pendingRequests.clear();
 
     // Attempt reconnect with exponential backoff
     if (this.reconnectAttempts < this.maxReconnectAttempts) {
@@ -3328,6 +3485,16 @@ export class SocketClient {
           await this.authenticate();
           ui.notifications.info('Loremaster reconnected to server');
           this.onReconnected?.();
+          // Self-heal any GM Prep generation whose completion event was lost
+          // while the socket was down. Chained after (not replacing) the public
+          // onReconnected callback. Snapshot the keys first — reconciliation
+          // mutates pendingRequests. Fire-and-forget; each call guards against
+          // double-settle.
+          const gmPrepScriptKeys = [...this.pendingRequests.keys()]
+            .filter((key) => key.startsWith('script_'));
+          for (const key of gmPrepScriptKeys) {
+            this._reconcileGMPrepPending(key.slice('script_'.length));
+          }
         } catch (error) {
           console.error(`${MODULE_ID} | Reconnect failed:`, error);
           if (error.message === 'PATREON_AUTH_REQUIRED') {

@@ -257,6 +257,9 @@ export class ContentManager extends Application {
     // Generate Embeddings button
     html.find('.generate-embeddings-btn').on('click', this._onGenerateEmbeddings.bind(this));
 
+    // Recover GM Prep journals button
+    html.find('.recover-gm-prep-btn').on('click', this._onRecoverGMPrep.bind(this));
+
     // ===== Active Adventure Tab =====
     // Adventure selector
     html.find('.adventure-select').on('change', this._onAdventureSelect.bind(this));
@@ -1175,10 +1178,14 @@ export class ContentManager extends Application {
    * @param {string} adventureName - The name of the adventure.
    * @param {string} scriptContent - The markdown script content.
    * @param {number} scriptId - The server-side script ID.
+   * @param {object} [options] - Behaviour options.
+   * @param {boolean} [options.openSheet=true] - Whether to render the journal
+   *   sheet after creation. Set false during bulk recovery to avoid opening
+   *   many windows at once.
    * @returns {Promise<JournalEntry>} The created/updated journal entry.
    * @private
    */
-  async _createGMPrepJournal(adventureName, scriptContent, scriptId) {
+  async _createGMPrepJournal(adventureName, scriptContent, scriptId, { openSheet = true } = {}) {
     const journalName = `Loremaster: ${adventureName} - GM Script`;
 
     // Check for existing journal
@@ -1225,10 +1232,114 @@ export class ContentManager extends Application {
       console.warn(`${MODULE_ID} | Failed to update journal UUID on server:`, error);
     }
 
-    // Open the journal for the GM
-    journal.sheet.render(true);
+    // Open the journal for the GM (skipped during bulk recovery to avoid
+    // popping open one sheet per recovered script)
+    if (openSheet) {
+      journal.sheet.render(true);
+    }
 
     return journal;
+  }
+
+  /**
+   * Re-scan all GM Prep scripts on the server and rebuild any Foundry journals
+   * that are missing.
+   *
+   * Recovery path for scripts that generated successfully server-side but whose
+   * `gm-prep-complete` event never reached this client (e.g. a Cloudflare idle
+   * timeout tore down the WebSocket mid-generation), so the journal was never
+   * created. Lists every script, skips ones that are not `complete` or that
+   * already have a journal (matched by the `loremaster.scriptId` flag), and
+   * rebuilds the rest without opening a sheet for each.
+   *
+   * Exposed via the Content Manager "Recover GM Prep journals" button and
+   * `game.loremaster.recoverGMPrepJournals()`.
+   *
+   * @returns {Promise<{recovered: number, skipped: number, failed: number}>}
+   */
+  async recoverOrphanedGMPrepJournals() {
+    let recovered = 0;
+    let skipped = 0;
+    let failed = 0;
+
+    let scripts;
+    try {
+      const result = await this.socketClient.listGMPrep();
+      scripts = result?.scripts ?? [];
+    } catch (error) {
+      console.error(`${MODULE_ID} | Failed to list GM Prep scripts:`, error);
+      ui.notifications.error('Could not list GM Prep scripts — check your connection.');
+      return { recovered, skipped, failed };
+    }
+
+    for (const script of scripts) {
+      if (script.generationStatus !== 'complete') {
+        skipped++;
+        continue;
+      }
+
+      // Skip if a journal already exists for this script.
+      const existing = game.journal.find(
+        (j) => (j.getFlag?.('loremaster', 'scriptId') ?? j.flags?.loremaster?.scriptId) === script.id
+      );
+      if (existing) {
+        skipped++;
+        continue;
+      }
+
+      try {
+        const full = await this.socketClient.getGMPrep({ pdfId: script.pdfId });
+        if (full?.generationStatus === 'complete' && full.scriptContent) {
+          await this._createGMPrepJournal(
+            full.adventureName,
+            full.scriptContent,
+            full.id,
+            { openSheet: false }
+          );
+          console.log(`${MODULE_ID} | Recovered GM Prep journal: ${full.adventureName}`);
+          recovered++;
+        } else {
+          skipped++;
+        }
+      } catch (error) {
+        console.warn(`${MODULE_ID} | Failed to recover GM Prep script ${script.id}:`, error);
+        failed++;
+      }
+    }
+
+    const summary = `GM Prep recovery: ${recovered} recreated, ${skipped} skipped` +
+      (failed ? `, ${failed} failed` : '') + '.';
+    ui.notifications.info(summary);
+    console.log(`${MODULE_ID} | ${summary}`);
+
+    return { recovered, skipped, failed };
+  }
+
+  /**
+   * Click handler for the "Recover GM Prep journals" toolbar button. Disables
+   * the button with a spinner while the sweep runs, then restores it.
+   *
+   * @param {Event} event - The click event.
+   * @returns {Promise<void>}
+   * @private
+   */
+  async _onRecoverGMPrep(event) {
+    event.preventDefault();
+
+    const html = $(this.element);
+    const btn = html.find('.recover-gm-prep-btn');
+    btn.prop('disabled', true);
+    btn.find('i').removeClass('fa-file-medical').addClass('fa-spinner fa-spin');
+
+    try {
+      await this.recoverOrphanedGMPrepJournals();
+    } catch (error) {
+      console.error(`${MODULE_ID} | GM Prep recovery failed:`, error);
+      ui.notifications.error('GM Prep recovery failed — see console for details.');
+    } finally {
+      btn.prop('disabled', false);
+      btn.find('i').removeClass('fa-spinner fa-spin').addClass('fa-file-medical');
+    }
   }
 
   /**
