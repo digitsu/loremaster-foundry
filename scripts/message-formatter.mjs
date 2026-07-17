@@ -85,10 +85,58 @@ function ensureBalancedHtml(html) {
   try {
     const container = document.createElement('div');
     container.innerHTML = html;
+    wrapOrphanListItems(container);
     return container.innerHTML;
   } catch (err) {
     console.warn('loremaster | ensureBalancedHtml failed, returning raw HTML:', err);
     return html;
+  }
+}
+
+/**
+ * Wrap any <li> whose parent is not a list container (<ul>/<ol>/<menu>) in a
+ * new <ul class="loremaster-list">, absorbing consecutive sibling <li>s (and
+ * dropping decorative <br> separators between them) into the same list.
+ *
+ * Defense-in-depth behind convertMarkdown's own wrapping: a bare <li> parses
+ * harmlessly inside this detached <div>, but when the message is later rendered
+ * inside Foundry's chat template — whose root is an <li class="chat-message"> —
+ * the HTML parser force-closes that ancestor li (div/p boundaries do not stop
+ * it), so foundry.utils.parseHTML returns an HTMLCollection and every
+ * renderChatMessageHTML hook throws. Catches bare <li> from any source,
+ * including raw HTML echoed back by the AI that bypasses markdown conversion.
+ *
+ * @param {HTMLElement} container - Detached element whose subtree is repaired in place.
+ * @returns {void}
+ */
+function wrapOrphanListItems(container) {
+  const isListContainer = (el) => el && /^(UL|OL|MENU)$/.test(el.tagName);
+  for (const li of [...container.querySelectorAll('li')]) {
+    const parent = li.parentElement;
+    if (!parent || isListContainer(parent) || li.hasAttribute('data-lm-wrapped')) continue;
+    const list = document.createElement('ul');
+    list.className = 'loremaster-list';
+    parent.insertBefore(list, li);
+    // Absorb the run: consecutive <li> siblings, dropping <br> separators and
+    // skipping whitespace-only text nodes between them.
+    let node = li;
+    while (node) {
+      const next = node.nextSibling;
+      if (node.nodeType === Node.ELEMENT_NODE && node.tagName === 'LI') {
+        node.setAttribute('data-lm-wrapped', '1');
+        list.appendChild(node);
+      } else if (node.nodeType === Node.ELEMENT_NODE && node.tagName === 'BR') {
+        node.remove();
+      } else if (node.nodeType === Node.TEXT_NODE && !node.nodeValue.trim()) {
+        // leave insignificant whitespace in place; keep scanning the run
+      } else {
+        break;
+      }
+      node = next;
+    }
+  }
+  for (const li of container.querySelectorAll('li[data-lm-wrapped]')) {
+    li.removeAttribute('data-lm-wrapped');
   }
 }
 
@@ -270,12 +318,19 @@ function convertMarkdown(text) {
   // Dice notation highlighting (e.g., 2d6, 3d8+2)
   html = html.replace(/\b(\d+d\d+(?:[+-]\d+)?)\b/g, '<span class="loremaster-dice">$1</span>');
 
-  // Unordered lists
-  html = html.replace(/^[\-\*] (.+)$/gm, '<li>$1</li>');
-  html = html.replace(/(<li>.*<\/li>\n?)+/g, '<ul class="loremaster-list">$&</ul>');
+  // List items — tag each kind with a temporary marker so consecutive runs can
+  // be wrapped independently below. Every <li> MUST end up inside a <ul>/<ol>:
+  // a bare <li> nested in Foundry's chat template (whose root is itself an
+  // <li class="chat-message">) force-closes that ancestor per the HTML parsing
+  // spec, splitting the rendered message into an HTMLCollection and crashing
+  // every renderChatMessageHTML hook ("html.querySelector is not a function").
+  html = html.replace(/^[\-\*] (.+)$/gm, '<li data-lm-ul>$1</li>');
+  html = html.replace(/^\d+\. (.+)$/gm, '<li data-lm-ol>$1</li>');
 
-  // Ordered lists
-  html = html.replace(/^\d+\. (.+)$/gm, '<li>$1</li>');
+  // Wrap consecutive runs of each list kind, then drop the markers.
+  html = html.replace(/(<li data-lm-ul>.*<\/li>\n?)+/g, '<ul class="loremaster-list">$&</ul>');
+  html = html.replace(/(<li data-lm-ol>.*<\/li>\n?)+/g, '<ol class="loremaster-list">$&</ol>');
+  html = html.replace(/<li data-lm-(?:ul|ol)>/g, '<li>');
 
   // Blockquotes (> text) - great for NPC dialogue
   html = html.replace(/^&gt; (.+)$/gm, '<blockquote class="loremaster-quote">$1</blockquote>');
